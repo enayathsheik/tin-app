@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 // ============================================================
 // FIREBASE INTEGRATION POINTS
@@ -7,14 +7,37 @@ import { useState, useEffect, useRef } from "react";
 // import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, updateDoc, doc, increment } from 'firebase/firestore';
 // import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 // ============================================================
-const FIREBASE_CONFIG = {
-  apiKey: "YOUR_API_KEY",
+// ============================================================
+// FIREBASE — LIVE CONFIG
+// ============================================================
+import { initializeApp } from "firebase/app";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
+import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, increment, query, where, orderBy, serverTimestamp, setDoc, getDoc } from "firebase/firestore";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAL2plvt3XiwLjsHRXxiqsDJnUQIOvNF3I",
   authDomain: "trade-intelligence-netwo-97997.firebaseapp.com",
   projectId: "trade-intelligence-netwo-97997",
-  storageBucket: "trade-intelligence-netwo-97997.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID",
+  storageBucket: "trade-intelligence-netwo-97997.firebasestorage.app",
+  messagingSenderId: "587892307032",
+  appId: "1:587892307032:web:9926c4fa1d3267abefc62d",
+  measurementId: "G-2DTB0TYBL7"
 };
+
+const firebaseApp = initializeApp(firebaseConfig);
+const auth = getAuth(firebaseApp);
+const db = getFirestore(firebaseApp);
+
+// Helper: save user profile to Firestore
+async function saveUserProfile(uid, data) {
+  await setDoc(doc(db, "users", uid), data, { merge: true });
+}
+
+// Helper: get user profile
+async function getUserProfile(uid) {
+  const snap = await getDoc(doc(db, "users", uid));
+  return snap.exists() ? snap.data() : null;
+}
 
 // ============================================================
 // CATEGORY TREE — 3 levels
@@ -645,7 +668,7 @@ tr:hover td{background:var(--s2);color:var(--t1)}
 // CHECKLIST FIELDS
 // ============================================================
 
-const FREE_EMAIL_DOMAINS = ["gmail.com","yahoo.com","hotmail.com","outlook.com","rediffmail.com","ymail.com","icloud.com","live.com"];
+const FREE_EMAIL_DOMAINS = [];
 const isWorkEmail = (email) => { if (!email || !email.includes("@")) return false; const domain = email.split("@")[1]?.toLowerCase(); return !FREE_EMAIL_DOMAINS.includes(domain); };
 
 const STORE_CHECKLIST = [
@@ -1170,7 +1193,7 @@ function LoginPage({ onLogin }) {
           )}
           <div className="lf"><label>Password</label><input className="fi" type="password" placeholder="••••••••" value={pass} onChange={e=>setPass(e.target.value)}/></div>
         </div>
-        <button className="btn-login" onClick={() => onLogin({ name: name || email.split("@")[0] || "User", email, workEmail: role==="contributor"?email:"", personalEmail, role, linkedin, company: role==="contributor"?email.split("@")[1]?.split(".")[0]:"", points: role==="contributor"?120:0, storesAdded: role==="contributor"?5:0, citiesCovered:2, validationStatus: role==="contributor"?(linkedin?"pending":"unvalidated"):"n/a" })}>
+       <button className="btn-login" onClick={async () => { const finalEmail = (role==="contributor"?workEmail:email); if(!finalEmail||!pass){alert("Please enter email and password");return;} try{ if(mode==="login"){const cred=await signInWithEmailAndPassword(auth,finalEmail,pass);const profile=await getUserProfile(cred.user.uid);onLogin(profile?{...profile,uid:cred.user.uid}:{name:finalEmail.split("@")[0],email:finalEmail,workEmail:finalEmail,personalEmail,role,linkedin,company:"",points:0,storesAdded:0,citiesCovered:0,validationStatus:"n/a",uid:cred.user.uid});}else{const cred=await createUserWithEmailAndPassword(auth,finalEmail,pass);const ud={name:name||finalEmail.split("@")[0],email:finalEmail,workEmail:role==="contributor"?workEmail:finalEmail,personalEmail,role,linkedin,company:role==="contributor"?workEmail.split("@")[1]?.split(".")[0]||"":"",points:0,storesAdded:0,citiesCovered:0,validationStatus:role==="contributor"?(linkedin?"pending":"unvalidated"):"n/a",createdAt:new Date().toISOString(),uid:cred.user.uid};await saveUserProfile(cred.user.uid,ud);onLogin(ud);}}catch(err){alert(err.message.replace("Firebase: ",""));} }}>
           {mode === "login" ? "Sign In →" : "Create Account →"}
         </button>
         <div className="login-sw">
@@ -1991,6 +2014,20 @@ export default function App() {
   const [page, setPage] = useState("home");
   const [stores, setStores] = useState(MOCK_STORES);
   const [contributors, setContributors] = useState(MOCK_CONTRIBUTORS);
+
+  // Load real stores from Firestore on mount
+  useEffect(() => {
+    const loadStores = async () => {
+      try {
+        const snap = await getDocs(collection(db, "stores"));
+        if (!snap.empty) {
+          const firestoreStores = snap.docs.map(d => ({ id: d.id, ...d.data(), createdAt: d.data().createdAt?.toDate?.()?.toISOString() || new Date().toISOString() }));
+          setStores([...MOCK_STORES, ...firestoreStores]);
+        }
+      } catch(e) { console.log("Using mock stores:", e.message); }
+    };
+    loadStores();
+  }, []);
   const [selectedCity, setSelectedCity] = useState(null);
   const [toast, setToast] = useState({ show: false, msg: "", type: "ok" });
   const [darkMode, setDarkMode] = useState(true);
