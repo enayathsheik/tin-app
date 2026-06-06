@@ -2710,11 +2710,13 @@ export default function App() {
       <div className="app light" style={{background:"#f4f5f7",color:"#080808",minHeight:"100vh"}}>
         <nav className="topbar">
           <div className="logo">T<em>I</em>N</div>
-          {!isRetailer && <div className="nav-tabs">
-            {TABS.map(([id, label]) => (
-              <button key={id} className={`ntab ${page === id ? "on" : ""}`} onClick={() => setPage(id)}>{label}</button>
-            ))}
-          </div>
+          {!isRetailer && (
+            <div className="nav-tabs">
+              {TABS.map(([id, label]) => (
+                <button key={id} className={`ntab ${page === id ? "on" : ""}`} onClick={() => setPage(id)}>{label}</button>
+              ))}
+            </div>
+          )}
           <div className="topbar-right">
             {selectedCity && <div style={{ fontSize: 11, color: "var(--t3)", fontWeight: 600 }}>📍 {selectedCity}</div>}
             {user.role !== "admin" && <div className="pts-badge">{user.points || 0} pts</div>}
