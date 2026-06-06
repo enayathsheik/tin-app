@@ -1247,12 +1247,378 @@ function AdminLoginPage({ onAdminLogin }) {
   );
 }
 
+
+// ============================================================
+// MOCK EXHIBITIONS DATA
+// ============================================================
+const EXHIBITIONS = [
+  { id:"e1", name:"ACETECH Mumbai 2025", date:"Jun 10", venue:"Bombay Exhibition Centre, NESCO, Goregaon", city:"Mumbai", url:"#" },
+  { id:"e2", name:"IndiaWood 2025", date:"Jun 25", venue:"Bangalore International Exhibition Centre", city:"Bengaluru", url:"#" },
+  { id:"e3", name:"Surfaces & Coatings Expo", date:"Jul 5", venue:"Pragati Maidan, New Delhi", city:"Delhi", url:"#" },
+  { id:"e4", name:"Index India 2025", date:"Jul 18", venue:"Bombay Exhibition Centre", city:"Mumbai", url:"#" },
+  { id:"e5", name:"BuildTech Expo", date:"Aug 2", venue:"Hyderabad International Convention Centre", city:"Hyderabad", url:"#" },
+];
+
+// ============================================================
+// RETAILER DASHBOARD
+// ============================================================
+function RetailerDashboard({ user, stores, onNavigate }) {
+  const [activeTab, setActiveTab] = useState("home");
+  const [storeProfile, setStoreProfile] = useState({
+    storeName: user.storeName || "",
+    address: user.address || "",
+    city: user.city || "",
+    state: user.state || "",
+    pincode: user.pincode || "",
+    phone: user.phone || "",
+    whatsapp: user.whatsapp || "",
+    instagram: user.instagram || "",
+    facebook: user.facebook || "",
+    website: user.website || "",
+    categories: user.categories || [],
+    brands: user.brands || "",
+    gst: user.gst || "",
+    verificationStatus: user.verificationStatus || "pending",
+  });
+  const [locations, setLocations] = useState(user.locations || []);
+  const [showAddLocation, setShowAddLocation] = useState(false);
+  const [newLocation, setNewLocation] = useState({ name:"", address:"", city:"", phone:"", whatsapp:"" });
+  const [events, setEvents] = useState(user.customEvents || []);
+  const [showAddEvent, setShowAddEvent] = useState(false);
+  const [newEvent, setNewEvent] = useState({ name:"", date:"", venue:"", city:"" });
+  const [editing, setEditing] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [analytics, setAnalytics] = useState({ instagram: user.igFollowers||0, facebook: user.fbFollowers||0, google: user.googleRating||0, profileViews: 1248 });
+
+  // Count products from categories
+  const totalCategories = (storeProfile.categories||[]).length;
+  const totalSubCats = (storeProfile.categories||[]).reduce((s,c) => s + (c.subCategory?1:0), 0);
+  const totalProducts = (storeProfile.categories||[]).reduce((s,c) => s + (c.productType ? c.productType.split(",").length : 0), 0);
+
+  const handleShare = () => {
+    const text = `${storeProfile.storeName}\n${storeProfile.address}, ${storeProfile.city}\nPhone: ${storeProfile.phone}${storeProfile.whatsapp ? "\nWhatsApp: " + storeProfile.whatsapp : ""}${storeProfile.website ? "\nWeb: " + storeProfile.website : ""}`;
+    navigator.clipboard?.writeText(text);
+    alert("Store contact copied to clipboard!");
+  };
+
+  const saveProfile = async () => {
+    try {
+      if (user.uid) {
+        await updateDoc(doc(db, "users", user.uid), { ...storeProfile, locations, customEvents: events });
+      }
+      setSaved(true);
+      setEditing(false);
+      setTimeout(() => setSaved(false), 3000);
+    } catch(e) { console.log("Save error:", e); setEditing(false); }
+  };
+
+  const addLocation = () => {
+    if (!newLocation.name) return;
+    setLocations(l => [...l, { ...newLocation, id: Date.now().toString() }]);
+    setNewLocation({ name:"", address:"", city:"", phone:"", whatsapp:"" });
+    setShowAddLocation(false);
+  };
+
+  const addEvent = () => {
+    if (!newEvent.name) return;
+    setEvents(e => [...e, { ...newEvent, id: Date.now().toString(), custom: true }]);
+    setNewEvent({ name:"", date:"", venue:"", city:"" });
+    setShowAddEvent(false);
+  };
+
+  return (
+    <div style={{display:"flex",height:"100%",overflow:"hidden"}}>
+      {/* SIDEBAR NAV */}
+      <div style={{width:200,flexShrink:0,background:"#fff",borderRight:"1px solid #e0e0e0",padding:"16px 12px",display:"flex",flexDirection:"column",gap:2,overflowY:"auto"}}>
+        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:13,letterSpacing:".12em",color:"#e85a2a",padding:"4px 10px",marginBottom:8}}>BUSINESS PORTAL</div>
+        {[["home","🏠","My Business"],["discover","🔍","Discover"],["staff","👥","Staff"],["deals","🏷","Deals"],["profile","👤","Profile"]].map(([id,icon,label]) => (
+          <div key={id}
+            onClick={() => setActiveTab(id)}
+            style={{padding:"9px 12px",borderRadius:8,fontSize:13,fontWeight:600,color:activeTab===id?"#e85a2a":"#080808",background:activeTab===id?"#fff3ef":"transparent",cursor:"pointer",display:"flex",alignItems:"center",gap:8,transition:"all .15s"}}>
+            <span style={{fontSize:15}}>{icon}</span>{label}
+            {id==="deals"&&<span style={{fontSize:9,background:"#e85a2a",color:"white",padding:"1px 5px",borderRadius:10,fontWeight:700,marginLeft:"auto"}}>NEW</span>}
+          </div>
+        ))}
+        <div style={{marginTop:"auto",padding:"12px 10px",background:"#fff8f5",borderRadius:8,border:"1px solid #fde0d0"}}>
+          <div style={{fontSize:11,fontWeight:700,color:"#e85a2a",marginBottom:4}}>Profile Completeness</div>
+          <div style={{fontSize:22,fontWeight:800,color:"#080808",fontFamily:"'Barlow Condensed',sans-serif"}}>
+            {Math.min(100, 20 + (storeProfile.phone?10:0) + (storeProfile.address?10:0) + (storeProfile.website?10:0) + (storeProfile.instagram?10:0) + (storeProfile.categories?.length>0?10:0) + (storeProfile.brands?10:0) + (storeProfile.gst?10:0) + (storeProfile.whatsapp?10:0))}%
+          </div>
+          <div style={{height:4,background:"#f0f0f0",borderRadius:2,marginTop:4,overflow:"hidden"}}>
+            <div style={{height:"100%",background:"#e85a2a",borderRadius:2,width:`${Math.min(100, 20 + (storeProfile.phone?10:0) + (storeProfile.address?10:0) + (storeProfile.website?10:0) + (storeProfile.instagram?10:0) + (storeProfile.categories?.length>0?10:0) + (storeProfile.brands?10:0) + (storeProfile.gst?10:0) + (storeProfile.whatsapp?10:0))}%`}}/>
+          </div>
+        </div>
+      </div>
+
+      {/* MAIN CONTENT */}
+      <div style={{flex:1,overflowY:"auto",background:"#f5f5f5"}}>
+
+        {/* ---- HOME TAB ---- */}
+        {activeTab === "home" && (
+          <div style={{padding:24,maxWidth:900,margin:"0 auto"}}>
+
+            {saved && <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:"10px 16px",fontSize:13,color:"#16a34a",marginBottom:14}}>✓ Profile saved successfully!</div>}
+
+            {/* STORE IDENTITY CARD */}
+            <div style={{background:"#fff",borderRadius:16,border:"1px solid #e0e0e0",padding:20,marginBottom:16}}>
+              <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:16,gap:12,flexWrap:"wrap"}}>
+                <div style={{flex:1}}>
+                  {editing ? (
+                    <input style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:24,border:"none",borderBottom:"2px solid #e85a2a",outline:"none",color:"#080808",width:"100%",background:"transparent"}}
+                      value={storeProfile.storeName} onChange={e => setStoreProfile(s=>({...s,storeName:e.target.value}))} placeholder="Store Name" />
+                  ) : (
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:26,color:"#080808"}}>{storeProfile.storeName || user.name || "Your Store Name"}</div>
+                  )}
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginTop:4}}>
+                    {storeProfile.verificationStatus==="verified"
+                      ? <span style={{fontSize:11,color:"#16a34a",fontWeight:700,background:"#f0fdf4",padding:"2px 8px",borderRadius:20,border:"1px solid #bbf7d0"}}>✓ Verified Business</span>
+                      : <span style={{fontSize:11,color:"#d97706",fontWeight:700,background:"#fffbeb",padding:"2px 8px",borderRadius:20,border:"1px solid #fde68a"}}>⏳ Verification Pending</span>
+                    }
+                  </div>
+                </div>
+                <div style={{display:"flex",gap:8}}>
+                  {!editing
+                    ? <button onClick={()=>setEditing(true)} style={{padding:"7px 14px",borderRadius:8,background:"#fff3ef",border:"1px solid #fde0d0",color:"#e85a2a",fontSize:12,fontWeight:700,cursor:"pointer"}}>✏️ Edit</button>
+                    : <>
+                        <button onClick={saveProfile} style={{padding:"7px 14px",borderRadius:8,background:"#e85a2a",border:"none",color:"white",fontSize:12,fontWeight:700,cursor:"pointer"}}>Save</button>
+                        <button onClick={()=>setEditing(false)} style={{padding:"7px 14px",borderRadius:8,background:"#f5f5f5",border:"1px solid #e0e0e0",color:"#080808",fontSize:12,fontWeight:700,cursor:"pointer"}}>Cancel</button>
+                      </>
+                  }
+                  <button onClick={handleShare} style={{padding:"7px 14px",borderRadius:8,background:"#080808",border:"none",color:"white",fontSize:12,fontWeight:700,cursor:"pointer"}}>📤 Share</button>
+                </div>
+              </div>
+
+              {/* ADDRESS + CONTACT */}
+              {editing ? (
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+                  {[["Address","address","123 Shop, Street"],["City","city","Mumbai"],["State","state","Maharashtra"],["Pincode","pincode","400001"],["Phone","phone","9820012345"],["WhatsApp","whatsapp","9820012345"],["Instagram","instagram","@yourstore"],["Facebook","facebook","facebook.com/yourstore"],["Website","website","www.yourstore.com"],["GST Number","gst","27AABCS1429B1ZB"]].map(([label,key,ph]) => (
+                    <div key={key}>
+                      <div style={{fontSize:10,fontWeight:700,color:"#555",textTransform:"uppercase",letterSpacing:".06em",marginBottom:3}}>{label}</div>
+                      <input className="fi" placeholder={ph} value={storeProfile[key]||""} onChange={e=>setStoreProfile(s=>({...s,[key]:e.target.value}))} style={{fontSize:12}} />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <>
+                  <div style={{fontSize:13,color:"#080808",marginBottom:12}}>📍 {storeProfile.address}{storeProfile.city?`, ${storeProfile.city}`:""}{storeProfile.state?`, ${storeProfile.state}`:""}{storeProfile.pincode?` - ${storeProfile.pincode}`:""}</div>
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                    {storeProfile.phone&&<a href={`tel:${storeProfile.phone}`} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",borderRadius:8,background:"#f0fdf4",border:"1px solid #bbf7d0",color:"#16a34a",fontSize:12,fontWeight:700,textDecoration:"none"}}>📞 Call</a>}
+                    {storeProfile.whatsapp&&<a href={`https://wa.me/91${storeProfile.whatsapp}`} target="_blank" rel="noreferrer" style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",borderRadius:8,background:"#f0fdf4",border:"1px solid #bbf7d0",color:"#16a34a",fontSize:12,fontWeight:700,textDecoration:"none"}}>💬 WhatsApp</a>}
+                    {storeProfile.instagram&&<a href={`https://instagram.com/${storeProfile.instagram.replace("@","")}`} target="_blank" rel="noreferrer" style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",borderRadius:8,background:"#fdf4ff",border:"1px solid #e9d5ff",color:"#7c3aed",fontSize:12,fontWeight:700,textDecoration:"none"}}>📸 Instagram</a>}
+                    {storeProfile.facebook&&<a href={storeProfile.facebook} target="_blank" rel="noreferrer" style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",borderRadius:8,background:"#eff6ff",border:"1px solid #bfdbfe",color:"#1d4ed8",fontSize:12,fontWeight:700,textDecoration:"none"}}>📘 Facebook</a>}
+                    {storeProfile.website&&<a href={storeProfile.website} target="_blank" rel="noreferrer" style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",borderRadius:8,background:"#f8fafc",border:"1px solid #e2e8f0",color:"#080808",fontSize:12,fontWeight:700,textDecoration:"none"}}>🌐 Website</a>}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* STATS ROW */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
+              {[[totalProducts||0,"Products","📦"],[totalCategories||0,"Categories","🏷"],[totalSubCats||0,"Sub-categories","📋"],[locations.length+1,"Locations","📍"]].map(([v,l,icon]) => (
+                <div key={l} style={{background:"#fff",borderRadius:10,border:"1px solid #e0e0e0",padding:16,textAlign:"center"}}>
+                  <div style={{fontSize:20,marginBottom:4}}>{icon}</div>
+                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:28,color:"#e85a2a"}}>{v}</div>
+                  <div style={{fontSize:11,color:"#080808",fontWeight:600,textTransform:"uppercase",letterSpacing:".06em",marginTop:2}}>{l}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* PRODUCT CATEGORIES */}
+            <div style={{background:"#fff",borderRadius:16,border:"1px solid #e0e0e0",padding:20,marginBottom:16}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:17,color:"#080808"}}>Product Portfolio</div>
+                <button onClick={()=>setEditing(true)} style={{padding:"6px 12px",borderRadius:8,background:"#e85a2a",border:"none",color:"white",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Add Products</button>
+              </div>
+              {(storeProfile.categories||[]).length === 0 ? (
+                <div style={{textAlign:"center",padding:"20px 0",color:"#888",fontSize:13}}>No products added yet. Click Edit to add your product categories.</div>
+              ) : (
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:8}}>
+                  {(storeProfile.categories||[]).map((c,i) => (
+                    <div key={i} style={{background:"#f8f8f8",borderRadius:8,padding:10,border:"1px solid #e8e8e8"}}>
+                      <div style={{fontSize:12,fontWeight:700,color:"#e85a2a",marginBottom:3}}>{c.category}</div>
+                      {c.subCategory&&<div style={{fontSize:11,color:"#080808",marginBottom:2}}>{c.subCategory}</div>}
+                      {c.productType&&<div style={{fontSize:10,color:"#555"}}>{c.productType}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {editing && (
+                <div style={{marginTop:14,borderTop:"1px solid #f0f0f0",paddingTop:14}}>
+                  <div style={{fontSize:12,fontWeight:700,color:"#080808",marginBottom:8}}>Edit Categories</div>
+                  <MultiCategorySelector selected={storeProfile.categories||[]} onChange={cats=>setStoreProfile(s=>({...s,categories:cats}))} />
+                </div>
+              )}
+            </div>
+
+            {/* LOCATIONS */}
+            <div style={{background:"#fff",borderRadius:16,border:"1px solid #e0e0e0",padding:20,marginBottom:16}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:17,color:"#080808"}}>My Locations</div>
+                <button onClick={()=>setShowAddLocation(true)} style={{padding:"6px 12px",borderRadius:8,background:"#e85a2a",border:"none",color:"white",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Add Location</button>
+              </div>
+
+              {/* Main location */}
+              <div style={{background:"#fff8f5",borderRadius:10,padding:14,border:"1px solid #fde0d0",marginBottom:8}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                  <div>
+                    <div style={{fontSize:13,fontWeight:700,color:"#080808"}}>{storeProfile.storeName||"Main Store"} <span style={{fontSize:10,background:"#e85a2a",color:"white",padding:"1px 6px",borderRadius:10,marginLeft:4}}>Main</span></div>
+                    <div style={{fontSize:12,color:"#555",marginTop:3}}>{storeProfile.address}{storeProfile.city?`, ${storeProfile.city}`:""}</div>
+                    <div style={{fontSize:12,color:"#080808",fontWeight:600,marginTop:4}}>{storeProfile.phone}</div>
+                  </div>
+                  <div style={{display:"flex",gap:6"}}>
+                    {storeProfile.phone&&<a href={`tel:${storeProfile.phone}`} style={{padding:"4px 8px",borderRadius:6,background:"#f0fdf4",border:"1px solid #bbf7d0",color:"#16a34a",fontSize:11,fontWeight:700,textDecoration:"none"}}>📞</a>}
+                    {storeProfile.whatsapp&&<a href={`https://wa.me/91${storeProfile.whatsapp}`} target="_blank" rel="noreferrer" style={{padding:"4px 8px",borderRadius:6,background:"#f0fdf4",border:"1px solid #bbf7d0",color:"#16a34a",fontSize:11,fontWeight:700,textDecoration:"none"}}>💬</a>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Additional locations */}
+              {locations.map((loc,i) => (
+                <div key={loc.id||i} style={{background:"#f8f8f8",borderRadius:10,padding:14,border:"1px solid #e8e8e8",marginBottom:8}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                    <div>
+                      <div style={{fontSize:13,fontWeight:700,color:"#080808"}}>{loc.name}</div>
+                      <div style={{fontSize:12,color:"#555",marginTop:3}}>{loc.address}{loc.city?`, ${loc.city}`:""}</div>
+                      <div style={{fontSize:12,color:"#080808",fontWeight:600,marginTop:4}}>{loc.phone}</div>
+                    </div>
+                    <div style={{display:"flex",gap:6}}>
+                      {loc.phone&&<a href={`tel:${loc.phone}`} style={{padding:"4px 8px",borderRadius:6,background:"#f0fdf4",border:"1px solid #bbf7d0",color:"#16a34a",fontSize:11,fontWeight:700,textDecoration:"none"}}>📞</a>}
+                      {loc.whatsapp&&<a href={`https://wa.me/91${loc.whatsapp}`} target="_blank" rel="noreferrer" style={{padding:"4px 8px",borderRadius:6,background:"#f0fdf4",border:"1px solid #bbf7d0",color:"#16a34a",fontSize:11,fontWeight:700,textDecoration:"none"}}>💬</a>}
+                      <button onClick={()=>setLocations(l=>l.filter((_,idx)=>idx!==i))} style={{padding:"4px 8px",borderRadius:6,background:"#fff0f0",border:"1px solid #fecaca",color:"#dc2626",fontSize:11,fontWeight:700,cursor:"pointer"}}>✕</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {/* Add Location Form */}
+              {showAddLocation && (
+                <div style={{background:"#f8f8f8",borderRadius:10,padding:14,border:"1px solid #e0e0e0",marginTop:8}}>
+                  <div style={{fontSize:13,fontWeight:700,color:"#080808",marginBottom:10}}>Add New Location</div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                    {[["Branch Name","name","e.g. Branch 1"],["Address","address","Street address"],["City","city","City"],["Phone","phone","Mobile number"],["WhatsApp","whatsapp","WhatsApp number"]].map(([label,key,ph]) => (
+                      <div key={key}>
+                        <div style={{fontSize:10,fontWeight:700,color:"#555",textTransform:"uppercase",letterSpacing:".06em",marginBottom:3}}>{label}</div>
+                        <input className="fi" placeholder={ph} value={newLocation[key]||""} onChange={e=>setNewLocation(l=>({...l,[key]:e.target.value}))} style={{fontSize:12}} />
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{display:"flex",gap:8,marginTop:10}}>
+                    <button onClick={addLocation} style={{padding:"7px 16px",borderRadius:8,background:"#e85a2a",border:"none",color:"white",fontSize:12,fontWeight:700,cursor:"pointer"}}>Add Location</button>
+                    <button onClick={()=>setShowAddLocation(false)} style={{padding:"7px 16px",borderRadius:8,background:"#f5f5f5",border:"1px solid #e0e0e0",color:"#080808",fontSize:12,fontWeight:700,cursor:"pointer"}}>Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ANALYTICS */}
+            <div style={{background:"#fff",borderRadius:16,border:"1px solid #e0e0e0",padding:20,marginBottom:16}}>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:17,color:"#080808",marginBottom:14}}>Analytics Overview</div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}>
+                {[["📸","Instagram",analytics.instagram,"Followers"],["📘","Facebook",analytics.facebook,"Followers"],["⭐","Google Rating",analytics.google,"Stars"]].map(([icon,label,val,unit]) => (
+                  <div key={label} style={{background:"#f8f8f8",borderRadius:10,padding:14,border:"1px solid #e8e8e8",textAlign:"center"}}>
+                    <div style={{fontSize:20,marginBottom:4}}>{icon}</div>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:22,color:"#e85a2a"}}>{val||"—"}</div>
+                    <div style={{fontSize:11,color:"#080808",fontWeight:600}}>{label}</div>
+                    <div style={{fontSize:10,color:"#555"}}>{unit}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{fontSize:12,color:"#555",marginBottom:8}}>Update your social stats:</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+                {[["Instagram Followers","instagram"],["Facebook Followers","facebook"],["Google Rating","google"]].map(([label,key]) => (
+                  <div key={key}>
+                    <div style={{fontSize:10,fontWeight:700,color:"#555",textTransform:"uppercase",letterSpacing:".06em",marginBottom:3}}>{label}</div>
+                    <input className="fi" placeholder="0" type="number" value={analytics[key]||""} onChange={e=>setAnalytics(a=>({...a,[key]:e.target.value}))} style={{fontSize:12}} />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* EVENTS */}
+            <div style={{background:"#fff",borderRadius:16,border:"1px solid #e0e0e0",padding:20,marginBottom:16}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:17,color:"#080808"}}>Upcoming Exhibitions & Events</div>
+                <button onClick={()=>setShowAddEvent(true)} style={{padding:"6px 12px",borderRadius:8,background:"#080808",border:"none",color:"white",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Add Event</button>
+              </div>
+              {[...EXHIBITIONS, ...events].map((ev,i) => (
+                <div key={ev.id||i} style={{display:"flex",alignItems:"center",gap:14,padding:"10px 0",borderBottom:"1px solid #f0f0f0"}}>
+                  <div style={{textAlign:"center",background:"#fff3ef",borderRadius:8,padding:"8px 12px",minWidth:48,flexShrink:0}}>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:18,color:"#e85a2a",lineHeight:1}}>{ev.date?.split(" ")[0]}</div>
+                    <div style={{fontSize:10,fontWeight:700,color:"#e85a2a"}}>{ev.date?.split(" ")[1]}</div>
+                  </div>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:13,fontWeight:700,color:"#080808"}}>{ev.name}</div>
+                    <div style={{fontSize:11,color:"#555",marginTop:2}}>{ev.venue}</div>
+                    <div style={{fontSize:11,color:"#080808",marginTop:1}}>📍 {ev.city}</div>
+                  </div>
+                  {!ev.custom && <button style={{padding:"5px 12px",borderRadius:8,background:"#e85a2a",border:"none",color:"white",fontSize:11,fontWeight:700,cursor:"pointer"}}>Register</button>}
+                  {ev.custom && <button onClick={()=>setEvents(e=>e.filter((_,idx)=>idx!==i-EXHIBITIONS.length))} style={{padding:"5px 10px",borderRadius:8,background:"#fff0f0",border:"1px solid #fecaca",color:"#dc2626",fontSize:11,fontWeight:700,cursor:"pointer"}}>✕</button>}
+                </div>
+              ))}
+              {showAddEvent && (
+                <div style={{background:"#f8f8f8",borderRadius:10,padding:14,border:"1px solid #e0e0e0",marginTop:12}}>
+                  <div style={{fontSize:13,fontWeight:700,color:"#080808",marginBottom:10}}>Add Your Event</div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                    {[["Event Name","name","e.g. Showroom Launch"],["Date","date","e.g. Jul 15"],["Venue","venue","Venue name"],["City","city","City"]].map(([label,key,ph]) => (
+                      <div key={key}>
+                        <div style={{fontSize:10,fontWeight:700,color:"#555",textTransform:"uppercase",letterSpacing:".06em",marginBottom:3}}>{label}</div>
+                        <input className="fi" placeholder={ph} value={newEvent[key]||""} onChange={e=>setNewEvent(ev=>({...ev,[key]:e.target.value}))} style={{fontSize:12}} />
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{display:"flex",gap:8,marginTop:10}}>
+                    <button onClick={addEvent} style={{padding:"7px 16px",borderRadius:8,background:"#e85a2a",border:"none",color:"white",fontSize:12,fontWeight:700,cursor:"pointer"}}>Add Event</button>
+                    <button onClick={()=>setShowAddEvent(false)} style={{padding:"7px 16px",borderRadius:8,background:"#f5f5f5",border:"1px solid #e0e0e0",color:"#080808",fontSize:12,fontWeight:700,cursor:"pointer"}}>Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+          </div>
+        )}
+
+        {/* ---- DISCOVER TAB ---- */}
+        {activeTab === "discover" && <DiscoveryPage stores={stores} selectedCity={null} />}
+
+        {/* ---- STAFF TAB ---- */}
+        {activeTab === "staff" && <StaffProfilePage user={user} />}
+
+        {/* ---- DEALS TAB ---- */}
+        {activeTab === "deals" && (
+          <div style={{padding:24,maxWidth:700,margin:"0 auto"}}>
+            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:28,color:"#080808",marginBottom:4}}>Deals & Tools</div>
+            <div style={{fontSize:13,color:"#555",marginBottom:24}}>Grow your business with TIN tools and offers</div>
+            {[
+              {icon:"🤖",title:"AI Visualiser",desc:"Let your customers visualise your products in their space using AI. Upload product images and generate room visualisations instantly.",status:"coming"},
+              {icon:"📸",title:"Upload Client Testimonials",desc:"Showcase happy customers. Upload photos and reviews from your clients to build trust with new buyers.",status:"coming"},
+              {icon:"🎨",title:"Design Inspiration Gallery",desc:"Upload design inspiration images featuring your products. Help architects and designers discover your range.",status:"coming"},
+              {icon:"📊",title:"Business Analytics Pro",desc:"Deep analytics — track profile views, enquiries, WhatsApp clicks, catalogue downloads and more.",status:"coming"},
+              {icon:"🏷",title:"Featured Listing",desc:"Get your business featured at the top of search results in your city and category.",status:"coming"},
+            ].map(d => (
+              <div key={d.title} style={{background:"#fff",borderRadius:12,border:"1px solid #e0e0e0",padding:20,marginBottom:12,display:"flex",alignItems:"center",gap:16}}>
+                <div style={{fontSize:32,flexShrink:0}}>{d.icon}</div>
+                <div style={{flex:1}}>
+                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,color:"#080808",marginBottom:3}}>{d.title}</div>
+                  <div style={{fontSize:12,color:"#555",lineHeight:1.5}}>{d.desc}</div>
+                </div>
+                <span style={{fontSize:10,fontWeight:700,background:"#e85a2a",color:"white",padding:"3px 8px",borderRadius:10,whiteSpace:"nowrap",flexShrink:0}}>Coming Soon</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ---- PROFILE TAB ---- */}
+        {activeTab === "profile" && <ProfilePage user={user} />}
+
+      </div>
+    </div>
+  );
+}
+
 function LoginPage({ onLogin }) {
   const [mode, setMode] = useState("login");
   const [role, setRole] = useState("contributor");
-  const [loginMethod, setLoginMethod] = useState("email"); // email or mobile
   const [email, setEmail] = useState("");
-  const [mobile, setMobile] = useState("");
   const [workEmail, setWorkEmail] = useState("");
   const [pass, setPass] = useState("");
   const [name, setName] = useState("");
@@ -1264,13 +1630,8 @@ function LoginPage({ onLogin }) {
   const [loading, setLoading] = useState(false);
 
   const isContrib = role === "contributor";
-  const isRetailer = role === "retailer" || role === "manufacturer";
-
-  // Roles visible to public — manufacturer and admin hidden from login cards
-  const visibleRoles = ROLES.filter(r => r.id !== "manufacturer" && r.id !== "admin");
-
-  // Coming soon roles — non-functional buttons
   const comingSoonRoles = ["consumer", "contractor", "architect"];
+  const visibleRoles = ROLES.filter(r => r.id !== "manufacturer" && r.id !== "admin");
 
   const handleForgotPassword = async () => {
     if (!forgotEmail) return;
@@ -1278,29 +1639,60 @@ function LoginPage({ onLogin }) {
       await sendPasswordResetEmail(auth, forgotEmail);
       setForgotSent(true);
     } catch(err) {
-      alert("Could not send reset email: " + err.message);
+      alert("Could not send reset email. Please check the address.");
     }
   };
 
   const handleSubmit = async () => {
-    const finalEmail = (role === "contributor") ? workEmail : email;
-    if (!finalEmail || finalEmail.trim() === "" || !pass || pass.trim() === "") { 
-      alert("Please enter email and password"); return; 
+    const emailToUse = (mode === "register" && isContrib ? workEmail : email).trim();
+    const passToUse = pass.trim();
+    if (!emailToUse || !passToUse) {
+      alert("Please enter email and password");
+      return;
     }
     setLoading(true);
     try {
       if (mode === "login") {
-        const cred = await signInWithEmailAndPassword(auth, finalEmail, pass);
+        // LOGIN — role loaded from Firebase automatically
+        const cred = await signInWithEmailAndPassword(auth, emailToUse, passToUse);
         const profile = await getUserProfile(cred.user.uid);
-        onLogin(profile ? { ...profile, uid: cred.user.uid } : { name: finalEmail.split("@")[0], email: finalEmail, workEmail: finalEmail, personalEmail, role, linkedin, company: "", points: 0, storesAdded: 0, citiesCovered: 0, validationStatus: "n/a", uid: cred.user.uid });
+        if (profile) {
+          onLogin({ ...profile, uid: cred.user.uid });
+        } else {
+          // Profile not found — create basic one
+          const basicProfile = { name: emailToUse.split("@")[0], email: emailToUse, workEmail: emailToUse, personalEmail: "", role: "contributor", linkedin: "", company: "", points: 0, storesAdded: 0, citiesCovered: 0, validationStatus: "n/a", createdAt: new Date().toISOString(), uid: cred.user.uid };
+          await saveUserProfile(cred.user.uid, basicProfile);
+          onLogin(basicProfile);
+        }
       } else {
-        const cred = await createUserWithEmailAndPassword(auth, finalEmail, pass);
-        const ud = { name: name || finalEmail.split("@")[0], email: finalEmail, workEmail: isContrib ? workEmail : finalEmail, personalEmail, role, linkedin, company: isContrib ? workEmail.split("@")[1]?.split(".")[0] || "" : "", points: 0, storesAdded: 0, citiesCovered: 0, validationStatus: isContrib ? (linkedin ? "pending" : "unvalidated") : "n/a", createdAt: new Date().toISOString(), uid: cred.user.uid };
+        // REGISTER — role selection matters here
+        const cred = await createUserWithEmailAndPassword(auth, emailToUse, passToUse);
+        const ud = {
+          name: name || emailToUse.split("@")[0],
+          email: emailToUse,
+          workEmail: isContrib ? workEmail : emailToUse,
+          personalEmail,
+          role,
+          linkedin,
+          company: isContrib ? workEmail.split("@")[1]?.split(".")[0] || "" : "",
+          points: 0,
+          storesAdded: 0,
+          citiesCovered: 0,
+          validationStatus: isContrib ? (linkedin ? "pending" : "unvalidated") : "n/a",
+          createdAt: new Date().toISOString(),
+          uid: cred.user.uid
+        };
         await saveUserProfile(cred.user.uid, ud);
         onLogin(ud);
       }
     } catch(err) {
-      const msg = err.message.replace("Firebase: ", "").replace("(auth/email-already-in-use)", "Email already registered — please sign in.").replace("(auth/wrong-password)", "Wrong password.").replace("(auth/user-not-found)", "No account found — please register.").replace("(auth/invalid-credential)", "Invalid email or password.").replace("(auth/weak-password)", "Password must be at least 6 characters.");
+      const msg = err.message
+        .replace("Firebase: ", "")
+        .replace("(auth/email-already-in-use)", "Email already registered — please sign in.")
+        .replace("(auth/wrong-password)", "Wrong password.")
+        .replace("(auth/user-not-found)", "No account found — please register.")
+        .replace("(auth/invalid-credential)", "Invalid email or password.")
+        .replace("(auth/weak-password)", "Password must be at least 6 characters.");
       alert(msg);
     }
     setLoading(false);
@@ -1314,7 +1706,9 @@ function LoginPage({ onLogin }) {
         <div className="login-title">Reset <em>Password</em></div>
         <div className="login-sub">Enter your registered email — we will send a reset link.</div>
         {forgotSent ? (
-          <div className="val-ok-banner"><span>✓</span><div>Reset link sent to <strong>{forgotEmail}</strong>. Check your inbox.</div></div>
+          <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:"var(--r)",padding:"12px 16px",fontSize:13,color:"#16a34a",marginBottom:14}}>
+            ✓ Reset link sent to <strong>{forgotEmail}</strong>. Check your inbox.
+          </div>
         ) : (
           <div className="login-fields">
             <div className="lf"><label>Email Address</label><input className="fi" type="email" placeholder="your@email.com" value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} /></div>
@@ -1331,97 +1725,84 @@ function LoginPage({ onLogin }) {
       <div className="login-card">
         <div className="login-logo">Trade Intelligence Network</div>
         <div className="login-title">Welcome to <em>TIN</em></div>
-        <div className="login-sub">India's building materials intelligence platform.</div>
-
-        {/* ROLE SELECTOR — manufacturer hidden */}
-        <div className="role-grid">
-          {visibleRoles.map(r => {
-            const isComingSoon = comingSoonRoles.includes(r.id);
-            return (
-              <div key={r.id} className={`role-opt ${role === r.id ? "on" : ""} ${isComingSoon ? "coming-soon-role" : ""}`}
-                onClick={() => !isComingSoon && setRole(r.id)}
-                style={isComingSoon ? { opacity: 0.6, cursor: "default" } : {}}>
-                <div className="role-icon">{r.icon}</div>
-                <div className="role-lbl">{r.label}</div>
-                {isComingSoon
-                  ? <div style={{fontSize:10,color:"var(--warn)",fontWeight:700,marginTop:2,textAlign:"center"}}>Coming Soon</div>
-                  : <div className="role-desc">{r.desc}</div>
-                }
-              </div>
-            );
-          })}
+        <div className="login-sub">
+          {mode === "login" ? "Sign in to your account." : "Create your TIN account — select your role first."}
         </div>
 
-        {/* COMING SOON INFO */}
-        {comingSoonRoles.includes(role) && (
-          <div className="contrib-note" style={{background:"var(--warn)10",borderColor:"var(--warn)25",color:"var(--warn)"}}>
-            🚧 This role is coming soon. Register as a Contributor or Retailer to get started today.
+        {/* ROLE SELECTOR — only shown during registration */}
+        {mode === "register" && (
+          <div className="role-grid" style={{marginBottom:16}}>
+            {visibleRoles.map(r => {
+              const isComingSoon = comingSoonRoles.includes(r.id);
+              return (
+                <div key={r.id}
+                  className={`role-opt ${role === r.id ? "on" : ""}`}
+                  onClick={() => !isComingSoon && setRole(r.id)}
+                  style={isComingSoon ? {opacity:0.5,cursor:"default"} : {}}>
+                  <div className="role-icon">{r.icon}</div>
+                  <div className="role-lbl">{r.label}</div>
+                  {isComingSoon
+                    ? <div style={{fontSize:10,color:"#e85a2a",fontWeight:700,marginTop:2}}>Coming Soon</div>
+                    : <div className="role-desc">{r.desc}</div>
+                  }
+                </div>
+              );
+            })}
           </div>
         )}
 
-        {isContrib && mode === "register" && (
-          <div className="contrib-note">✍️ Contributors need a company work email. LinkedIn is optional but helps with faster validation.</div>
+        {/* CONTRIBUTOR EXTRA FIELDS — only on register */}
+        {mode === "register" && isContrib && (
+          <div className="contrib-note">✍️ Contributors need a company work email. LinkedIn is optional.</div>
         )}
 
-        {/* LOGIN METHOD TOGGLE */}
-        {!comingSoonRoles.includes(role) && (
-          <>
-            <div style={{display:"flex",gap:6,marginBottom:14}}>
-              {["email","mobile"].map(m => (
-                <div key={m} onClick={() => setLoginMethod(m)}
-                  style={{flex:1,padding:"7px",borderRadius:8,textAlign:"center",fontSize:12,fontWeight:700,cursor:"pointer",background:loginMethod===m?"var(--acc)":"var(--s2)",color:loginMethod===m?"white":"var(--t2)",border:`1px solid ${loginMethod===m?"var(--acc)":"var(--b2)"}`}}>
-                  {m === "email" ? "📧 Email" : "📱 Mobile"}
-                </div>
-              ))}
-            </div>
+        <div className="login-fields">
+          {mode === "register" && (
+            <div className="lf"><label>Full Name</label><input className="fi" placeholder="Your full name" value={name} onChange={e => setName(e.target.value)} /></div>
+          )}
 
-            <div className="login-fields">
-              {mode === "register" && <div className="lf"><label>Full Name</label><input className="fi" placeholder="Your full name" value={name} onChange={e => setName(e.target.value)} /></div>}
-
-              {loginMethod === "mobile" ? (
-                <div className="lf">
-                  <label>Mobile Number</label>
-                  <input className="fi" placeholder="+91 98200 12345" value={mobile} onChange={e => setMobile(e.target.value)} />
-                  <div style={{fontSize:11,color:"var(--warn)",marginTop:3}}>📱 Mobile OTP login coming soon — use email for now</div>
-                </div>
-              ) : isContrib && mode === "register" ? (
-                <>
-                  <div className="lf">
-                    <label>Work Email <span style={{color:"var(--acc)"}}>*</span></label>
-                    <input className="fi" type="email" placeholder="you@yourcompany.com" value={workEmail} onChange={e => setWorkEmail(e.target.value)} style={{borderColor: workEmail && isWorkEmail(workEmail) ? "var(--ok)" : ""}} />
-                  </div>
-                  <div className="lf"><label>Personal Email (backup)</label><input className="fi" type="email" placeholder="you@gmail.com" value={personalEmail} onChange={e => setPersonalEmail(e.target.value)} /></div>
-                  <div className="lf"><label>LinkedIn Profile <span style={{fontSize:10,color:"#080808",fontWeight:400}}>(optional)</span></label><input className="fi" placeholder="linkedin.com/in/yourname" value={linkedin} onChange={e => setLinkedin(e.target.value)} /></div>
-                </>
-              ) : (
-                <>
-                  <div className="lf"><label>Email</label><input className="fi" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} /></div>
-                  {mode === "register" && <div className="lf"><label>Personal Email (backup)</label><input className="fi" type="email" placeholder="backup@gmail.com" value={personalEmail} onChange={e => setPersonalEmail(e.target.value)} /></div>}
-                </>
-              )}
+          {mode === "register" && isContrib ? (
+            <>
               <div className="lf">
-                <label>Password</label>
-                <input className="fi" type="password" placeholder="••••••••" value={pass} onChange={e => setPass(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSubmit()} />
+                <label>Work Email <span style={{color:"#e85a2a"}}>*</span></label>
+                <input className="fi" type="email" placeholder="you@yourcompany.com" value={workEmail} onChange={e => setWorkEmail(e.target.value)} />
               </div>
-            </div>
-
-            <button className="btn-login" onClick={handleSubmit} disabled={loading} style={{opacity:loading?0.7:1}}>
-              {loading ? "Please wait..." : mode === "login" ? "Sign In →" : "Create Account →"}
-            </button>
-
-            {mode === "login" && (
-              <div style={{textAlign:"center",marginTop:10}}>
-                <span onClick={() => setShowForgot(true)} style={{fontSize:12,color:"var(--acc)",cursor:"pointer",fontWeight:600}}>Forgot password?</span>
+              <div className="lf"><label>Personal Email (backup)</label><input className="fi" type="email" placeholder="you@gmail.com" value={personalEmail} onChange={e => setPersonalEmail(e.target.value)} /></div>
+              <div className="lf"><label>LinkedIn <span style={{fontSize:10,color:"#555",fontWeight:400}}>(optional)</span></label><input className="fi" placeholder="linkedin.com/in/yourname" value={linkedin} onChange={e => setLinkedin(e.target.value)} /></div>
+            </>
+          ) : (
+            <>
+              <div className="lf">
+                <label>Email</label>
+                <input className="fi" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSubmit()} />
               </div>
-            )}
-          </>
+              {mode === "register" && (
+                <div className="lf"><label>Personal Email (backup)</label><input className="fi" type="email" placeholder="backup@gmail.com" value={personalEmail} onChange={e => setPersonalEmail(e.target.value)} /></div>
+              )}
+            </>
+          )}
+
+          <div className="lf">
+            <label>Password</label>
+            <input className="fi" type="password" placeholder="••••••••" value={pass} onChange={e => setPass(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSubmit()} />
+          </div>
+        </div>
+
+        <button className="btn-login" onClick={handleSubmit} disabled={loading} style={{opacity:loading?0.7:1}}>
+          {loading ? "Please wait..." : mode === "login" ? "Sign In →" : "Create Account →"}
+        </button>
+
+        {mode === "login" && (
+          <div style={{textAlign:"center",marginTop:10}}>
+            <span onClick={() => setShowForgot(true)} style={{fontSize:12,color:"#e85a2a",cursor:"pointer",fontWeight:600}}>Forgot password?</span>
+          </div>
         )}
 
         <div className="login-sw">
-          {!comingSoonRoles.includes(role) && (mode === "login"
-            ? <>New? <span onClick={() => setMode("register")}>Create account</span></>
-            : <>Have account? <span onClick={() => setMode("login")}>Sign in</span></>
-          )}
+          {mode === "login"
+            ? <>New to TIN? <span onClick={() => setMode("register")}>Create account</span></>
+            : <>Already have account? <span onClick={() => setMode("login")}>Sign in</span></>
+          }
         </div>
       </div>
     </div>
@@ -2298,9 +2679,12 @@ export default function App() {
   };
 
   const isContrib = user?.role === "contributor";
-  const showLeaderboard = isContrib; // Only contributors see leaderboard
+  const isRetailer = user?.role === "retailer";
+  const showLeaderboard = isContrib;
   const TABS = user?.role === "admin"
     ? [["admin","Admin Panel"]]
+    : isRetailer
+    ? [] // Retailer uses internal sidebar nav
     : [
         ["home","Home"],
         ["discover","Discover"],
@@ -2326,7 +2710,7 @@ export default function App() {
       <div className="app light" style={{background:"#f4f5f7",color:"#080808",minHeight:"100vh"}}>
         <nav className="topbar">
           <div className="logo">T<em>I</em>N</div>
-          <div className="nav-tabs">
+          {!isRetailer && <div className="nav-tabs">
             {TABS.map(([id, label]) => (
               <button key={id} className={`ntab ${page === id ? "on" : ""}`} onClick={() => setPage(id)}>{label}</button>
             ))}
@@ -2350,7 +2734,10 @@ export default function App() {
           </div>
         )}
         <div className="page">
-          {page === "home" && <HeroPage onCitySelect={handleCitySelect} selectedCity={selectedCity} onExplore={handleExplore} onAdd={handleAddStore} />}
+          {page === "home" && (isRetailer
+            ? <RetailerDashboard user={user} stores={stores} onNavigate={setPage} />
+            : <HeroPage onCitySelect={handleCitySelect} selectedCity={selectedCity} onExplore={handleExplore} onAdd={handleAddStore} />
+          )}
           {page === "discover" && <DiscoveryPage stores={stores} selectedCity={selectedCity} />}
           {page === "add" && <AddPage user={user} onSubmit={handleSubmitStore} toast={showToast} />}
           {page === "rewards" && <RewardsPage user={user} onMessageAdmin={handleMessageAdmin} />}
