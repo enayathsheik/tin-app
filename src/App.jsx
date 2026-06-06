@@ -578,13 +578,21 @@ tr:hover td{background:var(--s2);color:var(--t1)}
 .vs-active{background:var(--ok)15;color:var(--ok);border:1px solid var(--ok)25}
 
 
-/* LIGHT MODE */
+/* LIGHT MODE — default */
+body{background:#f4f5f7;color:#111120}
 .light{
   --bg:#f4f5f7;--s1:#ffffff;--s2:#f0f1f5;--s3:#e8e9f0;--s4:#dfe0ea;
-  --b1:#00000008;--b2:#00000012;--b3:#0000001e;--b4:#0000002a;
+  --b1:#00000008;--b2:#00000014;--b3:#0000002a;--b4:#00000038;
   --t1:#111120;--t2:#44445a;--t3:#888899;
-  --acc:#e85a2a;--acc2:#f07d50;--acc3:#ff9a6c;
+  --acc:#e85a2a;--acc2:#d44e22;--acc3:#f07d50;
   --ok:#16a34a;--warn:#d97706;--info:#2563eb;--danger:#dc2626;
+}
+.dark{
+  --bg:#08090d;--s1:#0f1018;--s2:#161720;--s3:#1e1f2e;--s4:#252638;
+  --b1:#ffffff08;--b2:#ffffff12;--b3:#ffffff1e;--b4:#ffffff2a;
+  --t1:#eeeef8;--t2:#9090aa;--t3:#4a4a62;
+  --acc:#e85a2a;--acc2:#f07d50;--acc3:#ff9a6c;
+  --ok:#22c55e;--warn:#f59e0b;--info:#3b82f6;--danger:#ef4444;
 }
 
 /* THEME TOGGLE */
@@ -652,6 +660,63 @@ tr:hover td{background:var(--s2);color:var(--t1)}
 .deals-sub{color:var(--t2);font-size:14px;max-width:400px;line-height:1.6}
 .deals-badge{background:var(--acc)12;border:1px solid var(--acc)25;color:var(--acc);padding:6px 16px;border-radius:20px;font-size:12px;font-weight:700}
 
+.coming-soon-role{position:relative}
+.coming-soon-role::after{content:'Coming Soon';position:absolute;bottom:6px;right:6px;font-size:9px;font-weight:700;color:var(--warn);letter-spacing:.04em}
+/* Light mode specific overrides */
+.light .store-list .sc{background:#fff;border-color:#e0e0ea}
+.light .store-list .sc:hover{background:#f8f8fc;border-color:#c0c0d0}
+.light .topbar{background:#fff;border-color:#e0e0ea}
+.light .nav-tabs{background:#f0f1f5}
+.light .ntab.on{background:#fff;color:#111120}
+.light .hero{background:#f4f5f7}
+.light .stat-card{background:#fff;border-color:#e0e0ea}
+.light .city-pill{background:#fff;border-color:#e0e0ea}
+.light .city-pill:hover,.light .city-pill.sel{background:#fff3ef;border-color:var(--acc)}
+.light .login-card{background:#fff;border-color:#e0e0ea}
+.light .fi,.light .fs,.light .fta{background:#fff;border-color:#d0d0e0;color:#111120}
+.light .role-opt{background:#f8f8fc;border-color:#e0e0ea}
+.light .role-opt.on{background:#fff3ef;border-color:var(--acc)}
+.light .section-card,.light .info-card,.light .prog-sec,.light .act-sec{background:#fff;border-color:#e0e0ea}
+.light .profile-reveal{background:#f8f8fc;border-color:#e0e0ea}
+.light .disc-sidebar{background:#fff;border-color:#e0e0ea}
+.light .sc{background:#f8f8fc;border-color:#e0e0ea}
+.light .dg-item{background:#f8f8fc;border-color:#e0e0ea}
+.light .conf-section{background:#f8f8fc;border-color:#e0e0ea}
+.light .table-wrap{background:#fff;border-color:#e0e0ea}
+.light .lb-row{background:#fff;border-color:#e0e0ea}
+.light .lb-stat{background:#fff;border-color:#e0e0ea}
+.light .admin-nav{background:#fff;border-color:#e0e0ea}
+.light .anav.on{background:#f0f1f5}
+.light .anav:hover{background:#f8f8fc}
+.light .srch{background:#f0f1f5;border-color:#d0d0e0}
+.light .srch input{color:#111120}
+.light .chip{background:#f0f1f5;border-color:#d0d0e0;color:#44445a}
+.light .chip.on{background:#fff3ef;border-color:var(--acc)40;color:var(--acc)}
+.light .mcat-item{background:#f8f8fc;border-color:#e0e0ea}
+.light .mcat-item.on{background:#fff3ef;border-color:var(--acc)}
+.light .mcat-expanded{background:#fff;border-color:#e0e0ea}
+.light .mcat-sub{background:#f0f1f5;border-color:#d0d0e0;color:#44445a}
+.light .prof-hero{background:#fff;border-color:#e0e0ea}
+.light .prof-stat{background:#f0f1f5}
+.light .reward-hero{background:linear-gradient(135deg,#fff3ef,#fff8f5);border-color:var(--acc)20}
+.light .reward-milestone{background:#fff;border-color:#e0e0ea}
+.light .pts-hint{background:#fff3ef;border-color:var(--acc)20}
+.light .type-tab{background:#f8f8fc;border-color:#e0e0ea}
+.light .type-tab.on{background:#fff3ef;border-color:var(--acc)}
+.light .chk{background:#f8f8fc;border-color:#e0e0ea}
+.light .chk.on{background:#fff3ef;border-color:var(--acc)30}
+.light .loc-field{background:#f8f8fc;border-color:#e0e0ea}
+.light .bulk-reward-card{background:#f8f8fc;border-color:#e0e0ea}
+.light .referral-card{background:#f8f8fc;border-color:#e0e0ea}
+.light .staff-card{background:#f8f8fc;border-color:#e0e0ea}
+.light .wh-card{background:#f0f1f5;border-color:#e0e0ea}
+.light .dup-pair{background:#f8f8fc;border-color:#e0e0ea}
+.light .dup-card{background:#fff;border-color:#e0e0ea}
+.light .tmpl-card{background:#f8f8fc;border-color:#e0e0ea}
+.light .ntab{color:#888899}
+.light .ntab:hover{color:#44445a}
+.light .ntab.on{color:#111120}
+.light .logo{color:#111120}
 @media(max-width:768px){
   .disc-main.hidden-mob{display:none}
   .discovery{flex-direction:column}
@@ -668,7 +733,7 @@ tr:hover td{background:var(--s2);color:var(--t1)}
 // CHECKLIST FIELDS
 // ============================================================
 
-const FREE_EMAIL_DOMAINS = [];
+const FREE_EMAIL_DOMAINS = ["gmail.com","yahoo.com","hotmail.com","outlook.com","rediffmail.com","ymail.com","icloud.com","live.com"];
 const isWorkEmail = (email) => { if (!email || !email.includes("@")) return false; const domain = email.split("@")[1]?.toLowerCase(); return !FREE_EMAIL_DOMAINS.includes(domain); };
 
 const STORE_CHECKLIST = [
@@ -1148,57 +1213,228 @@ function RewardsPage({ user, onMessageAdmin }) {
   );
 }
 
+
+// ============================================================
+// ADMIN LOGIN PAGE — separate from main login
+// ============================================================
+function AdminLoginPage({ onAdminLogin }) {
+  const [email, setEmail] = useState("");
+  const [pass, setPass] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const ADMIN_EMAIL = "enayathsheik@gmail.com";
+
+  const handleLogin = async () => {
+    if (!email || !pass) return;
+    setLoading(true);
+    setError("");
+    try {
+      const cred = await signInWithEmailAndPassword(auth, email, pass);
+      if (email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+        onAdminLogin({ name: "Admin", email, workEmail: email, personalEmail: email, role: "admin", points: 0, storesAdded: 0, citiesCovered: 0, validationStatus: "active", uid: cred.user.uid });
+      } else {
+        setError("Access denied. Admin credentials only.");
+        await signOut(auth);
+      }
+    } catch(err) {
+      setError("Invalid credentials.");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="login-pg">
+      <div className="login-card" style={{maxWidth:360}}>
+        <div className="login-logo">Trade Intelligence Network</div>
+        <div className="login-title"><em>Admin</em> Access</div>
+        <div className="login-sub" style={{marginBottom:20}}>Restricted area. Authorized personnel only.</div>
+        {error && <div style={{background:"var(--danger)10",border:"1px solid var(--danger)25",borderRadius:"var(--r)",padding:"10px 14px",fontSize:13,color:"var(--danger)",marginBottom:14}}>{error}</div>}
+        <div className="login-fields">
+          <div className="lf"><label>Admin Email</label><input className="fi" type="email" placeholder="admin@tin.in" value={email} onChange={e => setEmail(e.target.value)} /></div>
+          <div className="lf"><label>Password</label><input className="fi" type="password" placeholder="••••••••" value={pass} onChange={e => setPass(e.target.value)} onKeyDown={e => e.key === "Enter" && handleLogin()} /></div>
+        </div>
+        <button className="btn-login" onClick={handleLogin} disabled={loading}>{loading ? "Verifying..." : "Access Admin Panel →"}</button>
+        <div className="login-sw"><a href="/" style={{color:"var(--t3)",fontSize:12,textDecoration:"none"}}>← Back to TIN</a></div>
+      </div>
+    </div>
+  );
+}
+
 function LoginPage({ onLogin }) {
   const [mode, setMode] = useState("login");
   const [role, setRole] = useState("contributor");
-  const [linkedin, setLinkedin] = useState("");
-  const [personalEmail, setPersonalEmail] = useState("");
+  const [loginMethod, setLoginMethod] = useState("email"); // email or mobile
   const [email, setEmail] = useState("");
+  const [mobile, setMobile] = useState("");
+  const [workEmail, setWorkEmail] = useState("");
   const [pass, setPass] = useState("");
   const [name, setName] = useState("");
+  const [linkedin, setLinkedin] = useState("");
+  const [personalEmail, setPersonalEmail] = useState("");
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSent, setForgotSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const isContrib = role === "contributor";
+  const isRetailer = role === "retailer" || role === "manufacturer";
+
+  // Roles visible to public — manufacturer hidden
+  const visibleRoles = ROLES.filter(r => r.id !== "manufacturer");
+
+  // Coming soon roles — non-functional buttons
+  const comingSoonRoles = ["consumer", "contractor", "architect"];
+
+  const handleForgotPassword = async () => {
+    if (!forgotEmail) return;
+    try {
+      const { sendPasswordResetEmail } = await import("firebase/auth");
+      await sendPasswordResetEmail(auth, forgotEmail);
+      setForgotSent(true);
+    } catch(err) {
+      alert("Could not send reset email. Please check the address.");
+    }
+  };
+
+  const handleSubmit = async () => {
+    const finalEmail = isContrib ? workEmail : email;
+    if (!finalEmail || !pass) { alert("Please enter email and password"); return; }
+    setLoading(true);
+    try {
+      if (mode === "login") {
+        const cred = await signInWithEmailAndPassword(auth, finalEmail, pass);
+        const profile = await getUserProfile(cred.user.uid);
+        onLogin(profile ? { ...profile, uid: cred.user.uid } : { name: finalEmail.split("@")[0], email: finalEmail, workEmail: finalEmail, personalEmail, role, linkedin, company: "", points: 0, storesAdded: 0, citiesCovered: 0, validationStatus: "n/a", uid: cred.user.uid });
+      } else {
+        const cred = await createUserWithEmailAndPassword(auth, finalEmail, pass);
+        const ud = { name: name || finalEmail.split("@")[0], email: finalEmail, workEmail: isContrib ? workEmail : finalEmail, personalEmail, role, linkedin, company: isContrib ? workEmail.split("@")[1]?.split(".")[0] || "" : "", points: 0, storesAdded: 0, citiesCovered: 0, validationStatus: isContrib ? (linkedin ? "pending" : "unvalidated") : "n/a", createdAt: new Date().toISOString(), uid: cred.user.uid };
+        await saveUserProfile(cred.user.uid, ud);
+        onLogin(ud);
+      }
+    } catch(err) {
+      const msg = err.message.replace("Firebase: ", "").replace("(auth/email-already-in-use)", "Email already registered — please sign in.").replace("(auth/wrong-password)", "Wrong password.").replace("(auth/user-not-found)", "No account found — please register.").replace("(auth/invalid-credential)", "Invalid email or password.").replace("(auth/weak-password)", "Password must be at least 6 characters.");
+      alert(msg);
+    }
+    setLoading(false);
+  };
+
+  // Forgot password screen
+  if (showForgot) return (
+    <div className="login-pg">
+      <div className="login-card">
+        <div className="login-logo">Trade Intelligence Network</div>
+        <div className="login-title">Reset <em>Password</em></div>
+        <div className="login-sub">Enter your registered email — we will send a reset link.</div>
+        {forgotSent ? (
+          <div className="val-ok-banner"><span>✓</span><div>Reset link sent to <strong>{forgotEmail}</strong>. Check your inbox.</div></div>
+        ) : (
+          <div className="login-fields">
+            <div className="lf"><label>Email Address</label><input className="fi" type="email" placeholder="your@email.com" value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} /></div>
+          </div>
+        )}
+        {!forgotSent && <button className="btn-login" onClick={handleForgotPassword}>Send Reset Link →</button>}
+        <div className="login-sw" style={{marginTop:14}}><span onClick={() => { setShowForgot(false); setForgotSent(false); }}>← Back to Login</span></div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="login-pg">
       <div className="login-card">
         <div className="login-logo">Trade Intelligence Network</div>
         <div className="login-title">Welcome to <em>TIN</em></div>
-        <div className="login-sub">India's building materials intelligence platform. Select your role to get started.</div>
+        <div className="login-sub">India's building materials intelligence platform.</div>
+
+        {/* ROLE SELECTOR — manufacturer hidden */}
         <div className="role-grid">
-          {ROLES.filter(r => r.id !== "admin").map(r => (
-            <div key={r.id} className={`role-opt ${role === r.id ? "on" : ""}`} onClick={() => setRole(r.id)}>
-              <div className="role-icon">{r.icon}</div>
-              <div className="role-lbl">{r.label}</div>
-              <div className="role-desc">{r.desc}</div>
-            </div>
-          ))}
-        </div>
-        {role==="contributor"&&mode==="register"&&<div className="contrib-note">✍️ Contributors must provide a <strong>company work email</strong> (no gmail/yahoo) and LinkedIn profile. Account validated before contributing.</div>}
-        <div className="login-fields">
-          {mode==="register"&&<div className="lf"><label>Full Name</label><input className="fi" placeholder="Your full name" value={name} onChange={e=>setName(e.target.value)}/></div>}
-          {role==="contributor"&&mode==="register"?(
-            <>
-              <div className="lf">
-                <label>Work Email <span style={{color:"var(--acc)"}}>*</span></label>
-                <input className="fi" type="email" placeholder="you@yourcompany.com" value={email} onChange={e=>setEmail(e.target.value)} style={{borderColor:email&&!isWorkEmail(email)?"var(--danger)":""}}/>
-                {email&&!isWorkEmail(email)&&<div style={{fontSize:11,color:"var(--danger)",marginTop:3}}>Personal email not accepted. Use your company email.</div>}
+          {visibleRoles.map(r => {
+            const isComingSoon = comingSoonRoles.includes(r.id);
+            return (
+              <div key={r.id} className={`role-opt ${role === r.id ? "on" : ""} ${isComingSoon ? "coming-soon-role" : ""}`}
+                onClick={() => !isComingSoon && setRole(r.id)}
+                style={isComingSoon ? { opacity: 0.6, cursor: "default" } : {}}>
+                <div className="role-icon">{r.icon}</div>
+                <div className="role-lbl">{r.label}</div>
+                {isComingSoon
+                  ? <div style={{fontSize:10,color:"var(--warn)",fontWeight:700,marginTop:2}}>Coming Soon</div>
+                  : <div className="role-desc">{r.desc}</div>
+                }
               </div>
-              <div className="lf"><label>Personal Email (backup)</label><input className="fi" type="email" placeholder="you@gmail.com" value={personalEmail} onChange={e=>setPersonalEmail(e.target.value)}/></div>
-              <div className="lf"><label>LinkedIn Profile <span style={{color:"var(--acc)"}}>*</span></label><input className="fi" placeholder="linkedin.com/in/yourname" value={linkedin} onChange={e=>setLinkedin(e.target.value)}/></div>
-            </>
-          ):(
-            <>
-              <div className="lf"><label>Email</label><input className="fi" type="email" placeholder="you@example.com" value={email} onChange={e=>setEmail(e.target.value)}/></div>
-              {mode==="register"&&<div className="lf"><label>Personal Email (backup)</label><input className="fi" type="email" placeholder="backup@gmail.com" value={personalEmail} onChange={e=>setPersonalEmail(e.target.value)}/></div>}
-            </>
-          )}
-          <div className="lf"><label>Password</label><input className="fi" type="password" placeholder="••••••••" value={pass} onChange={e=>setPass(e.target.value)}/></div>
+            );
+          })}
         </div>
-       <button className="btn-login" onClick={async () => { const finalEmail = (role==="contributor"?workEmail:email); if(!finalEmail||!pass){alert("Please enter email and password");return;} try{ if(mode==="login"){const cred=await signInWithEmailAndPassword(auth,finalEmail,pass);const profile=await getUserProfile(cred.user.uid);onLogin(profile?{...profile,uid:cred.user.uid}:{name:finalEmail.split("@")[0],email:finalEmail,workEmail:finalEmail,personalEmail,role,linkedin,company:"",points:0,storesAdded:0,citiesCovered:0,validationStatus:"n/a",uid:cred.user.uid});}else{const cred=await createUserWithEmailAndPassword(auth,finalEmail,pass);const ud={name:name||finalEmail.split("@")[0],email:finalEmail,workEmail:role==="contributor"?workEmail:finalEmail,personalEmail,role,linkedin,company:role==="contributor"?workEmail.split("@")[1]?.split(".")[0]||"":"",points:0,storesAdded:0,citiesCovered:0,validationStatus:role==="contributor"?(linkedin?"pending":"unvalidated"):"n/a",createdAt:new Date().toISOString(),uid:cred.user.uid};await saveUserProfile(cred.user.uid,ud);onLogin(ud);}}catch(err){alert(err.message.replace("Firebase: ",""));} }}>
-          {mode === "login" ? "Sign In →" : "Create Account →"}
-        </button>
+
+        {/* COMING SOON INFO */}
+        {comingSoonRoles.includes(role) && (
+          <div className="contrib-note" style={{background:"var(--warn)10",borderColor:"var(--warn)25",color:"var(--warn)"}}>
+            🚧 This role is coming soon. Register as a Contributor or Retailer to get started today.
+          </div>
+        )}
+
+        {isContrib && mode === "register" && (
+          <div className="contrib-note">✍️ Contributors need a company work email. LinkedIn is optional but helps with faster validation.</div>
+        )}
+
+        {/* LOGIN METHOD TOGGLE */}
+        {!comingSoonRoles.includes(role) && (
+          <>
+            <div style={{display:"flex",gap:6,marginBottom:14}}>
+              {["email","mobile"].map(m => (
+                <div key={m} onClick={() => setLoginMethod(m)}
+                  style={{flex:1,padding:"7px",borderRadius:8,textAlign:"center",fontSize:12,fontWeight:700,cursor:"pointer",background:loginMethod===m?"var(--acc)":"var(--s2)",color:loginMethod===m?"white":"var(--t2)",border:`1px solid ${loginMethod===m?"var(--acc)":"var(--b2)"}`}}>
+                  {m === "email" ? "📧 Email" : "📱 Mobile"}
+                </div>
+              ))}
+            </div>
+
+            <div className="login-fields">
+              {mode === "register" && <div className="lf"><label>Full Name</label><input className="fi" placeholder="Your full name" value={name} onChange={e => setName(e.target.value)} /></div>}
+
+              {loginMethod === "mobile" ? (
+                <div className="lf">
+                  <label>Mobile Number</label>
+                  <input className="fi" placeholder="+91 98200 12345" value={mobile} onChange={e => setMobile(e.target.value)} />
+                  <div style={{fontSize:11,color:"var(--warn)",marginTop:3}}>📱 Mobile OTP login coming soon — use email for now</div>
+                </div>
+              ) : isContrib && mode === "register" ? (
+                <>
+                  <div className="lf">
+                    <label>Work Email <span style={{color:"var(--acc)"}}>*</span></label>
+                    <input className="fi" type="email" placeholder="you@yourcompany.com" value={workEmail} onChange={e => setWorkEmail(e.target.value)} style={{borderColor: workEmail && isWorkEmail(workEmail) ? "var(--ok)" : ""}} />
+                  </div>
+                  <div className="lf"><label>Personal Email (backup)</label><input className="fi" type="email" placeholder="you@gmail.com" value={personalEmail} onChange={e => setPersonalEmail(e.target.value)} /></div>
+                  <div className="lf"><label>LinkedIn Profile <span style={{fontSize:10,color:"var(--t3)",fontWeight:400}}>(optional)</span></label><input className="fi" placeholder="linkedin.com/in/yourname" value={linkedin} onChange={e => setLinkedin(e.target.value)} /></div>
+                </>
+              ) : (
+                <>
+                  <div className="lf"><label>Email</label><input className="fi" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} /></div>
+                  {mode === "register" && <div className="lf"><label>Personal Email (backup)</label><input className="fi" type="email" placeholder="backup@gmail.com" value={personalEmail} onChange={e => setPersonalEmail(e.target.value)} /></div>}
+                </>
+              )}
+              <div className="lf">
+                <label>Password</label>
+                <input className="fi" type="password" placeholder="••••••••" value={pass} onChange={e => setPass(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSubmit()} />
+              </div>
+            </div>
+
+            <button className="btn-login" onClick={handleSubmit} disabled={loading} style={{opacity:loading?0.7:1}}>
+              {loading ? "Please wait..." : mode === "login" ? "Sign In →" : "Create Account →"}
+            </button>
+
+            {mode === "login" && (
+              <div style={{textAlign:"center",marginTop:10}}>
+                <span onClick={() => setShowForgot(true)} style={{fontSize:12,color:"var(--acc)",cursor:"pointer",fontWeight:600}}>Forgot password?</span>
+              </div>
+            )}
+          </>
+        )}
+
         <div className="login-sw">
-          {mode === "login" ? <>New to TIN? <span onClick={() => setMode("register")}>Create account</span></> : <>Have an account? <span onClick={() => setMode("login")}>Sign in</span></>}
-          {" · "}<span onClick={() => onLogin({ name: "Admin", email: "admin@tin.in", role: "admin", points: 0, storesAdded: 0, citiesCovered: 0 })}>Admin</span>
+          {!comingSoonRoles.includes(role) && (mode === "login"
+            ? <>New? <span onClick={() => setMode("register")}>Create account</span></>
+            : <>Have account? <span onClick={() => setMode("login")}>Sign in</span></>
+          )}
         </div>
       </div>
     </div>
@@ -2030,7 +2266,31 @@ export default function App() {
   }, []);
   const [selectedCity, setSelectedCity] = useState(null);
   const [toast, setToast] = useState({ show: false, msg: "", type: "ok" });
-  const [darkMode, setDarkMode] = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // Persistent login — check auth state on mount
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        try {
+          const profile = await getUserProfile(firebaseUser.uid);
+          if (profile) {
+            setUser({ ...profile, uid: firebaseUser.uid });
+            setPage(profile.role === "admin" ? "admin" : "home");
+          }
+        } catch(e) { console.log("Profile load error:", e); }
+      }
+      setAuthLoading(false);
+    });
+    return () => unsub();
+  }, []);
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    setUser(null);
+    setPage("home");
+  };
 
   const showToast = (msg, type = "ok") => {
     setToast({ show: true, msg, type });
@@ -2050,6 +2310,7 @@ export default function App() {
   };
 
   const isContrib = user?.role === "contributor";
+  const showLeaderboard = isContrib; // Only contributors see leaderboard
   const TABS = user?.role === "admin"
     ? [["admin","Admin Panel"]]
     : [
@@ -2058,17 +2319,23 @@ export default function App() {
         ["add","+ Add"],
         ...(isContrib ? [["rewards","My Rewards"]] : []),
         ["staff","Staff Profile"],
-        ["leaderboard","Leaderboard"],
+        ...(showLeaderboard ? [["leaderboard","Leaderboard"]] : []),
         ["deals","Deals"],
         ["profile","Profile"],
       ];
 
-  if (!user) return <><style>{G}</style><LoginPage onLogin={(u) => { setUser(u); setPage(u.role === "admin" ? "admin" : "home"); }} /></>;
+  // Check if accessing admin panel via URL hash
+  const isAdminRoute = typeof window !== "undefined" && window.location.hash === "#admin";
+  const [showAdminLogin, setShowAdminLogin] = useState(isAdminRoute);
+
+  if (authLoading) return <><style>{G}</style><div style={{height:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"var(--bg)",flexDirection:"column",gap:12}}><div style={{fontFamily:"'Barlow Condensed'",fontWeight:800,fontSize:28,color:"var(--acc)"}}>TIN</div><div style={{fontSize:13,color:"var(--t3)"}}>Loading...</div></div></>;
+  if (!user && showAdminLogin) return <><style>{G}</style><div className={darkMode?"dark":"light"}><AdminLoginPage onAdminLogin={(u) => { setUser(u); setPage("admin"); setShowAdminLogin(false); }} /></div></>;
+  if (!user) return <><style>{G}</style><div className={darkMode?"dark":"light"}><LoginPage onLogin={(u) => { setUser(u); setPage(u.role === "admin" ? "admin" : "home"); }} /></div></>;
 
   return (
     <>
       <style>{G}</style>
-      <div className={`app ${darkMode?"":"light"}`}>
+      <div className={`app ${darkMode?"dark":"light"}`}>
         <nav className="topbar">
           <div className="logo">T<em>I</em>N</div>
           <div className="nav-tabs">
@@ -2079,12 +2346,23 @@ export default function App() {
           <div className="topbar-right">
             {selectedCity && <div style={{ fontSize: 11, color: "var(--t3)", fontWeight: 600 }}>📍 {selectedCity}</div>}
             {user.role !== "admin" && <div className="pts-badge">{user.points || 0} pts</div>}
-            <div className={`theme-toggle ${darkMode?"dark":""}`} onClick={()=>setDarkMode(d=>!d)} title={darkMode?"Switch to Light Mode":"Switch to Dark Mode"}>
+            <div className={`theme-toggle ${darkMode?"dark":""}`} onClick={()=>setDarkMode(d=>!d)} title={darkMode?"Switch to Light Mode":"Switch to Dark Mode"} style={{background:darkMode?"var(--acc)40":"#00000015"}}>
               <div className="theme-knob"/>
             </div>
             <div className="avatar" onClick={() => setPage("profile")}>{user.name.charAt(0).toUpperCase()}</div>
+            <button onClick={handleLogout} style={{padding:"4px 10px",borderRadius:8,background:"transparent",border:"1px solid var(--b3)",color:"var(--t3)",fontSize:12,cursor:"pointer",fontFamily:"'Barlow',sans-serif"}} title="Logout">↩ Out</button>
           </div>
         </nav>
+        {showThankYou && (
+          <div style={{position:"fixed",inset:0,background:"#00000080",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+            <div style={{background:"var(--s1)",border:"1px solid var(--b2)",borderRadius:"var(--rxl)",padding:36,maxWidth:380,width:"100%",textAlign:"center"}}>
+              <div style={{fontSize:48,marginBottom:12}}>🎉</div>
+              <div style={{fontFamily:"'Barlow Condensed'",fontWeight:800,fontSize:24,marginBottom:8}}>Thank You!</div>
+              <div style={{fontSize:14,color:"var(--t2)",marginBottom:16,lineHeight:1.6}}>Your store profile has been submitted successfully. You earned <strong style={{color:"var(--acc)"}}>+10 points</strong> for contributing to TIN!</div>
+              <div style={{fontSize:12,color:"var(--t3)"}}>Redirecting to home...</div>
+            </div>
+          </div>
+        )}
         <div className="page">
           {page === "home" && <HeroPage onCitySelect={handleCitySelect} selectedCity={selectedCity} onExplore={handleExplore} onAdd={handleAddStore} />}
           {page === "discover" && <DiscoveryPage stores={stores} selectedCity={selectedCity} />}
