@@ -11,7 +11,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 // FIREBASE — LIVE CONFIG
 // ============================================================
 import { initializeApp } from "firebase/app";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "firebase/auth";
 import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, increment, query, where, orderBy, serverTimestamp, setDoc, getDoc } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -579,7 +579,6 @@ tr:hover td{background:var(--s2);color:var(--t1)}
 
 
 /* LIGHT MODE — default */
-body{background:#f4f5f7;color:#111120}
 .light{
   --bg:#f4f5f7;--s1:#ffffff;--s2:#f0f1f5;--s3:#e8e9f0;--s4:#dfe0ea;
   --b1:#00000008;--b2:#00000014;--b3:#0000002a;--b4:#00000038;
@@ -588,12 +587,17 @@ body{background:#f4f5f7;color:#111120}
   --ok:#16a34a;--warn:#d97706;--info:#2563eb;--danger:#dc2626;
 }
 .dark{
-  --bg:#08090d;--s1:#0f1018;--s2:#161720;--s3:#1e1f2e;--s4:#252638;
-  --b1:#ffffff08;--b2:#ffffff12;--b3:#ffffff1e;--b4:#ffffff2a;
-  --t1:#eeeef8;--t2:#9090aa;--t3:#4a4a62;
-  --acc:#e85a2a;--acc2:#f07d50;--acc3:#ff9a6c;
-  --ok:#22c55e;--warn:#f59e0b;--info:#3b82f6;--danger:#ef4444;
+  --bg:#08090d!important;--s1:#0f1018!important;--s2:#161720!important;--s3:#1e1f2e!important;
+  --b1:#ffffff08!important;--b2:#ffffff12!important;--b3:#ffffff1e!important;
+  --t1:#eeeef8!important;--t2:#9090aa!important;--t3:#4a4a62!important;
+  --acc:#e85a2a!important;--acc2:#f07d50!important;--acc3:#ff9a6c!important;
+  --ok:#22c55e!important;--warn:#f59e0b!important;--info:#3b82f6!important;--danger:#ef4444!important;
+  background:#08090d!important;color:#eeeef8!important;
 }
+.dark .app{background:#08090d;color:#eeeef8}
+.dark .topbar{background:#08090d;border-color:#ffffff08}
+.dark .login-pg{background:#08090d}
+.dark .login-card{background:#0f1018;border-color:#ffffff12}
 
 /* THEME TOGGLE */
 .theme-toggle{
@@ -1289,11 +1293,10 @@ function LoginPage({ onLogin }) {
   const handleForgotPassword = async () => {
     if (!forgotEmail) return;
     try {
-      const { sendPasswordResetEmail } = await import("firebase/auth");
       await sendPasswordResetEmail(auth, forgotEmail);
       setForgotSent(true);
     } catch(err) {
-      alert("Could not send reset email. Please check the address.");
+      alert("Could not send reset email: " + err.message);
     }
   };
 
@@ -2329,13 +2332,13 @@ export default function App() {
   const [showAdminLogin, setShowAdminLogin] = useState(isAdminRoute);
 
   if (authLoading) return <><style>{G}</style><div style={{height:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"var(--bg)",flexDirection:"column",gap:12}}><div style={{fontFamily:"'Barlow Condensed'",fontWeight:800,fontSize:28,color:"var(--acc)"}}>TIN</div><div style={{fontSize:13,color:"var(--t3)"}}>Loading...</div></div></>;
-  if (!user && showAdminLogin) return <><style>{G}</style><div className={darkMode?"dark":"light"}><AdminLoginPage onAdminLogin={(u) => { setUser(u); setPage("admin"); setShowAdminLogin(false); }} /></div></>;
-  if (!user) return <><style>{G}</style><div className={darkMode?"dark":"light"}><LoginPage onLogin={(u) => { setUser(u); setPage(u.role === "admin" ? "admin" : "home"); }} /></div></>;
+  if (!user && showAdminLogin) return <><style>{G}</style><div className={darkMode?"dark":"light"} style={{background:darkMode?"#08090d":"#f4f5f7",minHeight:"100vh"}}><AdminLoginPage onAdminLogin={(u) => { setUser(u); setPage("admin"); setShowAdminLogin(false); }} /></div></>;
+  if (!user) return <><style>{G}</style><div className={darkMode?"dark":"light"} style={{background:darkMode?"#08090d":"#f4f5f7",minHeight:"100vh"}}><LoginPage onLogin={(u) => { setUser(u); setPage(u.role === "admin" ? "admin" : "home"); }} /></div></>;
 
   return (
     <>
       <style>{G}</style>
-      <div className={`app ${darkMode?"dark":"light"}`}>
+      <div className={`app ${darkMode?"dark":"light"}`} style={{background:darkMode?"#08090d":"#f4f5f7",color:darkMode?"#eeeef8":"#111120",minHeight:"100vh"}}>
         <nav className="topbar">
           <div className="logo">T<em>I</em>N</div>
           <div className="nav-tabs">
