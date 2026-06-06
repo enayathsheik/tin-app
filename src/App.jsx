@@ -2271,6 +2271,7 @@ export default function App() {
   const [toast, setToast] = useState({ show: false, msg: "", type: "ok" });
   const [darkMode, setDarkMode] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
+  const [showThankYou, setShowThankYou] = useState(false);
 
   // Persistent login — check auth state on mount
   useEffect(() => {
