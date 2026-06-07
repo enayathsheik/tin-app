@@ -1926,10 +1926,57 @@ function AddPage({ user, onSubmit, toast }) {
   const handleSubmit = async () => {
     if (!form.storeName || !form.phone || !form.city) return;
     setSubmitting(true);
-    await new Promise(r => setTimeout(r, 700));
-    // TODO: await addDoc(collection(db, "stores"), { ...form, checklist, type: recType, contributorId: user.email, verificationStatus: "community_added", pointsAwarded: 10, createdAt: new Date(), confidence: 20 });
-    // TODO: await updateDoc(doc(db, "users", user.uid), { points: increment(10), storesAdded: increment(1) });
-    onSubmit({ ...form, categories: selectedCategories, checklist, type: recType, contributorId: user.email, verificationStatus: "community_added", pointsAwarded: 10, createdAt: new Date().toISOString(), confidence: 20, id: Date.now().toString() });
+    try {
+      // Build clean store object - no undefined values
+      const storeData = {
+        storeName: form.storeName || "",
+        phone: form.phone || "",
+        whatsapp: form.whatsapp || "",
+        instagram: form.instagram || "",
+        facebook: form.facebook || "",
+        address: form.address || "",
+        city: form.city || "",
+        state: form.state || "",
+        pincode: form.pincode || "",
+        businessType: form.businessType || "",
+        ownerName: form.ownerName || "",
+        email: form.email || "",
+        personalEmail: form.personalEmail || "",
+        gst: form.gst || "",
+        brands: form.brands || "",
+        website: form.website || "",
+        lat: form.lat || null,
+        lng: form.lng || null,
+        categories: selectedCategories || [],
+        checklist: checklist || [],
+        type: recType,
+        contributorId: user.uid || user.email || "anonymous",
+        contributorEmail: user.email || "",
+        verificationStatus: "community_added",
+        pointsAwarded: 10,
+        confidence: 20,
+        createdAt: serverTimestamp(),
+      };
+
+      // Save to Firestore
+      const docRef = await addDoc(collection(db, "stores"), storeData);
+      console.log("Store saved:", docRef.id);
+
+      // Update contributor points
+      if (user.uid && user.uid !== "admin") {
+        await updateDoc(doc(db, "users", user.uid), {
+          points: increment(10),
+          storesAdded: increment(1),
+        });
+      }
+
+      onSubmit({ ...storeData, id: docRef.id, createdAt: new Date().toISOString() });
+    } catch(err) {
+      console.error("Store save error:", err.message);
+      // Still submit locally so user flow continues
+      onSubmit({ ...form, categories: selectedCategories, checklist, type: recType, contributorId: user.email, verificationStatus: "community_added", pointsAwarded: 10, createdAt: new Date().toISOString(), confidence: 20, id: Date.now().toString() });
+      showToast("Saved locally — sync error: " + err.message, "err");
+    }
     setSubmitting(false);
     setForm({ storeName: "", phone: "", address: "", city: "", state: "", pincode: "",  businessType: "", ownerName: "", email: "", personalEmail: "", gst: "", brands: "", whatsapp: "", instagram: "", website: "", lat: null, lng: null, linkedIn: "", facebook: "", specialization: "", firmName: "" });
     setChecklist([]);
@@ -2623,12 +2670,21 @@ export default function App() {
   useEffect(() => {
     const loadStores = async () => {
       try {
-        const snap = await getDocs(collection(db, "stores"));
+        const snap = await getDocs(query(collection(db, "stores"), orderBy("createdAt", "desc")));
         if (!snap.empty) {
-          const firestoreStores = snap.docs.map(d => ({ id: d.id, ...d.data(), createdAt: d.data().createdAt?.toDate?.()?.toISOString() || new Date().toISOString() }));
-          setStores([...MOCK_STORES, ...firestoreStores]);
+          const firestoreStores = snap.docs.map(d => ({
+            id: d.id,
+            ...d.data(),
+            createdAt: d.data().createdAt?.toDate?.()?.toISOString() || new Date().toISOString()
+          }));
+          // Merge with mock stores, Firebase data takes priority
+          setStores([...firestoreStores, ...MOCK_STORES]);
         }
-      } catch(e) { console.log("Using mock stores:", e.message); }
+      } catch(e) {
+        console.log("Firestore load error:", e.message);
+        // Fall back to mock data
+        setStores(MOCK_STORES);
+      }
     };
     loadStores();
   }, []);
