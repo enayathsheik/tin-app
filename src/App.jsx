@@ -142,8 +142,95 @@ const CATEGORY_TREE = {
 };
 
 const BUSINESS_TYPES = ["Retailer","Distributor","Wholesaler","Manufacturer","Contractor","Architect","Designer","Consultant"];
-const CITIES = ["Mumbai","Delhi","Bengaluru","Hyderabad","Chennai","Kolkata","Pune","Ahmedabad","Surat","Jaipur","Lucknow","Kanpur","Nagpur","Indore","Thane","Bhopal","Visakhapatnam","Pimpri-Chinchwad","Patna","Vadodara","Ghaziabad","Ludhiana","Agra","Nashik","Faridabad","Meerut","Rajkot","Kalyan-Dombivli","Vasai-Virar","Varanasi","Srinagar","Aurangabad","Dhanbad","Amritsar","Navi Mumbai","Allahabad","Ranchi","Howrah","Coimbatore","Jabalpur","Gwalior","Vijayawada","Jodhpur","Madurai","Raipur","Kota","Guwahati","Chandigarh","Solapur","Hubli-Dharwad"];
-const STATES = ["Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh","Delhi","Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka","Kerala","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland","Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana","Tripura","Uttar Pradesh","Uttarakhand","West Bengal"];
+const CITIES = [
+  // Maharashtra
+  "Mumbai","Pune","Nagpur","Thane","Nashik","Aurangabad","Solapur","Kolhapur","Amravati","Navi Mumbai","Pimpri-Chinchwad","Kalyan","Dombivli","Vasai","Virar","Mira Road","Bhiwandi","Akola","Latur","Dhule","Ahmednagar","Chandrapur","Jalgaon","Satara","Sangli","Ratnagiri","Osmanabad","Nandurbar","Wardha","Yavatmal","Buldhana",
+  // Delhi NCR
+  "Delhi","New Delhi","Gurgaon","Noida","Faridabad","Ghaziabad","Greater Noida","Meerut",
+  // Karnataka
+  "Bengaluru","Mysuru","Hubli","Dharwad","Mangaluru","Belagavi","Davanagere","Ballari","Vijayapura","Kalaburagi","Tumakuru","Shivamogga","Udupi","Hassan","Hosapete",
+  // Tamil Nadu
+  "Chennai","Coimbatore","Madurai","Tiruchirappalli","Salem","Tirunelveli","Vellore","Erode","Thoothukudi","Tiruppur","Dindigul","Thanjavur","Kanchipuram","Cuddalore","Nagercoil","Karur","Hosur","Ooty",
+  // Telangana
+  "Hyderabad","Warangal","Nizamabad","Karimnagar","Khammam","Ramagundam","Secunderabad","Nalgonda","Adilabad","Suryapet",
+  // Andhra Pradesh
+  "Visakhapatnam","Vijayawada","Guntur","Nellore","Kurnool","Rajahmundry","Tirupati","Kakinada","Kadapa","Anantapur","Vizianagaram","Eluru","Ongole","Srikakulam",
+  // Gujarat
+  "Ahmedabad","Surat","Vadodara","Rajkot","Bhavnagar","Jamnagar","Gandhinagar","Anand","Morbi","Junagadh","Nadiad","Mehsana","Surendranagar","Bharuch","Valsad","Navsari","Porbandar","Gandhidham","Bhuj","Ankleshwar",
+  // Rajasthan
+  "Jaipur","Jodhpur","Kota","Bikaner","Ajmer","Udaipur","Bhilwara","Alwar","Bharatpur","Sikar","Sri Ganganagar","Pali","Tonk","Barmer","Churu","Hanumangarh","Jhunjhunu","Nagaur","Chittorgarh","Banswara",
+  // Uttar Pradesh
+  "Lucknow","Kanpur","Agra","Varanasi","Allahabad","Prayagraj","Ghaziabad","Meerut","Aligarh","Bareilly","Moradabad","Saharanpur","Gorakhpur","Noida","Firozabad","Jhansi","Mathura","Muzaffarnagar","Shahjahanpur","Rampur","Lakhimpur","Sitapur","Hardoi","Hathras","Amroha","Banda","Fatehpur","Bahraich","Basti","Azamgarh","Mau",
+  // Madhya Pradesh
+  "Bhopal","Indore","Jabalpur","Gwalior","Ujjain","Sagar","Dewas","Satna","Ratlam","Rewa","Murwara","Singrauli","Burhanpur","Khandwa","Bhind","Morena","Shivpuri","Vidisha","Chhindwara","Damoh","Mandsaur","Neemuch","Pithampur","Hoshangabad","Itarsi",
+  // West Bengal
+  "Kolkata","Howrah","Durgapur","Asansol","Siliguri","Barddhaman","Malda","Baharampur","Habra","Kharagpur","Shantipur","Dankuni","Dhulian","Ranaghat","Haldia","Raiganj","Krishnanagar","Nabadwip","Medinipur",
+  // Punjab
+  "Ludhiana","Amritsar","Jalandhar","Patiala","Bathinda","Mohali","Firozpur","Moga","Pathankot","Hoshiarpur","Batala","Gurdaspur","Abohar","Malerkotla","Khanna","Phagwara","Muktsar","Sangrur","Barnala","Fatehgarh Sahib",
+  // Haryana
+  "Faridabad","Gurgaon","Panipat","Ambala","Yamunanagar","Rohtak","Hisar","Karnal","Sonipat","Panchkula","Bhiwani","Sirsa","Bahadurgarh","Jind","Thanesar","Kaithal","Rewari","Palwal","Fatehabad","Mahendragarh",
+  // Bihar
+  "Patna","Gaya","Bhagalpur","Muzaffarpur","Darbhanga","Arrah","Begusarai","Katihar","Munger","Chhapra","Buxar","Purnia","Samastipur","Hajipur","Siwan","Motihari","Aurangabad","Sasaram","Sitamarhi","Madhubani","Nawada",
+  // Odisha
+  "Bhubaneswar","Cuttack","Rourkela","Brahmapur","Sambalpur","Puri","Balasore","Bhadrak","Baripada","Jharsuguda","Jeypore","Angul","Dhenkanal","Kendujhar","Bolangir",
+  // Kerala
+  "Thiruvananthapuram","Kochi","Kozhikode","Kollam","Thrissur","Alappuzha","Palakkad","Kottayam","Malappuram","Kannur","Kasaragod","Pathanamthitta","Idukki","Wayanad",
+  // Assam
+  "Guwahati","Silchar","Dibrugarh","Jorhat","Nagaon","Tinsukia","Tezpur","Bongaigaon","Dhubri","North Lakhimpur","Diphu","Sivasagar","Goalpara","Barpeta",
+  // Jharkhand
+  "Ranchi","Jamshedpur","Dhanbad","Bokaro","Deoghar","Phusro","Hazaribagh","Giridih","Ramgarh","Medininagar","Chirkunda","Pakaur",
+  // Chhattisgarh
+  "Raipur","Bhilai","Durg","Korba","Bilaspur","Rajnandgaon","Jagdalpur","Raigarh","Ambikapur","Dhamtari",
+  // Himachal Pradesh
+  "Shimla","Solan","Dharamsala","Mandi","Palampur","Baddi","Nahan","Sundarnagar","Chamba","Una","Hamirpur","Bilaspur",
+  // Uttarakhand
+  "Dehradun","Haridwar","Rishikesh","Roorkee","Haldwani","Rudrapur","Kashipur","Kotdwar","Ramnagar","Pithoragarh","Almora","Nainital","Mussoorie",
+  // Goa
+  "Panaji","Vasco da Gama","Margao","Mapusa","Ponda","Bicholim","Curchorem","Sanquelim",
+  // Jammu & Kashmir
+  "Srinagar","Jammu","Anantnag","Sopore","Baramulla","Kathua","Udhampur","Punch","Rajouri","Leh",
+  // Tripura
+  "Agartala","Udaipur","Dharmanagar","Kailashahar","Belonia",
+  // Meghalaya
+  "Shillong","Tura","Jowai","Nongstoin",
+  // Manipur
+  "Imphal","Thoubal","Bishnupur","Churachandpur",
+  // Nagaland
+  "Kohima","Dimapur","Mokokchung","Tuensang",
+  // Mizoram
+  "Aizawl","Lunglei","Champhai","Serchhip",
+  // Arunachal Pradesh
+  "Itanagar","Naharlagun","Pasighat","Tezpur","Ziro",
+  // Sikkim
+  "Gangtok","Namchi","Geyzing","Mangan",
+  // Chandigarh
+  "Chandigarh",
+  // Puducherry
+  "Puducherry","Karaikal","Yanam","Mahe",
+  // Andaman & Nicobar
+  "Port Blair",
+  // Lakshadweep
+  "Kavaratti",
+  // Dadra & Nagar Haveli
+  "Silvassa",
+  // Daman & Diu
+  "Daman","Diu",
+  // Ladakh
+  "Leh","Kargil",
+].sort();
+const STATES = ["Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh","Delhi","Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand","Jammu & Kashmir","Karnataka","Kerala","Ladakh","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland","Odisha","Puducherry","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana","Tripura","Uttar Pradesh","Uttarakhand","West Bengal"];
+
+const PINCODE_STATE_MAP = {"11":"Delhi","12":"Haryana","13":"Haryana","14":"Punjab","15":"Punjab","16":"Punjab","17":"Himachal Pradesh","18":"Jammu & Kashmir","19":"Jammu & Kashmir","20":"Uttar Pradesh","21":"Uttar Pradesh","22":"Uttar Pradesh","23":"Uttar Pradesh","24":"Uttar Pradesh","25":"Uttar Pradesh","26":"Uttar Pradesh","27":"Uttar Pradesh","28":"Uttar Pradesh","30":"Rajasthan","31":"Rajasthan","32":"Rajasthan","33":"Rajasthan","34":"Rajasthan","36":"Gujarat","37":"Gujarat","38":"Gujarat","39":"Gujarat","40":"Maharashtra","41":"Maharashtra","42":"Maharashtra","43":"Maharashtra","44":"Maharashtra","45":"Madhya Pradesh","46":"Madhya Pradesh","47":"Madhya Pradesh","48":"Madhya Pradesh","49":"Chhattisgarh","50":"Telangana","51":"Telangana","52":"Andhra Pradesh","53":"Andhra Pradesh","56":"Karnataka","57":"Karnataka","58":"Karnataka","59":"Karnataka","60":"Tamil Nadu","61":"Tamil Nadu","62":"Tamil Nadu","63":"Tamil Nadu","64":"Tamil Nadu","67":"Kerala","68":"Kerala","69":"Kerala","70":"West Bengal","71":"West Bengal","72":"West Bengal","73":"West Bengal","74":"West Bengal","75":"Odisha","76":"Odisha","77":"Odisha","78":"Assam","79":"Assam","80":"Bihar","81":"Bihar","82":"Bihar","83":"Bihar","84":"Bihar","85":"Jharkhand","793":"Meghalaya","795":"Manipur","796":"Mizoram","797":"Nagaland","790":"Arunachal Pradesh","791":"Arunachal Pradesh","737":"Sikkim","799":"Tripura","744":"Andaman & Nicobar"};
+
+function validatePincode(pin) {
+  if (!pin || pin.length !== 6) return { valid: false, state: "" };
+  const allDigits = /^[0-9]+$/.test(pin);
+  if (!allDigits || pin[0] === "0") return { valid: false, state: "" };
+  const prefix3 = pin.substring(0, 3);
+  const prefix2 = pin.substring(0, 2);
+  const state = PINCODE_STATE_MAP[prefix3] || PINCODE_STATE_MAP[prefix2] || "";
+  return { valid: true, state };
+}
 
 const ROLES = [
   { id: "consumer", label: "Consumer", icon: "👤", desc: "Browse and discover" },
@@ -789,38 +876,74 @@ const MOCK_STAFF = [
   { id:"st2", storeId:"s1", name:"Sunita Rao", designation:"Product Specialist", workEmail:"sunita@sharmatools.com", personalEmail:"sunita.r@gmail.com", phone:"9867001234", linkedin:"", skills:["Paints","Construction Chemicals","Technical Support"], workHistory:[{store:"Sharma Hardware & Tools",storeId:"s1",role:"Product Specialist",from:"2022",to:"Present",city:"Mumbai"},{store:"Asian Paints Retail",storeId:"",role:"Tinting Specialist",from:"2019",to:"2022",city:"Mumbai"}] },
 ];
 
-// Multi-category selector
+// Enhanced Multi-category selector — multi sub + multi product + custom entries
 function MultiCategorySelector({ selected, onChange }) {
   const [catSelections, setCatSelections] = useState(
-    (selected||[]).reduce((acc,s) => ({...acc,[s.category]:{sub:s.subCategory||"",prods:s.productType?s.productType.split(",").map(p=>p.trim()):[]}})  ,{})
+    (selected||[]).reduce((acc,s) => ({
+      ...acc,
+      [s.category]: {
+        subs: s.subCategory ? s.subCategory.split(",").map(x=>x.trim()) : [],
+        prods: s.productType ? s.productType.split(",").map(x=>x.trim()) : [],
+        customSub: "", customProd: "",
+      }
+    }), {})
   );
+  const [customCat, setCustomCat] = useState("");
+  const [showCustomCat, setShowCustomCat] = useState(false);
+
+  const emit = (next) => onChange(Object.keys(next).map(c => ({
+    category: c,
+    subCategory: (next[c].subs||[]).join(", "),
+    productType: (next[c].prods||[]).join(", "),
+  })));
 
   const toggleCat = (cat) => {
     const next = {...catSelections};
-    if (next[cat]) { delete next[cat]; } else { next[cat] = {sub:"",prods:[]}; }
-    setCatSelections(next);
-    onChange(Object.keys(next).map(c=>({category:c,subCategory:next[c].sub,productType:next[c].prods.join(", ")})));
+    if (next[cat]) { delete next[cat]; } else { next[cat] = {subs:[],prods:[],customSub:"",customProd:""}; }
+    setCatSelections(next); emit(next);
   };
-
-  const setSub = (cat,sub) => {
-    const next = {...catSelections,[cat]:{...catSelections[cat],sub,prods:[]}};
-    setCatSelections(next);
-    onChange(Object.keys(next).map(c=>({category:c,subCategory:next[c].sub,productType:next[c].prods.join(", ")})));
+  const toggleSub = (cat, sub) => {
+    const subs = (catSelections[cat]?.subs||[]).includes(sub)
+      ? (catSelections[cat]?.subs||[]).filter(s=>s!==sub)
+      : [...(catSelections[cat]?.subs||[]), sub];
+    const next = {...catSelections, [cat]: {...catSelections[cat], subs}};
+    setCatSelections(next); emit(next);
   };
-
-  const toggleProd = (cat,prod) => {
-    const cur = catSelections[cat]?.prods||[];
-    const prods = cur.includes(prod)?cur.filter(p=>p!==prod):[...cur,prod];
-    const next = {...catSelections,[cat]:{...catSelections[cat],prods}};
-    setCatSelections(next);
-    onChange(Object.keys(next).map(c=>({category:c,subCategory:next[c].sub,productType:next[c].prods.join(", ")})));
+  const toggleProd = (cat, prod) => {
+    const prods = (catSelections[cat]?.prods||[]).includes(prod)
+      ? (catSelections[cat]?.prods||[]).filter(p=>p!==prod)
+      : [...(catSelections[cat]?.prods||[]), prod];
+    const next = {...catSelections, [cat]: {...catSelections[cat], prods}};
+    setCatSelections(next); emit(next);
+  };
+  const addCustomSub = (cat) => {
+    const val = (catSelections[cat]?.customSub||"").trim();
+    if (!val) return;
+    const subs = [...(catSelections[cat]?.subs||[]), val+" (custom)"];
+    const next = {...catSelections, [cat]: {...catSelections[cat], subs, customSub:""}};
+    setCatSelections(next); emit(next);
+  };
+  const addCustomProd = (cat) => {
+    const val = (catSelections[cat]?.customProd||"").trim();
+    if (!val) return;
+    const prods = [...(catSelections[cat]?.prods||[]), val+" (custom)"];
+    const next = {...catSelections, [cat]: {...catSelections[cat], prods, customProd:""}};
+    setCatSelections(next); emit(next);
+  };
+  const addCustomCat = () => {
+    const val = customCat.trim();
+    if (!val) return;
+    const label = val+" (custom)";
+    const next = {...catSelections, [label]: {subs:[],prods:[],customSub:"",customProd:""}};
+    setCatSelections(next); emit(next);
+    setCustomCat(""); setShowCustomCat(false);
   };
 
   const selectedCats = Object.keys(catSelections);
 
   return (
     <div>
-      <div style={{fontSize:11,color:"#080808",marginBottom:8,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em"}}>Select all categories this store carries</div>
+      <div style={{fontSize:11,color:"#555",marginBottom:8,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em"}}>Select all categories this store carries</div>
       <div className="mcat-grid">
         {Object.keys(CATEGORY_TREE).map(cat=>(
           <div key={cat} className={`mcat-item ${catSelections[cat]?"on":""}`} onClick={()=>toggleCat(cat)}>
@@ -828,37 +951,64 @@ function MultiCategorySelector({ selected, onChange }) {
             <div className="mcat-count">{Object.keys(CATEGORY_TREE[cat]).length} sub-types</div>
           </div>
         ))}
+        <div className="mcat-item" style={{borderStyle:"dashed",cursor:"pointer"}} onClick={()=>setShowCustomCat(true)}>
+          <div className="mcat-label" style={{color:"#e85a2a"}}>+ Add Custom</div>
+          <div className="mcat-count">Not in list?</div>
+        </div>
       </div>
+      {showCustomCat&&(
+        <div style={{background:"#fff8f5",border:"1px solid #fde0d0",borderRadius:8,padding:12,marginBottom:10,display:"flex",gap:8,alignItems:"center"}}>
+          <input className="fi" style={{flex:1,fontSize:12}} placeholder="Enter category name..." value={customCat} onChange={e=>setCustomCat(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addCustomCat()} />
+          <button onClick={addCustomCat} style={{padding:"7px 12px",borderRadius:8,background:"#e85a2a",border:"none",color:"white",fontSize:12,fontWeight:700,cursor:"pointer"}}>Add</button>
+          <button onClick={()=>setShowCustomCat(false)} style={{padding:"7px 10px",borderRadius:8,background:"#f5f5f5",border:"1px solid #e0e0e0",color:"#555",fontSize:12,cursor:"pointer"}}>✕</button>
+        </div>
+      )}
       {selectedCats.length>0&&(
         <div>
-          <div style={{fontSize:11,color:"#080808",margin:"10px 0 8px",fontWeight:700,textTransform:"uppercase",letterSpacing:".06em"}}>Drill down — optional detail per category</div>
+          <div style={{fontSize:11,color:"#555",margin:"12px 0 8px",fontWeight:700,textTransform:"uppercase",letterSpacing:".06em"}}>Select sub-categories and products — tick all that apply</div>
           {selectedCats.map(cat=>{
-            const subs=Object.keys(CATEGORY_TREE[cat]);
-            const curSub=catSelections[cat]?.sub;
-            const prods=curSub?CATEGORY_TREE[cat][curSub]:[];
-            const curProds=catSelections[cat]?.prods||[];
+            const subs = CATEGORY_TREE[cat] ? Object.keys(CATEGORY_TREE[cat]) : [];
+            const curSubs = catSelections[cat]?.subs||[];
+            const allProds = curSubs.flatMap(s => (CATEGORY_TREE[cat]?.[s]||[]));
+            const curProds = catSelections[cat]?.prods||[];
             return(
               <div key={cat} className="mcat-expanded">
                 <div className="mcat-exp-title">
-                  <span>📦 {cat}</span>
-                  <span style={{fontSize:11,color:"#080808",fontWeight:400,cursor:"pointer"}} onClick={()=>toggleCat(cat)}>× remove</span>
+                  <span>📦 {cat.replace(" (custom)","")}{cat.includes("(custom)")&&<span style={{fontSize:10,color:"#e85a2a",marginLeft:6,fontWeight:400}}>Pending admin review</span>}</span>
+                  <span style={{fontSize:11,color:"#888",fontWeight:400,cursor:"pointer"}} onClick={()=>toggleCat(cat)}>× remove</span>
                 </div>
-                <div style={{fontSize:11,color:"#080808",marginBottom:5,fontWeight:600}}>Sub-category</div>
-                <div className="mcat-sub-row" style={{marginBottom:10}}>
-                  {subs.map(s=><div key={s} className={`mcat-sub ${curSub===s?"on":""}`} onClick={()=>setSub(cat,s)}>{s}</div>)}
-                </div>
-                {curSub&&prods.length>0&&<>
-                  <div style={{fontSize:11,color:"#080808",marginBottom:5,fontWeight:600}}>Product Types</div>
-                  <div className="mcat-sub-row">
-                    {prods.map(p=><div key={p} className={`mcat-prod ${curProds.includes(p)?"on":""}`} onClick={()=>toggleProd(cat,p)}>{p}</div>)}
+                {subs.length>0&&<>
+                  <div style={{fontSize:11,color:"#555",marginBottom:5,fontWeight:600}}>Sub-categories — select multiple ✓</div>
+                  <div className="mcat-sub-row" style={{marginBottom:8}}>
+                    {subs.map(s=><div key={s} className={`mcat-sub ${curSubs.includes(s)?"on":""}`} onClick={()=>toggleSub(cat,s)}>{s}</div>)}
+                    {curSubs.filter(s=>s.includes("(custom)")).map(s=><div key={s} className="mcat-sub on" style={{borderStyle:"dashed"}}>{s.replace(" (custom)","")}</div>)}
                   </div>
                 </>}
+                <div style={{display:"flex",gap:6,marginBottom:10,alignItems:"center"}}>
+                  <input className="fi" style={{fontSize:11,padding:"5px 8px",flex:1}} placeholder="+ Add custom sub-category..." value={catSelections[cat]?.customSub||""} onChange={e=>{const n={...catSelections,[cat]:{...catSelections[cat],customSub:e.target.value}};setCatSelections(n);}} onKeyDown={e=>e.key==="Enter"&&addCustomSub(cat)} />
+                  <button onClick={()=>addCustomSub(cat)} style={{padding:"5px 10px",borderRadius:6,background:"#f5f5f5",border:"1px solid #e0e0e0",color:"#080808",fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap"}}>Add</button>
+                </div>
+                {allProds.length>0&&<>
+                  <div style={{fontSize:11,color:"#555",marginBottom:5,fontWeight:600}}>Product types — select multiple ✓</div>
+                  <div className="mcat-sub-row" style={{marginBottom:8}}>
+                    {allProds.map(p=><div key={p} className={`mcat-prod ${curProds.includes(p)?"on":""}`} onClick={()=>toggleProd(cat,p)}>{p}</div>)}
+                    {curProds.filter(p=>p.includes("(custom)")).map(p=><div key={p} className="mcat-prod on" style={{borderStyle:"dashed"}}>{p.replace(" (custom)","")}</div>)}
+                  </div>
+                </>}
+                <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                  <input className="fi" style={{fontSize:11,padding:"5px 8px",flex:1}} placeholder="+ Add custom product type..." value={catSelections[cat]?.customProd||""} onChange={e=>{const n={...catSelections,[cat]:{...catSelections[cat],customProd:e.target.value}};setCatSelections(n);}} onKeyDown={e=>e.key==="Enter"&&addCustomProd(cat)} />
+                  <button onClick={()=>addCustomProd(cat)} style={{padding:"5px 10px",borderRadius:6,background:"#f5f5f5",border:"1px solid #e0e0e0",color:"#080808",fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap"}}>Add</button>
+                </div>
               </div>
             );
           })}
           <div style={{paddingTop:6,display:"flex",flexWrap:"wrap"}}>
             {selectedCats.map(c=>(
-              <div key={c} className="sel-cat-tag">{c}{catSelections[c]?.sub?` › ${catSelections[c].sub}`:""}<span className="sel-cat-x" onClick={()=>toggleCat(c)}>×</span></div>
+              <div key={c} className="sel-cat-tag">
+                {c.replace(" (custom)","")}
+                {catSelections[c]?.subs?.length>0&&<span style={{opacity:.7}}> · {catSelections[c].subs.length} sub</span>}
+                <span className="sel-cat-x" onClick={()=>toggleCat(c)}>×</span>
+              </div>
             ))}
           </div>
         </div>
@@ -2061,7 +2211,24 @@ function AddPage({ user, onSubmit, toast }) {
             </div>
             <div className="field">
               <label className="fl">Pincode</label>
-              <input className="fi" placeholder="6-digit pincode" value={form.pincode} onChange={e => upd("pincode", e.target.value)} />
+              <input className="fi" placeholder="6-digit pincode"
+                value={form.pincode}
+                maxLength={6}
+                onChange={e => {
+                  const pin = e.target.value.replace(/[^0-9]/g,"").substring(0,6);
+                  upd("pincode", pin);
+                  if (pin.length === 6) {
+                    const result = validatePincode(pin);
+                    if (result.valid && result.state && !form.state) upd("state", result.state);
+                    upd("_pincodeError", !result.valid);
+                  } else {
+                    upd("_pincodeError", false);
+                  }
+                }}
+                style={{borderColor: form._pincodeError ? "#dc2626" : (form.pincode && form.pincode.length===6 && !form._pincodeError) ? "#16a34a" : ""}}
+              />
+              {form._pincodeError && <div style={{fontSize:11,color:"#dc2626",marginTop:2}}>⚠ Invalid pincode — please check</div>}
+              {form.pincode && form.pincode.length===6 && !form._pincodeError && <div style={{fontSize:11,color:"#16a34a",marginTop:2}}>✓ Valid · {validatePincode(form.pincode).state}</div>}
             </div>
           </div>
           <div className="field" style={{ marginBottom: 10 }}>
@@ -2291,8 +2458,8 @@ function LeaderboardPage({ contributors }) {
                 {c.name.charAt(0)}
               </div>
               <div className="lb-info">
-                <div className="lb-name">{c.name}</div>
-                <div className="lb-meta">{c.storesAdded} stores · {c.citiesCovered} cities · {c.city}</div>
+                <div className="lb-name" style={{color:i<3?"#e85a2a":"#080808"}}>{c.name}</div>
+                <div className="lb-meta" style={{color:i<3?"#e85a2a":"#555555"}}>{c.storesAdded} stores · {c.citiesCovered} cities · {c.city}</div>
               </div>
               <div className="lb-pts">
                 <div className="lb-pv">{c.points.toLocaleString()}</div>
@@ -2554,8 +2721,20 @@ function AdminDashboard({ stores }) {
         {section === "enrichment" && <>
           <div className="admin-hd">
             <div className="admin-title">Enrichment Queue</div>
-            <div className="admin-sub">Records pending AI and API-based data enrichment</div>
+            <div className="admin-sub">Custom category reviews + records pending AI enrichment</div>
           </div>
+
+          {/* CUSTOM CATEGORY REVIEW */}
+          <div className="table-wrap" style={{marginBottom:20}}>
+            <div className="table-hd">
+              <span className="table-title">🆕 Custom Category Submissions</span>
+              <span style={{fontSize:12,color:"#555"}}>Review user-submitted categories</span>
+            </div>
+            <div style={{padding:16}}>
+              <div style={{textAlign:"center",padding:"12px 0",color:"#888",fontSize:13}}>Submissions will appear here as users add custom categories, sub-categories and product types.</div>
+            </div>
+          </div>
+
           <div style={{ background: "var(--s2)", border: "1px solid var(--b2)", borderRadius: "var(--r)", padding: 20, marginBottom: 16 }}>
             <div style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Enrichment Roadmap</div>
             {[
@@ -2765,7 +2944,7 @@ export default function App() {
       <style>{G}</style>
       <div className="app light" style={{background:"#f4f5f7",color:"#080808",minHeight:"100vh"}}>
         <nav className="topbar">
-          <div className="logo">T<em>I</em>N</div>
+          <div className="logo" onClick={() => setPage("home")} style={{cursor:"pointer"}}>T<em>I</em>N</div>
           {!isRetailer && (
             <div className="nav-tabs">
               {TABS.map(([id, label]) => (
