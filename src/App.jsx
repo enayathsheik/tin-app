@@ -1478,6 +1478,228 @@ function RewardsPage({ user, onMessageAdmin }) {
 }
 
 
+
+// ============================================================
+// BULK UPLOAD PANEL
+// ============================================================
+function BulkUploadPanel() {
+  const [csvText, setCsvText] = useState("");
+  const [preview, setPreview] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploaded, setUploaded] = useState(0);
+  const [errors, setErrors] = useState([]);
+  const [done, setDone] = useState(false);
+  const [tab, setTab] = useState("paste"); // paste or template
+
+  const EXPECTED_COLS = ["storeName","phone","whatsapp","address","city","state","pincode","businessType","ownerName","email","gst","brands","instagram","website","categories"];
+
+  const parseCSV = (text) => {
+    const lines = text.trim().split("\n").filter(l => l.trim());
+    if (lines.length < 2) return [];
+    const headers = lines[0].split(",").map(h => h.trim().replace(/"/g,"").toLowerCase().replace(/ /g,""));
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+      const vals = lines[i].split(",").map(v => v.trim().replace(/"/g,""));
+      if (vals.filter(v => v).length < 2) continue;
+      const row = {};
+      headers.forEach((h, idx) => { row[h] = vals[idx] || ""; });
+      // Map common column variations
+      row.storeName = row.storename || row.store_name || row.name || row.storeName || "";
+      row.phone = row.phone || row.mobile || row.contact || "";
+      row.businessType = row.businesstype || row.business_type || row.type || "Retailer";
+      row.city = row.city || row.location || "";
+      row.state = row.state || (row.city ? (validatePincode(row.pincode||"").state || "") : "");
+      rows.push(row);
+    }
+    return rows.filter(r => r.storeName);
+  };
+
+  const handlePreview = () => {
+    const rows = parseCSV(csvText);
+    setPreview(rows);
+    setErrors([]);
+    setDone(false);
+  };
+
+  const handleUpload = async () => {
+    if (!preview.length) return;
+    setUploading(true);
+    setUploaded(0);
+    const errs = [];
+    let count = 0;
+
+    for (const row of preview) {
+      try {
+        await addDoc(collection(db, "stores"), {
+          storeName: row.storeName || "",
+          phone: row.phone || "",
+          whatsapp: row.whatsapp || row.phone || "",
+          address: row.address || "",
+          city: row.city || "",
+          state: row.state || "",
+          pincode: row.pincode || "",
+          businessType: row.businessType || "Retailer",
+          ownerName: row.ownerName || row.ownername || "",
+          email: row.email || "",
+          gst: row.gst || "",
+          brands: row.brands || "",
+          instagram: row.instagram || "",
+          website: row.website || "",
+          categories: row.categories ? [{category: row.categories, subCategory:"", productType:""}] : [],
+          contributorId: "admin_bulk",
+          contributorEmail: "enayathsheik@gmail.com",
+          verificationStatus: "community_added",
+          pointsAwarded: 0,
+          confidence: 60,
+          source: "bulk_upload",
+          createdAt: serverTimestamp(),
+        });
+        count++;
+        setUploaded(count);
+      } catch(e) {
+        errs.push(`Row ${count+1} (${row.storeName}): ${e.message}`);
+      }
+    }
+    setErrors(errs);
+    setUploading(false);
+    setDone(true);
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setCsvText(ev.target.result);
+    reader.readAsText(file);
+  };
+
+  const TEMPLATE_CSV = `storeName,phone,whatsapp,address,city,state,pincode,businessType,ownerName,email,gst,brands,instagram,website,categories
+ABC Hardware Store,9820012345,9820012345,"123 Link Road, Andheri West",Mumbai,Maharashtra,400053,Retailer,Rajesh Shah,abc@gmail.com,27AABCS1429B1ZB,"Dorma,Hettich",@abcstore,www.abcstore.com,Hardware & Fittings
+XYZ Plywood,9876543210,9876543210,"45 Industrial Area",Pune,Maharashtra,411001,Distributor,Suresh Patel,xyz@gmail.com,,CenturyPly,,,"Plywood & Boards"`;
+
+  const downloadTemplate = () => {
+    const blob = new Blob([TEMPLATE_CSV], {type:"text/csv"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "TIN_bulk_upload_template.csv"; a.click();
+  };
+
+  return (
+    <div style={{padding:24,maxWidth:900,margin:"0 auto"}}>
+
+      {/* TABS */}
+      <div style={{display:"flex",gap:8,marginBottom:20}}>
+        {[["paste","📋 Paste CSV"],["file","📁 Upload File"],["template","📥 Download Template"]].map(([id,label])=>(
+          <button key={id} onClick={()=>id==="template"?downloadTemplate():setTab(id)}
+            style={{padding:"8px 16px",borderRadius:8,background:tab===id?"#080808":"#f5f5f5",color:tab===id?"white":"#080808",border:`1px solid ${tab===id?"#080808":"#e0e0e0"}`,fontSize:13,fontWeight:700,cursor:"pointer"}}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* FORMAT GUIDE */}
+      <div style={{background:"#f8f8f8",border:"1px solid #e0e0e0",borderRadius:10,padding:14,marginBottom:16,fontSize:12,color:"#080808"}}>
+        <div style={{fontWeight:700,marginBottom:6}}>📋 Required CSV Format</div>
+        <div style={{fontFamily:"monospace",fontSize:11,color:"#555",lineHeight:1.8}}>
+          storeName, phone, address, city, state, pincode, businessType, ownerName, brands, categories
+        </div>
+        <div style={{marginTop:6,color:"#555"}}>• businessType: Retailer / Distributor / Manufacturer / Wholesaler</div>
+        <div style={{color:"#555"}}>• categories: use exact names from TIN category list</div>
+        <div style={{color:"#555"}}>• First row must be headers</div>
+        <button onClick={downloadTemplate} style={{marginTop:8,padding:"5px 12px",borderRadius:6,background:"#e85a2a",border:"none",color:"white",fontSize:11,fontWeight:700,cursor:"pointer"}}>Download Template CSV</button>
+      </div>
+
+      {/* INPUT */}
+      {tab === "paste" && (
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:12,fontWeight:700,color:"#080808",marginBottom:6}}>Paste CSV Data</div>
+          <textarea
+            className="fta"
+            rows={10}
+            placeholder={"storeName,phone,address,city,state,pincode,businessType,ownerName,brands,categories\nABC Store,9820012345,123 MG Road,Mumbai,Maharashtra,400001,Retailer,Rajesh,Hettich,Hardware & Fittings"}
+            value={csvText}
+            onChange={e=>setCsvText(e.target.value)}
+            style={{fontFamily:"monospace",fontSize:11}}
+          />
+        </div>
+      )}
+      {tab === "file" && (
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:12,fontWeight:700,color:"#080808",marginBottom:6}}>Upload CSV File</div>
+          <input type="file" accept=".csv,.txt" onChange={handleFileUpload}
+            style={{padding:"10px",border:"2px dashed #e0e0e0",borderRadius:8,width:"100%",cursor:"pointer",fontSize:13}} />
+          {csvText && <div style={{fontSize:12,color:"#16a34a",marginTop:6}}>✓ File loaded — {csvText.split("\n").length} lines</div>}
+        </div>
+      )}
+
+      {/* PREVIEW BUTTON */}
+      <div style={{display:"flex",gap:10,marginBottom:16}}>
+        <button onClick={handlePreview} style={{padding:"9px 20px",borderRadius:8,background:"#080808",border:"none",color:"white",fontSize:13,fontWeight:700,cursor:"pointer"}}>
+          👁 Preview Data
+        </button>
+        {preview.length>0 && !uploading && !done && (
+          <button onClick={handleUpload} style={{padding:"9px 20px",borderRadius:8,background:"#e85a2a",border:"none",color:"white",fontSize:13,fontWeight:700,cursor:"pointer"}}>
+            📤 Upload {preview.length} Stores to Firebase
+          </button>
+        )}
+      </div>
+
+      {/* UPLOAD PROGRESS */}
+      {uploading && (
+        <div style={{background:"#fff8f5",border:"1px solid #fde0d0",borderRadius:10,padding:16,marginBottom:16}}>
+          <div style={{fontWeight:700,color:"#e85a2a",marginBottom:8}}>Uploading... {uploaded} / {preview.length}</div>
+          <div style={{height:8,background:"#f0f0f0",borderRadius:4,overflow:"hidden"}}>
+            <div style={{height:"100%",background:"#e85a2a",borderRadius:4,width:`${Math.round((uploaded/preview.length)*100)}%`,transition:"width .3s"}}/>
+          </div>
+        </div>
+      )}
+
+      {/* DONE */}
+      {done && (
+        <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:16,marginBottom:16}}>
+          <div style={{fontWeight:700,color:"#16a34a",fontSize:15}}>✅ Upload Complete!</div>
+          <div style={{fontSize:13,color:"#080808",marginTop:4}}>{uploaded} stores uploaded successfully to Firebase.</div>
+          {errors.length>0 && <div style={{marginTop:8,fontSize:12,color:"#dc2626"}}>{errors.length} errors — {errors[0]}</div>}
+          <button onClick={()=>{setDone(false);setCsvText("");setPreview([]);setUploaded(0);}} style={{marginTop:10,padding:"7px 14px",borderRadius:8,background:"#080808",border:"none",color:"white",fontSize:12,fontWeight:700,cursor:"pointer"}}>Upload Another Batch</button>
+        </div>
+      )}
+
+      {/* PREVIEW TABLE */}
+      {preview.length>0 && (
+        <div>
+          <div style={{fontWeight:700,color:"#080808",marginBottom:8,fontSize:14}}>Preview — {preview.length} stores found</div>
+          <div style={{overflowX:"auto",borderRadius:10,border:"1px solid #e0e0e0"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+              <thead>
+                <tr style={{background:"#f8f8f8"}}>
+                  {["#","Store Name","Phone","City","State","Business Type","Brands","Status"].map(h=>(
+                    <th key={h} style={{padding:"8px 12px",textAlign:"left",fontWeight:700,color:"#080808",borderBottom:"1px solid #e0e0e0",whiteSpace:"nowrap"}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {preview.slice(0,50).map((row,i)=>(
+                  <tr key={i} style={{borderBottom:"1px solid #f0f0f0",background:i%2===0?"#fff":"#fafafa"}}>
+                    <td style={{padding:"7px 12px",color:"#555"}}>{i+1}</td>
+                    <td style={{padding:"7px 12px",fontWeight:600,color:"#080808"}}>{row.storeName||<span style={{color:"#dc2626"}}>⚠ Missing</span>}</td>
+                    <td style={{padding:"7px 12px",color:"#080808"}}>{row.phone||"—"}</td>
+                    <td style={{padding:"7px 12px",color:"#080808"}}>{row.city||"—"}</td>
+                    <td style={{padding:"7px 12px",color:"#080808"}}>{row.state||"—"}</td>
+                    <td style={{padding:"7px 12px",color:"#080808"}}>{row.businessType||"Retailer"}</td>
+                    <td style={{padding:"7px 12px",color:"#080808"}}>{row.brands||"—"}</td>
+                    <td style={{padding:"7px 12px"}}><span style={{fontSize:10,fontWeight:700,background:"#f0fdf4",color:"#16a34a",padding:"2px 8px",borderRadius:10}}>Ready</span></td>
+                  </tr>
+                ))}
+                {preview.length>50 && <tr><td colSpan={8} style={{padding:"8px 12px",textAlign:"center",color:"#555",fontSize:12}}>... and {preview.length-50} more stores</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ============================================================
 // ADMIN LOGIN PAGE — separate from main login
 // ============================================================
@@ -1936,12 +2158,13 @@ function LoginPage({ onLogin }) {
       if (mode === "login") {
         // LOGIN — role loaded from Firebase automatically
         const cred = await signInWithEmailAndPassword(auth, emailToUse, passToUse);
+        const isAdminEmail = emailToUse.toLowerCase() === "enayathsheik@gmail.com";
         const profile = await getUserProfile(cred.user.uid);
         if (profile) {
-          onLogin({ ...profile, uid: cred.user.uid });
+          const finalProfile = isAdminEmail ? { ...profile, role: "admin" } : profile;
+          onLogin({ ...finalProfile, uid: cred.user.uid });
         } else {
-          // Profile not found — create basic one
-          const basicProfile = { name: emailToUse.split("@")[0], email: emailToUse, workEmail: emailToUse, personalEmail: "", role: "contributor", linkedin: "", company: "", points: 0, storesAdded: 0, citiesCovered: 0, validationStatus: "n/a", createdAt: new Date().toISOString(), uid: cred.user.uid };
+          const basicProfile = { name: emailToUse.split("@")[0], email: emailToUse, workEmail: emailToUse, personalEmail: "", role: isAdminEmail ? "admin" : "contributor", linkedin: "", company: "", points: 0, storesAdded: 0, citiesCovered: 0, validationStatus: "n/a", createdAt: new Date().toISOString(), uid: cred.user.uid };
           await saveUserProfile(cred.user.uid, basicProfile);
           onLogin(basicProfile);
         }
@@ -2875,6 +3098,7 @@ function AdminDashboard({ stores }) {
     { id: "suggestions", icon: "✏️", label: "Suggest Edits" },
     { id: "users", icon: "👥", label: "User Management" },
     { id: "records", icon: "🗂", label: "All Records" },
+    { id: "bulk", icon: "📤", label: "Bulk Upload" },
   ];
   const pendingContribs = MOCK_CONTRIBUTORS.filter(c=>c.validationStatus==="pending");
 
@@ -3160,6 +3384,13 @@ function AdminDashboard({ stores }) {
           </div>
         </>}
 
+        {section === "bulk" && <>
+          <div className="admin-hd">
+            <div className="admin-title">Bulk Upload</div>
+            <div className="admin-sub">Upload stores in bulk via CSV paste or file upload</div>
+          </div>
+          <BulkUploadPanel />
+        </>}
         {section === "records" && <>
           <div className="admin-hd">
             <div className="admin-title">All Records</div>
@@ -3238,8 +3469,11 @@ export default function App() {
         try {
           const profile = await getUserProfile(firebaseUser.uid);
           if (profile) {
-            setUser({ ...profile, uid: firebaseUser.uid });
-            setPage(profile.role === "admin" ? "admin" : "home");
+            // Override role to admin if email matches admin email
+            const isAdminEmail = firebaseUser.email === "enayathsheik@gmail.com";
+            const finalProfile = isAdminEmail ? { ...profile, role: "admin" } : profile;
+            setUser({ ...finalProfile, uid: firebaseUser.uid });
+            setPage(isAdminEmail ? "admin" : (profile.role === "admin" ? "admin" : "home"));
           }
         } catch(e) { console.log("Profile load error:", e); }
       }
