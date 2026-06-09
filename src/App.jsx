@@ -234,7 +234,7 @@ function validatePincode(pin) {
 
 const ROLES = [
   { id: "consumer", label: "Consumer", icon: "👤", desc: "Browse and discover" },
-  { id: "contributor", label: "Contributor", icon: "✍️", desc: "Add and verify stores" },
+  { id: "contributor", label: "Market Champion", icon: "✍️", desc: "Add & verify stores" },
   { id: "retailer", label: "Retailer / Distributor", icon: "🏪", desc: "List your business" },
   { id: "contractor", label: "Contractor", icon: "🔧", desc: "Find suppliers" },
   { id: "architect", label: "Architect / Designer", icon: "📐", desc: "Source materials" },
@@ -790,6 +790,88 @@ tr:hover td{background:var(--s2);color:var(--t1)}
 .light .ntab:hover{color:#080808}
 .light .ntab.on{color:#080808}
 .light .logo{color:#080808}
+
+/* ── MOBILE RESPONSIVE ───────────────────────────────── */
+@media(max-width:768px){
+  /* General */
+  .app{overflow-y:auto}
+  .page{overflow-y:auto}
+  
+  /* Topbar */
+  .topbar{padding:0 12px;height:48px}
+  .logo{font-size:16px}
+  .pts-badge{font-size:11px;padding:2px 8px}
+  .avatar{width:28px;height:28px;font-size:11px}
+  
+  /* Nav tabs — hide on mobile, use bottom nav */
+  .nav-tabs{display:none}
+  
+  /* Bottom nav for mobile */
+  .mobile-nav{
+    display:flex;position:fixed;bottom:0;left:0;right:0;
+    background:#fff;border-top:1px solid #e0e0e0;
+    padding:8px 0 12px;z-index:300;
+    box-shadow:0 -2px 12px rgba(0,0,0,.08);
+  }
+  .mobile-nav-item{
+    flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+    cursor:pointer;padding:4px 0;transition:all .15s;
+  }
+  .mobile-nav-icon{font-size:18px;line-height:1}
+  .mobile-nav-label{font-size:10px;font-weight:700;color:#888;letter-spacing:.02em}
+  .mobile-nav-item.on .mobile-nav-label{color:#e85a2a}
+  
+  /* Add padding at bottom for fixed nav */
+  .page{padding-bottom:70px}
+  
+  /* Discovery */
+  .discovery{flex-direction:column}
+  .disc-sidebar{width:100%;max-height:none;border-right:none;border-bottom:1px solid #e0e0e0}
+  .disc-main{flex:1}
+  
+  /* Forms */
+  .fg{grid-template-columns:1fr}
+  .fg3{grid-template-columns:1fr 1fr}
+  .form-wrap{padding:16px 14px 80px}
+  
+  /* Retailer dashboard */
+  .retailer-layout{flex-direction:column}
+  .retailer-sidebar{display:none!important}
+  .retailer-content{padding-bottom:70px!important}
+  .retailer-sidebar{display:none}
+  .retailer-content{padding:14px}
+  
+  /* Cards */
+  .stat-card{padding:12px}
+  .stat-num{font-size:22px}
+  
+  /* Leaderboard */
+  .lb-stats{grid-template-columns:repeat(2,1fr)}
+  .lb-wrap{padding:16px 14px}
+  
+  /* Profile */
+  .prof-wrap{padding:16px 14px 80px}
+  .prof-grid{grid-template-columns:repeat(3,1fr)}
+  
+  /* Admin */
+  .admin-pg{flex-direction:column}
+  .admin-nav{display:none}
+  .admin-main{padding:14px}
+  .admin-stats{grid-template-columns:repeat(2,1fr)}
+  
+  /* Login */
+  .login-card{width:100%;max-width:400px;padding:24px 20px;margin:10px}
+  .role-grid{grid-template-columns:1fr 1fr}
+  
+  /* Category selector */
+  .mcat-grid{grid-template-columns:repeat(2,1fr)}
+  
+  /* Hero */
+  .hero-top{padding:32px 16px 24px}
+  .stats-row{grid-template-columns:repeat(2,1fr)}
+  .city-grid{grid-template-columns:repeat(2,1fr)}
+}
+
 @media(max-width:768px){
   .disc-main.hidden-mob{display:none}
   .discovery{flex-direction:column}
@@ -1314,7 +1396,7 @@ function RewardsPage({ user, onMessageAdmin }) {
         {/* REFERRAL */}
         <div className="section-card">
           <div className="sc-title">🤝 Refer a Contributor</div>
-          <div className="sc-sub">Earn +50 points for every new industry contributor who joins using your referral code and gets validated.</div>
+          <div className="sc-sub">Earn +50 points for every new Market Champion who joins using your referral code and gets validated.</div>
           <div className="referral-card">
             <div style={{fontSize:12,color:"#080808"}}>Your referral code</div>
             <div className="ref-code">{refCode}</div>
@@ -1477,9 +1559,9 @@ function RetailerDashboard({ user, stores, onNavigate }) {
   };
 
   return (
-    <div style={{display:"flex",height:"100%",overflow:"hidden"}}>
+    <div className="retailer-layout" style={{display:"flex",height:"100%",overflow:"hidden"}}>
       {/* SIDEBAR NAV */}
-      <div style={{width:200,flexShrink:0,background:"#fff",borderRight:"1px solid #e0e0e0",padding:"16px 12px",display:"flex",flexDirection:"column",gap:2,overflowY:"auto"}}>
+      <div className="retailer-sidebar" style={{width:200,flexShrink:0,background:"#fff",borderRight:"1px solid #e0e0e0",padding:"16px 12px",display:"flex",flexDirection:"column",gap:2,overflowY:"auto"}}>
         <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:13,letterSpacing:".12em",color:"#e85a2a",padding:"4px 10px",marginBottom:8}}>BUSINESS PORTAL</div>
         {[["home","🏠","My Business"],["discover","🔍","Discover"],["staff","👥","Staff"],["deals","🏷","Deals"],["profile","👤","Profile"]].map(([id,icon,label]) => (
           <div key={id}
@@ -1500,8 +1582,11 @@ function RetailerDashboard({ user, stores, onNavigate }) {
         </div>
       </div>
 
+      {/* RETAILER MOBILE NAV */}
+      <div style={{display:"none"}} className="mobile-retailer-nav-placeholder" />
+
       {/* MAIN CONTENT */}
-      <div style={{flex:1,overflowY:"auto",background:"#f5f5f5"}}>
+      <div className="retailer-content" style={{flex:1,overflowY:"auto",background:"#f5f5f5"}}>
 
         {/* ---- HOME TAB ---- */}
         {activeTab === "home" && (
@@ -1903,7 +1988,7 @@ function LoginPage({ onLogin }) {
 
         {/* CONTRIBUTOR EXTRA FIELDS — only on register */}
         {mode === "register" && isContrib && (
-          <div className="contrib-note">✍️ Contributors need a company work email. LinkedIn is optional.</div>
+          <div className="contrib-note">✍️ Market Champions need a company work email. LinkedIn is optional.</div>
         )}
 
         <div className="login-fields">
@@ -2325,7 +2410,7 @@ function DiscoveryPage({ stores, selectedCity }) {
         <div className="disc-sidebar-hd">
           <div className="srch">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ color: "var(--t3)", flexShrink: 0 }}><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
-            <input placeholder={`Search${selectedCity ? ` in ${selectedCity}` : ""}...`} value={search} onChange={e => setSearch(e.target.value)} />
+            <input placeholder={`Search store, brand, category, pincode, area${selectedCity ? ` in ${selectedCity}` : ""}...`} value={search} onChange={e => setSearch(e.target.value)} />
           </div>
           <div className="chips" style={{ marginBottom: 6 }}>
             {["All", "verified", "community_added"].map(s => (
@@ -2439,7 +2524,7 @@ function LeaderboardPage({ contributors }) {
       <div className="lb-wrap">
         <div className="lb-hd">
           <div className="lb-title">Leaderboard</div>
-          <div className="lb-sub">Top contributors building India's trade intelligence</div>
+          <div className="lb-sub">Top Market Champions building India's trade intelligence</div>
         </div>
         <div className="lb-stats">
           <div className="lb-stat"><div className="lb-sv">{contributors.length}</div><div className="lb-sl">Contributors</div></div>
@@ -2500,7 +2585,7 @@ function ProfilePage({ user }) {
           </div>
         </div>
         <div className="prog-sec">
-          <div className="prog-title">Contributor Progress</div>
+          <div className="prog-title">Market Champion Progress</div>
           {CONTRIBUTOR_LEVELS.map(l => {
             const isNow = user.points >= l.min && user.points <= l.max;
             const pct = user.points >= l.max ? 100 : user.points >= l.min ? Math.round(((user.points - l.min) / ((l.max === Infinity ? l.min * 5 : l.max) - l.min)) * 100) : 0;
@@ -2552,7 +2637,7 @@ function AdminDashboard({ stores }) {
 
   const navItems = [
     { id: "dashboard", icon: "📊", label: "Dashboard" },
-    { id: "validation", icon: "✅", label: "Contributor Validation" },
+    { id: "validation", icon: "✅", label: "Market Champion Validation" },
     { id: "upload", icon: "📤", label: "Bulk Upload" },
     { id: "duplicates", icon: "🔗", label: "Duplicate Manager" },
     { id: "enrichment", icon: "✨", label: "Enrichment Queue" },
@@ -2586,7 +2671,7 @@ function AdminDashboard({ stores }) {
           <div className="table-wrap" style={{ marginBottom: 16 }}>
             <div className="table-hd"><span className="table-title">Recent Contributions</span><span style={{ fontSize: 12, color: "var(--t3)" }}>Last 24 hours</span></div>
             <table>
-              <thead><tr><th>Store / Name</th><th>City</th><th>Category</th><th>Contributor</th><th>Status</th><th>Confidence</th></tr></thead>
+              <thead><tr><th>Store / Name</th><th>City</th><th>Category</th><th>Market Champion</th><th>Status</th><th>Confidence</th></tr></thead>
               <tbody>
                 {stores.map(s => (
                   <tr key={s.id}>
@@ -2604,7 +2689,7 @@ function AdminDashboard({ stores }) {
         </>}
 
         {section === "validation" && <>
-          <div className="admin-hd"><div className="admin-title">Contributor Validation</div><div className="admin-sub">Review and approve industry contributor applications</div></div>
+          <div className="admin-hd"><div className="admin-title">Market Champion Validation</div><div className="admin-sub">Review and approve Market Champion applications</div></div>
           {pendingContribs.length===0?(
             <div className="val-ok-banner"><span>✓</span><div>No pending validations. All contributors are approved.</div></div>
           ):pendingContribs.map(c=>(
@@ -2906,11 +2991,25 @@ export default function App() {
   const handleAddStore = () => setPage("add");
   const handleMessageAdmin = () => { showToast("Message sent to admin! We will contact you within 24 hours.", "ok"); };
 
-  const handleSubmitStore = (data) => {
-    setStores(s => [data, ...s]);
-    setUser(u => ({ ...u, points: (u.points || 0) + 10, storesAdded: (u.storesAdded || 0) + 1 }));
-    showToast("Store added! +10 points earned 🏆");
-    setPage("discover");
+  const handleSubmitStore = async (data) => {
+    const newStores = [data, ...stores];
+    setStores(newStores);
+    const myCities = [...new Set(
+      newStores
+        .filter(s => s.contributorId === user.uid || s.contributorEmail === user.email)
+        .map(s => s.city)
+        .filter(Boolean)
+    )];
+    setUser(u => ({ ...u, points: (u.points||0)+10, storesAdded: (u.storesAdded||0)+1, citiesCovered: myCities.length }));
+    if (user?.uid && user.uid !== "admin") {
+      try {
+        await updateDoc(doc(db, "users", user.uid), {
+          points: increment(10), storesAdded: increment(1), citiesCovered: myCities.length,
+        });
+      } catch(e) { console.log("Points update:", e.message); }
+    }
+    setShowThankYou(true);
+    setTimeout(() => { setShowThankYou(false); setPage("home"); }, 3000);
   };
 
   const isContrib = user?.role === "contributor";
@@ -2923,9 +3022,9 @@ export default function App() {
     : [
         ["home","Home"],
         ["discover","Discover"],
-        ["add","+ Add"],
-        ...(isContrib ? [["rewards","My Rewards"]] : []),
-        ["staff","Staff Profile"],
+        ["add","+ Add Store"],
+        ...(isContrib ? [["rewards","⭐ Rewards"]] : []),
+        ["staff","Staff"],
         ...(showLeaderboard ? [["leaderboard","Leaderboard"]] : []),
         ["deals","Deals"],
         ["profile","Profile"],
@@ -2962,14 +3061,35 @@ export default function App() {
         </nav>
         {showThankYou && (
           <div style={{position:"fixed",inset:0,background:"#00000080",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-            <div style={{background:"var(--s1)",border:"1px solid var(--b2)",borderRadius:"var(--rxl)",padding:36,maxWidth:380,width:"100%",textAlign:"center"}}>
+            <div style={{background:"#fff",border:"1px solid #e0e0e0",borderRadius:24,padding:32,maxWidth:380,width:"100%",textAlign:"center",boxShadow:"0 8px 32px rgba(0,0,0,.12)"}}>
               <div style={{fontSize:48,marginBottom:12}}>🎉</div>
-              <div style={{fontFamily:"'Barlow Condensed'",fontWeight:800,fontSize:24,marginBottom:8}}>Thank You!</div>
-              <div style={{fontSize:14,color:"#080808",marginBottom:16,lineHeight:1.6}}>Your store profile has been submitted successfully. You earned <strong style={{color:"var(--acc)"}}>+10 points</strong> for contributing to TIN!</div>
-              <div style={{fontSize:12,color:"#080808"}}>Redirecting to home...</div>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:26,marginBottom:8,color:"#080808"}}>Thank You!</div>
+              <div style={{fontSize:14,color:"#555",marginBottom:20,lineHeight:1.6}}>Store submitted! You earned <strong style={{color:"#e85a2a"}}>+10 points</strong> for contributing to TIN.</div>
+              <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
+                <button onClick={()=>{setShowThankYou(false);setPage("discover");}} style={{padding:"9px 18px",borderRadius:8,background:"#e85a2a",border:"none",color:"white",fontSize:13,fontWeight:700,cursor:"pointer"}}>View in Discover →</button>
+                <button onClick={()=>{setShowThankYou(false);setPage("home");}} style={{padding:"9px 18px",borderRadius:8,background:"#f5f5f5",border:"1px solid #e0e0e0",color:"#080808",fontSize:13,fontWeight:700,cursor:"pointer"}}>Go Home</button>
+              </div>
             </div>
           </div>
         )}
+        {/* MOBILE BOTTOM NAV */}
+        {!isRetailer && user?.role !== "admin" && (
+          <div className="mobile-nav">
+            {[
+              ["home","🏠","Home"],
+              ["discover","🔍","Discover"],
+              ["add","➕","Add"],
+              ...(isContrib ? [["rewards","⭐","Rewards"]] : []),
+              ["profile","👤","Profile"],
+            ].map(([id,icon,label]) => (
+              <div key={id} className={`mobile-nav-item ${page===id?"on":""}`} onClick={()=>setPage(id)}>
+                <span className="mobile-nav-icon">{icon}</span>
+                <span className="mobile-nav-label" style={{color:page===id?"#e85a2a":"#888"}}>{label}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="page">
           {page === "home" && (isRetailer
             ? <RetailerDashboard user={user} stores={stores} onNavigate={setPage} />
