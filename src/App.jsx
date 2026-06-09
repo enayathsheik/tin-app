@@ -43,101 +43,146 @@ async function getUserProfile(uid) {
 // CATEGORY TREE — 3 levels
 // ============================================================
 const CATEGORY_TREE = {
-  "Paints": {
-    "Interior Paints": ["Emulsion","Distemper","Primer","Enamel","Texture"],
-    "Exterior Paints": ["Weather Coat","Texture Paint","Masonry Paint","Elastomeric"],
-    "Wood Finishes": ["Melamine","PU Coat","NC Lacquer","Varnish"],
-    "Waterproofing": ["Bituminous","Crystalline","Cementitious","Polyurethane"],
+  "Cement & Concrete": {
+    "Cement": ["OPC 43 Grade","OPC 53 Grade","PPC Cement","PSC Cement","White Cement"],
+    "Ready Mix Concrete": ["Ready Mix M20","Ready Mix M25","Ready Mix M30","Ready Mix M35"],
+    "Admixtures": ["Fly Ash","Waterproofing Admixture","Plasticizer","Accelerator"],
+    "Concrete Blocks": ["AAC Block 600x200x100mm","AAC Block 4 inch","AAC Block 6 inch","Solid Concrete Block","Hollow Concrete Block"],
+    "Pavers": ["Interlocking Paver Block","Chequered Tile","Grass Paver"],
+    "Kerbstones": ["Straight Kerbstone","Curved Kerbstone"],
   },
-  "Ceramic Tiles": {
-    "Floor Tiles": ["Anti-Skid","Matt","Glossy","Parking","Industrial"],
-    "Wall Tiles": ["Glossy","Matt","Subway","Mosaic"],
-    "Vitrified Tiles": ["GVT","PGVT","Double Charge","Full Body"],
-    "Outdoor Tiles": ["Parking","Paving","Pool Coping"],
+  "Steel & Structural": {
+    "TMT Bars": ["Fe500 TMT 8mm","Fe500 TMT 10mm","Fe500 TMT 12mm","Fe500 TMT 16mm","Fe550 TMT 16mm","Fe550 TMT 20mm"],
+    "Structural Steel": ["MS Angle","MS Channel","I Beam","H Beam","MS Flat","MS Round"],
+    "Wire Rods": ["GI Binding Wire","Black Binding Wire"],
+    "Mesh": ["Welded Wire Mesh","Chain Link Mesh","Ribbed Mesh"],
   },
-  "Marble & Stone": {
-    "Marble": ["Italian","Indian","Imported","Onyx"],
-    "Granite": ["Indian","Imported","Black","Multi-colour"],
-    "Sandstone": ["Jodhpur","Agra","Dholpur"],
-    "Slate & Quartzite": ["Slate","Quartzite","Limestone"],
+  "Bricks & Masonry": {
+    "Clay Bricks": ["First Class Clay Brick","Second Class Clay Brick","Engineering Brick"],
+    "Fly Ash Bricks": ["Fly Ash Brick 230x110x75","Fly Ash Brick 230x110x90"],
+    "AAC Blocks": ["AAC Block 4 inch","AAC Block 6 inch","AAC Block 8 inch"],
+    "Concrete Blocks": ["Solid Concrete Block","Hollow Concrete Block"],
+    "Hollow Blocks": ["Hollow Block 4 inch","Hollow Block 6 inch"],
   },
-  "Plywood": {
-    "Commercial Ply": ["BWR","MR","Flexi Ply","Shuttering Ply"],
-    "Marine Ply": ["IS 710","Fire Retardant","Boiling Water Resistant"],
-    "Block Board": ["Solid Core","Hollow Core","Flush Door"],
-    "MDF & Particle Board": ["MDF","HDF","Particle Board","Pre-lam"],
+  "Doors & Windows": {
+    "Aluminium Systems": ["Sliding Window","Casement Window","Lift & Slide Door","Slim Aluminium Partition","Aluminium Louvre"],
+    "uPVC": ["uPVC Sliding Window","uPVC Casement Window","uPVC Door","uPVC Fixed Window"],
+    "Wooden Doors": ["Flush Door","Veneer Door","Panel Door","WPC Door"],
+    "Steel Doors": ["Fire Rated Door","Security Door","Industrial Door"],
+    "Glass Doors": ["Frameless Glass Door","Patch Fitting Door","Pivot Door"],
   },
-  "Laminates": {
-    "Decorative Laminates": ["High Pressure","Low Pressure","Compact"],
-    "Wood Finish": ["Teak","Walnut","Oak","Wenge"],
-    "Solid Colors": ["Gloss","Matt","Suede","Metallic"],
-    "Special Finish": ["Anti-fingerprint","Anti-bacterial","Chalk Paint"],
+  "Glass & Glazing": {
+    "Float Glass": ["Clear Glass 4mm","Clear Glass 6mm","Clear Glass 8mm","Clear Glass 10mm","Clear Glass 12mm"],
+    "Toughened Glass": ["Toughened Glass 8mm","Toughened Glass 10mm","Toughened Glass 12mm"],
+    "Laminated Glass": ["Laminated Glass 6+6","Laminated Glass 8+8","Laminated Glass 10+10"],
+    "Insulated Glass": ["DGU Glass","TGU Glass"],
+    "Decorative Glass": ["Frosted Glass","Reflective Glass","Tinted Glass","Lacquered Glass","Back Painted Glass"],
   },
-  "Hardware": {
-    "Architectural Hardware": ["Hinges","Handles","Locks","Stoppers"],
-    "Furniture Hardware": ["Cabinet Hinges","Drawer Systems","Handles","Connectors"],
-    "Construction Hardware": ["Anchors","Fasteners","Wire Mesh","MS Sections"],
-    "Tools": ["Power Tools","Hand Tools","Measuring","Safety"],
+  "Plywood & Boards": {
+    "Plywood": ["MR Grade Plywood","BWR Plywood","BWP Marine Ply","Commercial Ply","Shuttering Ply"],
+    "MDF": ["MDF 12mm","MDF 18mm","Moisture Resistant MDF"],
+    "HDHMR": ["HDHMR 12mm","HDHMR 18mm"],
+    "Particle Board": ["Particle Board 18mm","Particle Board 25mm"],
+    "WPC Board": ["WPC Board 12mm","WPC Board 18mm"],
+  },
+  "Laminates & Surfaces": {
+    "Decorative Laminates": ["1mm Laminate","0.8mm Laminate","HPL Exterior","Postform Laminate"],
+    "Acrylic Sheets": ["Acrylic Sheet Gloss","Acrylic Sheet Matt","Solid Acrylic"],
+    "Veneers": ["Teak Veneer","Walnut Veneer","Oak Veneer","Wenge Veneer"],
+    "Wall Panels": ["Fluted Wall Panel","Louver Panel","3D Wall Panel","PU Panel"],
+    "Charcoal Panels": ["Charcoal Panel 18mm"],
+  },
+  "Flooring": {
+    "Tiles": ["Vitrified Tile 600x600","GVT Tile","PGVT Tile","Full Body Tile","Parking Tile","Anti-Skid Tile"],
+    "Marble": ["Italian Marble","Indian Marble","Onyx","Travertine"],
+    "Granite": ["Granite Slab","Granite Tile","Absolute Black","Multi Brown"],
+    "Wooden Flooring": ["Engineered Wood Flooring","Solid Wood Flooring","Laminate Flooring"],
+    "SPC Flooring": ["SPC Flooring 4mm","SPC Flooring 6mm"],
+    "Vinyl Flooring": ["Vinyl Sheet","LVT Flooring"],
+  },
+  "Sanitaryware": {
+    "Water Closets": ["Wall Hung WC","Floor Mounted WC","One Piece Closet","Western Commode"],
+    "Wash Basins": ["Counter Basin","Table Top Basin","Under Counter Basin","Pedestal Basin","Wall Hung Basin"],
+    "Urinals": ["Wall Hung Urinal","Sensor Urinal"],
+    "Cisterns": ["Concealed Cistern","Exposed Cistern"],
+  },
+  "Bath Fittings": {
+    "Faucets": ["Basin Mixer","Sink Mixer","Pillar Cock","Bib Cock","Angle Valve"],
+    "Showers": ["Rain Shower","Hand Shower","Shower Panel","Overhead Shower"],
+    "Accessories": ["Towel Ring","Towel Rod","Soap Dish","Robe Hook","Toilet Paper Holder"],
+    "Wellness Products": ["Steam Unit","Jacuzzi","Shower Enclosure","Bathtub"],
+  },
+  "Kitchen Solutions": {
+    "Sinks": ["Single Bowl Sink","Double Bowl Sink","Under Mount Sink","Drainboard Sink"],
+    "Chimneys": ["Chimney 60cm","Chimney 90cm","Island Chimney"],
+    "Hobs": ["Built-in Hob 2 Burner","Built-in Hob 3 Burner","Built-in Hob 4 Burner","Induction Hob"],
+    "Kitchen Accessories": ["Cutlery Basket","Corner Carousel","Pull Out Unit","Waste Bin","Trouser Rack"],
+  },
+  "Paints & Coatings": {
+    "Interior Paints": ["Interior Emulsion","Royale Paint","Velvet Touch","Washable Distemper"],
+    "Exterior Paints": ["Exterior Emulsion","Weathershield","Texture Paint","Elastomeric"],
+    "Primers": ["Wall Primer","Metal Primer","Wood Primer"],
+    "Wood Coatings": ["PU Polish","Melamine Polish","NC Polish","Wax Polish"],
+    "Industrial Coatings": ["Epoxy Coating","Enamel Paint","Anti-Corrosion Paint"],
+  },
+  "Adhesives & Sealants": {
+    "Tile Adhesives": ["Tile Adhesive C1","Tile Adhesive C2","Tile Adhesive C2TE","Heavy Duty Tile Adhesive"],
+    "Construction Chemicals": ["Epoxy Grout","Tile Grout","Non-Shrink Grout","Curing Compound"],
+    "Sealants": ["Silicone Sealant","PU Sealant","MS Sealant","Butyl Sealant"],
+    "Wood Adhesives": ["Fevicol SH","Fevicol Marine","White Glue","Contact Cement"],
+  },
+  "Waterproofing": {
+    "Coatings": ["Acrylic Waterproofing","Cementitious Waterproofing","PU Waterproofing","Crystalline Waterproofing"],
+    "Membranes": ["APP Membrane","SBS Membrane","HDPE Membrane","Butyl Rubber Membrane"],
+    "Admixtures": ["Integral Waterproofing","Crystalline Admixture"],
   },
   "Electrical": {
-    "Wiring Accessories": ["Switches","Sockets","MCB","Distribution Boards"],
-    "Cables & Wires": ["House Wire","Armoured","Co-axial","Data Cables"],
-    "Conduits & Accessories": ["PVC Conduit","GI Conduit","Trunking","Junction Boxes"],
-    "Power Products": ["UPS","Stabilizers","Inverters","Solar"],
-  },
-  "Lighting": {
-    "Indoor Lighting": ["LED Panels","Downlights","Track Lights","Strip Lights"],
-    "Outdoor Lighting": ["Streetlights","Floodlights","Garden Lights","Bollards"],
-    "Decorative Lighting": ["Chandeliers","Pendants","Wall Sconces","Table Lamps"],
-    "Industrial Lighting": ["High Bay","Flood","Explosion Proof","Emergency"],
+    "Wires": ["FR Wire 1.5 sq mm","FR Wire 2.5 sq mm","FR Wire 4 sq mm","FR Wire 6 sq mm","Flexible Wire"],
+    "Switches": ["Modular Switch","Anchor Switch","Piano Switch","Smart Switch","Fan Regulator"],
+    "MCBs": ["MCB 6A","MCB 10A","MCB 16A","MCB 32A","RCCB","ELCB","Distribution Board"],
+    "Lighting": ["LED Downlight","LED Panel Light","LED Strip","LED Bulb","LED Batten","Spotlight"],
+    "Smart Home": ["Smart Switch","Smart Dimmer","Smart Curtain Motor","Smart Lock","Scene Controller"],
   },
   "Plumbing": {
-    "Pipes & Fittings": ["CPVC","UPVC","GI","PPR","HDPE"],
-    "Sanitary Ware": ["WC","Wash Basin","Urinal","Bath Tub"],
-    "Faucets & Mixers": ["Basin Mixer","Shower","Kitchen","Concealed"],
-    "Water Tanks": ["HDPE","FRP","RCC","SS"],
+    "CPVC": ["CPVC Pipe 20mm","CPVC Pipe 25mm","CPVC Pipe 32mm","CPVC Elbow","CPVC Tee","CPVC Reducer"],
+    "UPVC": ["UPVC Pipe","UPVC Fitting","UPVC Ball Valve"],
+    "SWR": ["SWR Pipe 75mm","SWR Pipe 110mm","SWR Pipe 160mm","SWR Bend","SWR Tee"],
+    "HDPE": ["HDPE Pipe","HDPE Fitting","HDPE Valve"],
+    "Valves & Fittings": ["Ball Valve","Gate Valve","Non Return Valve","Water Meter","Pressure Gauge"],
   },
-  "Furniture": {
-    "Residential Furniture": ["Bedroom","Living Room","Dining","Kitchen"],
-    "Office Furniture": ["Workstations","Chairs","Conference","Storage"],
-    "Outdoor Furniture": ["Garden","Pool Side","Balcony","Commercial"],
-    "Modular Furniture": ["Modular Kitchen","Wardrobe","Storage","TV Units"],
+  "Hardware & Fittings": {
+    "Hinges": ["Soft Close Hinge","Concealed Hinge","Piano Hinge","Butterfly Hinge"],
+    "Drawer Systems": ["Telescopic Channel","Soft Close Channel","Tandem Drawer","Undermount Drawer"],
+    "Handles": ["Profile Handle","Bar Handle","Cup Handle","Knob","Flush Handle"],
+    "Wardrobe Accessories": ["Trouser Rack","Tie Rack","Pull Out Basket","Lift-up Fitting","Magic Corner"],
+    "Channels": ["Aluminium Channel","Glass Channel","Sliding Door Track"],
   },
-  "Interior Solutions": {
-    "False Ceiling": ["Gypsum","Grid","POP","Wood","Metal"],
-    "Flooring": ["Wooden","Vinyl","Epoxy","Carpet Tiles","Cork"],
-    "Partitions": ["Glass","Gypsum","Aluminium","Movable"],
-    "Wall Treatments": ["Wallpaper","Fabric","Acoustic Panels","Cladding"],
+  "Ceiling Systems": {
+    "Gypsum": ["Gypsum Board","Moisture Resistant Board","Fire Resistant Board","Gypsum Cornice"],
+    "Mineral Fiber": ["Mineral Fiber Tile 600x600","Mineral Fiber Tile 600x1200","Acoustic Tile"],
+    "Metal Ceiling": ["Ceiling Grid","Metal Ceiling Tile","Linear Ceiling","Baffle Ceiling"],
   },
-  "Construction Chemicals": {
-    "Admixtures": ["Plasticizer","Superplasticizer","Retarder","Accelerator"],
-    "Repair & Rehabilitation": ["Epoxy Mortar","Crack Filler","Gunite","Shotcrete"],
-    "Adhesives & Sealants": ["Tile Adhesive","Epoxy","Silicone","PU Sealant"],
-    "Surface Treatment": ["Curing Compound","Hardener","Release Agent","Form Oil"],
+  "HVAC": {
+    "Air Conditioning": ["Split AC 1 Ton","Split AC 1.5 Ton","Split AC 2 Ton","Cassette AC","VRF Unit"],
+    "Ventilation": ["Exhaust Fan","Axial Fan","Centrifugal Fan","Air Diffuser","Fresh Air Unit"],
+    "Ducting": ["GI Duct","Flexible Duct","Duct Insulation","VAV Box"],
   },
-  "Aluminium Systems": {
-    "Windows & Doors": ["Sliding","Casement","Tilt & Turn","Bi-fold"],
-    "Curtain Wall": ["Stick System","Unitised","Semi-unitised","Structural Glazing"],
-    "Partitions": ["Glass Partition","Aluminium Partition","Frameless","Framed"],
-    "Profiles & Accessories": ["Extrusions","Hardware","Sealants","Glass Beads"],
+  "Exterior & Facade": {
+    "ACP": ["ACP Panel 4mm","ACP Panel 3mm","FR ACP Panel","Mirror ACP"],
+    "HPL": ["Exterior HPL","Compact HPL","Anti-Graffiti HPL"],
+    "Stone Cladding": ["Terracotta Cladding","Natural Stone Cladding","Manufactured Stone"],
+    "Facade Systems": ["Spider Glazing","Unitized Facade","Point Fixed Glazing","Curtain Wall"],
   },
-  "Glass & Facade": {
-    "Flat Glass": ["Float","Toughened","Laminated","Insulated"],
-    "Processed Glass": ["Frosted","Digital Print","Bent","Mirror"],
-    "Facade Systems": ["ACP","HPL","Stone Cladding","GRC"],
-    "Specialty Glass": ["Solar Control","Self Cleaning","Smart Glass","Acoustic"],
+  "Solar & Sustainability": {
+    "Solar Panels": ["Mono PERC Panel","Poly Panel","Bifacial Panel","Flexible Panel"],
+    "Inverters": ["Solar Inverter On-Grid","Solar Inverter Off-Grid","Hybrid Inverter"],
+    "Batteries": ["Lithium Battery","Lead Acid Battery","Tubular Battery"],
+    "Lighting": ["Solar Street Light","Solar Garden Light","Solar Flood Light"],
   },
-  "Roofing": {
-    "Metal Roofing": ["Corrugated GI","Standing Seam","Sandwich Panel","Colorcoat"],
-    "Tiles Roofing": ["Mangalore Tiles","Concrete Tiles","Clay Tiles","Slate"],
-    "Waterproofing": ["Torch Applied","Self Adhesive","Liquid Applied","APP/SBS"],
-    "Accessories": ["Ridge Caps","Flashings","Skylights","Gutters"],
-  },
-  "Home Improvement": {
-    "Bath Accessories": ["Towel Bars","Soap Dish","Shower Curtain","Mirrors"],
-    "Kitchen Accessories": ["Sinks","Baskets","Hinges","Channels"],
-    "Curtains & Blinds": ["Roller Blinds","Venetian","Curtain Rods","Roman Blinds"],
-    "Storage Solutions": ["Wardrobe Systems","Shelving","Pegboards","Hooks"],
+  "Home Automation & Security": {
+    "Smart Home": ["Smart Lock","Smart Curtain Motor","Smart Thermostat","Scene Controller","Gateway Hub"],
+    "CCTV": ["CCTV Camera","DVR","NVR","PTZ Camera","IP Camera"],
+    "Access Control": ["Biometric Access","Card Reader","Video Door Phone","Boom Barrier","Flap Barrier"],
   },
 };
 
@@ -828,6 +873,7 @@ tr:hover td{background:var(--s2);color:var(--t1)}
   .discovery{flex-direction:column}
   .disc-sidebar{width:100%;max-height:none;border-right:none;border-bottom:1px solid #e0e0e0}
   .disc-main{flex:1}
+  .disc-main .detail-panel{position:fixed;inset:0;z-index:200;background:#fff;overflow-y:auto;padding:16px 16px 80px}
   
   /* Forms */
   .fg{grid-template-columns:1fr}
@@ -2039,6 +2085,11 @@ function LoginPage({ onLogin }) {
             : <>Already have account? <span onClick={() => setMode("login")}>Sign in</span></>
           }
         </div>
+        <div style={{textAlign:"center",marginTop:16,paddingTop:12,borderTop:"1px solid #f0f0f0"}}>
+          <span onClick={() => window.location.hash = "#admin"} style={{fontSize:11,color:"#888",cursor:"pointer",textDecoration:"none"}} onMouseOver={e=>e.target.style.color="#e85a2a"} onMouseOut={e=>e.target.style.color="#888"}>
+            TIN Team / Admin Login →
+          </span>
+        </div>
       </div>
     </div>
   );
@@ -2391,6 +2442,53 @@ function DiscoveryPage({ stores, selectedCity }) {
   const [statusFilter, setStatusFilter] = useState("All");
   const [selected, setSelected] = useState(null);
   const [showMap, setShowMap] = useState(false);
+  const [reportStore, setReportStore] = useState(null);
+  const [suggestStore, setSuggestStore] = useState(null);
+  const [claimStore, setClaimStore] = useState(null);
+  const [reportReason, setReportReason] = useState("");
+  const [reportNote, setReportNote] = useState("");
+  const [reportSubmitted, setReportSubmitted] = useState(false);
+  const [suggestData, setSuggestData] = useState({});
+  const [suggestSubmitted, setSuggestSubmitted] = useState(false);
+  const [claimData, setClaimData] = useState({name:"",phone:"",email:"",gst:""});
+  const [claimSubmitted, setClaimSubmitted] = useState(false);
+
+  const handleReport = async () => {
+    if (!reportReason) return;
+    try {
+      await addDoc(collection(db, "reports"), {
+        storeId: reportStore.id, storeName: reportStore.storeName,
+        reason: reportReason, note: reportNote,
+        createdAt: serverTimestamp(), status: "pending",
+      });
+    } catch(e) { console.log("Report error:", e); }
+    setReportSubmitted(true);
+    setTimeout(() => { setReportStore(null); setReportSubmitted(false); setReportReason(""); setReportNote(""); }, 2000);
+  };
+
+  const handleSuggestEdit = async () => {
+    if (!Object.keys(suggestData).length) return;
+    try {
+      await addDoc(collection(db, "suggestions"), {
+        storeId: suggestStore.id, storeName: suggestStore.storeName,
+        suggested: suggestData, createdAt: serverTimestamp(), status: "pending",
+      });
+    } catch(e) { console.log("Suggest error:", e); }
+    setSuggestSubmitted(true);
+    setTimeout(() => { setSuggestStore(null); setSuggestSubmitted(false); setSuggestData({}); }, 2000);
+  };
+
+  const handleClaim = async () => {
+    if (!claimData.phone && !claimData.gst) return;
+    try {
+      await addDoc(collection(db, "claims"), {
+        storeId: claimStore.id, storeName: claimStore.storeName,
+        ...claimData, createdAt: serverTimestamp(), status: "pending",
+      });
+    } catch(e) { console.log("Claim error:", e); }
+    setClaimSubmitted(true);
+    setTimeout(() => { setClaimStore(null); setClaimSubmitted(false); setClaimData({name:"",phone:"",email:"",gst:""}); }, 3000);
+  };
 
   const cats = ["All", ...Object.keys(CATEGORY_TREE).slice(0, 8)];
   const types = ["All", ...BUSINESS_TYPES];
@@ -2405,6 +2503,7 @@ function DiscoveryPage({ stores, selectedCity }) {
   });
 
   return (
+    <>
     <div className="discovery">
       <div className="disc-sidebar">
         <div className="disc-sidebar-hd">
@@ -2453,54 +2552,73 @@ function DiscoveryPage({ stores, selectedCity }) {
       <div className="disc-main">
         {selected ? (
           <div className="detail-panel">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-              <div className="detail-name">{selected.storeName}</div>
-              <button className="btn-sm btn-out" onClick={() => setSelected(null)}>✕</button>
-            </div>
-            <div className="cat-breadcrumb">
-              <span className="cat-node">{selected.category}</span>
-              {selected.subCategory && <><span className="cat-sep">›</span><span className="cat-node">{selected.subCategory}</span></>}
-              {selected.productType && <><span className="cat-sep">›</span><span className="cat-node last">{selected.productType}</span></>}
-            </div>
-            <div className="detail-badges">
-              <div className={`badge ${selected.verificationStatus === "verified" ? "bv" : "bc"}`}>
-                {selected.verificationStatus === "verified" ? "✓ Verified" : "Community Added"}
+            {/* STORE HEADER */}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,gap:12}}>
+              <div style={{flex:1}}>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:22,color:"#080808"}}>{selected.storeName}</div>
+                <div style={{display:"flex",gap:6,marginTop:4,flexWrap:"wrap"}}>
+                  <span className={`badge ${selected.verificationStatus==="verified"?"bv":"bc"}`}>
+                    {selected.verificationStatus==="verified"?"✓ Verified":"⏳ Pending Verification"}
+                  </span>
+                  {selected.businessType && <span className="badge bp">{selected.businessType}</span>}
+                </div>
               </div>
-              <div className="badge bp">{selected.businessType}</div>
-              {selected.type === "individual" && <div className="badge" style={{ background: "var(--info)15", color: "var(--info)", border: "1px solid var(--info)25" }}>Individual</div>}
+              <button onClick={()=>setSelected(null)} style={{padding:"6px 14px",borderRadius:8,background:"#f5f5f5",border:"1px solid #e0e0e0",color:"#080808",fontSize:12,cursor:"pointer",flexShrink:0,fontWeight:700}}>← Back</button>
             </div>
-            <div className="conf-section">
-              <div className="conf-hd">
-                <span className="conf-title">Data Confidence Score</span>
-                <span className="conf-pct" style={{ color: selected.confidence >= 80 ? "var(--ok)" : selected.confidence >= 50 ? "var(--warn)" : "#ef4444" }}>{selected.confidence}%</span>
+
+            {/* CONTACT BUTTONS */}
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
+              {selected.phone&&<a href={`tel:${selected.phone}`} style={{display:"flex",alignItems:"center",gap:5,padding:"7px 14px",borderRadius:8,background:"#f0fdf4",border:"1px solid #bbf7d0",color:"#16a34a",fontSize:12,fontWeight:700,textDecoration:"none"}}>📞 Call</a>}
+              {selected.whatsapp&&<a href={`https://wa.me/91${selected.whatsapp}`} target="_blank" rel="noreferrer" style={{display:"flex",alignItems:"center",gap:5,padding:"7px 14px",borderRadius:8,background:"#f0fdf4",border:"1px solid #bbf7d0",color:"#16a34a",fontSize:12,fontWeight:700,textDecoration:"none"}}>💬 WhatsApp</a>}
+              {selected.instagram&&<a href={`https://instagram.com/${selected.instagram.replace("@","")}`} target="_blank" rel="noreferrer" style={{display:"flex",alignItems:"center",gap:5,padding:"7px 14px",borderRadius:8,background:"#fdf4ff",border:"1px solid #e9d5ff",color:"#7c3aed",fontSize:12,fontWeight:700,textDecoration:"none"}}>📸 Instagram</a>}
+              {selected.website&&<a href={selected.website} target="_blank" rel="noreferrer" style={{display:"flex",alignItems:"center",gap:5,padding:"7px 14px",borderRadius:8,background:"#f8fafc",border:"1px solid #e2e8f0",color:"#080808",fontSize:12,fontWeight:700,textDecoration:"none"}}>🌐 Website</a>}
+            </div>
+
+            {/* ADDRESS */}
+            {selected.address && <div style={{fontSize:13,color:"#080808",marginBottom:12,padding:"10px 14px",background:"#f8f8f8",borderRadius:8}}>📍 {selected.address}{selected.city?`, ${selected.city}`:""}{selected.state?`, ${selected.state}`:""}{selected.pincode?` - ${selected.pincode}`:""}</div>}
+
+            {/* CATEGORIES */}
+            {(selected.categories||[]).length>0 && (
+              <div style={{marginBottom:14}}>
+                <div style={{fontSize:11,fontWeight:700,color:"#555",textTransform:"uppercase",letterSpacing:".06em",marginBottom:8}}>Product Categories</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                  {(selected.categories||[]).map((c,i)=>(
+                    <div key={i} style={{background:"#fff3ef",border:"1px solid #fde0d0",borderRadius:6,padding:"4px 10px",fontSize:12,color:"#e85a2a",fontWeight:600}}>
+                      {c.category}
+                      {c.subCategory&&<span style={{fontSize:10,color:"#555",fontWeight:400}}> · {c.subCategory}</span>}
+                    </div>
+                  ))}
+                </div>
               </div>
-              <ConfidenceBar value={selected.confidence} size="lg" />
-              <div className="enrich-row">
-                <div className={`enrich-pill ${selected.phone ? "linked" : ""}`}>📞 Phone {selected.phone ? "✓" : "—"}</div>
-                <div className={`enrich-pill ${selected.email ? "linked" : ""}`}>📧 Email {selected.email ? "✓" : "—"}</div>
-                <div className={`enrich-pill ${selected.gst ? "linked" : ""}`}>🏛 GST {selected.gst ? "✓" : "—"}</div>
-                <div className={`enrich-pill`}>LinkedIn —</div>
-                <div className={`enrich-pill`}>Facebook —</div>
+            )}
+
+            {/* BRANDS */}
+            {selected.brands && (
+              <div style={{marginBottom:14}}>
+                <div style={{fontSize:11,fontWeight:700,color:"#555",textTransform:"uppercase",letterSpacing:".06em",marginBottom:6}}>Brands Available</div>
+                <div style={{fontSize:13,color:"#080808"}}>{selected.brands}</div>
+              </div>
+            )}
+
+            {/* OWNER */}
+            {selected.ownerName && <div style={{fontSize:13,color:"#080808",marginBottom:10}}>👤 Owner: <strong>{selected.ownerName}</strong></div>}
+
+            {/* ACTION BUTTONS */}
+            <div style={{borderTop:"1px solid #f0f0f0",paddingTop:14,marginTop:8}}>
+              <div style={{fontSize:11,fontWeight:700,color:"#555",textTransform:"uppercase",letterSpacing:".06em",marginBottom:8}}>Community Actions</div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <button onClick={()=>setReportStore(selected)} style={{padding:"7px 14px",borderRadius:8,background:"#fff0f0",border:"1px solid #fecaca",color:"#dc2626",fontSize:12,fontWeight:700,cursor:"pointer"}}>⚑ Report</button>
+                <button onClick={()=>setSuggestStore(selected)} style={{padding:"7px 14px",borderRadius:8,background:"#f0f0f0",border:"1px solid #e0e0e0",color:"#080808",fontSize:12,fontWeight:700,cursor:"pointer"}}>✏️ Suggest Edit</button>
+                <button onClick={()=>setClaimStore(selected)} style={{padding:"7px 14px",borderRadius:8,background:"#fff8f5",border:"1px solid #fde0d0",color:"#e85a2a",fontSize:12,fontWeight:700,cursor:"pointer"}}>🏷 Claim Business</button>
               </div>
             </div>
-            <div className="detail-grid">
-              {[
-                ["City", selected.city], ["State", selected.state], ["Pincode", selected.pincode],
-                ["Phone", selected.phone], ["Owner", selected.ownerName || "—"], ["Email", selected.email || "—"],
-                ["GST", selected.gst || "—"], ["Added", selected.createdAt?.substring(0, 10)],
-              ].map(([k, v]) => (
-                <div key={k} className="dg-item"><div className="dg-label">{k}</div><div className="dg-value">{v || "—"}</div></div>
-              ))}
-              {selected.address && <div className="dg-item" style={{ gridColumn: "1/-1" }}><div className="dg-label">Address</div><div className="dg-value">{selected.address}</div></div>}
-              {selected.brands && <div className="dg-item" style={{ gridColumn: "1/-1" }}><div className="dg-label">Brands Carried</div><div className="dg-value">{selected.brands}</div></div>}
-            </div>
-            <div className="action-row">
-              <button className="btn-sm btn-acc">📞 Call</button>
-              <button className="btn-sm btn-ok">✓ Verify Info</button>
-              <button className="btn-sm btn-out">✏️ Suggest Edit</button>
-              <button className="btn-sm btn-out">⚑ Report</button>
-              <button className="btn-sm btn-out">🏷 Claim Business</button>
-            </div>
+
+            {/* VERIFY INFO — admin only shown as badge */}
+            {selected.verificationStatus!=="verified" && (
+              <div style={{marginTop:10,padding:"8px 12px",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:8,fontSize:12,color:"#d97706"}}>
+                ⏳ This store is pending verification by the TIN team.
+              </div>
+            )}
           </div>
         ) : (
           <div className="empty-detail">
@@ -2511,6 +2629,105 @@ function DiscoveryPage({ stores, selectedCity }) {
         )}
       </div>
     </div>
+
+    {/* ── REPORT MODAL ── */}
+    {reportStore && (
+      <div style={{position:"fixed",inset:0,background:"#00000080",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div style={{background:"#fff",borderRadius:16,padding:28,maxWidth:400,width:"100%",boxShadow:"0 8px 32px rgba(0,0,0,.15)"}}>
+          {reportSubmitted ? (
+            <div style={{textAlign:"center",padding:"20px 0"}}>
+              <div style={{fontSize:36,marginBottom:10}}>✅</div>
+              <div style={{fontWeight:700,fontSize:16,color:"#080808"}}>Report Submitted</div>
+              <div style={{fontSize:13,color:"#555",marginTop:6}}>TIN team will review this report.</div>
+            </div>
+          ) : <>
+            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:20,color:"#080808",marginBottom:4}}>Report Store</div>
+            <div style={{fontSize:13,color:"#555",marginBottom:16}}>{reportStore.storeName}</div>
+            <div style={{fontSize:11,fontWeight:700,color:"#080808",textTransform:"uppercase",letterSpacing:".06em",marginBottom:8}}>Reason</div>
+            {["Wrong information","Duplicate listing","Business closed","Malpractice / Fraud","Spam"].map(r=>(
+              <div key={r} onClick={()=>setReportReason(r)} style={{padding:"9px 14px",borderRadius:8,border:`1px solid ${reportReason===r?"#e85a2a":"#e0e0e0"}`,background:reportReason===r?"#fff3ef":"#fff",cursor:"pointer",fontSize:13,color:"#080808",fontWeight:reportReason===r?700:400,marginBottom:6}}>
+                {reportReason===r?"● ":"○ "}{r}
+              </div>
+            ))}
+            <div style={{marginTop:10,marginBottom:14}}>
+              <div style={{fontSize:11,fontWeight:700,color:"#080808",textTransform:"uppercase",letterSpacing:".06em",marginBottom:6}}>Additional Details (optional)</div>
+              <textarea className="fta" placeholder="Add more context..." value={reportNote} onChange={e=>setReportNote(e.target.value)} rows={3} />
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={handleReport} disabled={!reportReason} style={{flex:1,padding:"9px",borderRadius:8,background:reportReason?"#dc2626":"#f5f5f5",border:"none",color:reportReason?"white":"#888",fontSize:13,fontWeight:700,cursor:reportReason?"pointer":"default"}}>Submit Report</button>
+              <button onClick={()=>setReportStore(null)} style={{padding:"9px 16px",borderRadius:8,background:"#f5f5f5",border:"1px solid #e0e0e0",color:"#080808",fontSize:13,fontWeight:700,cursor:"pointer"}}>Cancel</button>
+            </div>
+          </>}
+        </div>
+      </div>
+    )}
+
+    {/* ── SUGGEST EDIT MODAL ── */}
+    {suggestStore && (
+      <div style={{position:"fixed",inset:0,background:"#00000080",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div style={{background:"#fff",borderRadius:16,padding:28,maxWidth:440,width:"100%",boxShadow:"0 8px 32px rgba(0,0,0,.15)",maxHeight:"85vh",overflowY:"auto"}}>
+          {suggestSubmitted ? (
+            <div style={{textAlign:"center",padding:"20px 0"}}>
+              <div style={{fontSize:36,marginBottom:10}}>✅</div>
+              <div style={{fontWeight:700,fontSize:16,color:"#080808"}}>Suggestion Submitted</div>
+              <div style={{fontSize:13,color:"#555",marginTop:6}}>TIN team will review and update the listing.</div>
+            </div>
+          ) : <>
+            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:20,color:"#080808",marginBottom:4}}>Suggest Edit</div>
+            <div style={{fontSize:13,color:"#555",marginBottom:4}}>{suggestStore.storeName}</div>
+            <div style={{fontSize:12,color:"#d97706",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:8,padding:"8px 12px",marginBottom:16}}>Your suggestion will be reviewed by TIN team before publishing.</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+              {[["Store Name","storeName"],["Phone","phone"],["WhatsApp","whatsapp"],["Address","address"],["City","city"],["Pincode","pincode"],["Website","website"],["Instagram","instagram"],["Brands","brands"],["Owner Name","ownerName"]].map(([label,key])=>(
+                <div key={key}>
+                  <div style={{fontSize:10,fontWeight:700,color:"#555",textTransform:"uppercase",letterSpacing:".06em",marginBottom:3}}>{label}</div>
+                  <input className="fi" style={{fontSize:12}} placeholder={suggestStore[key]||`Enter ${label.toLowerCase()}...`} value={suggestData[key]||""} onChange={e=>setSuggestData(d=>({...d,[key]:e.target.value}))} />
+                </div>
+              ))}
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={handleSuggestEdit} style={{flex:1,padding:"9px",borderRadius:8,background:"#e85a2a",border:"none",color:"white",fontSize:13,fontWeight:700,cursor:"pointer"}}>Submit Suggestion</button>
+              <button onClick={()=>setSuggestStore(null)} style={{padding:"9px 16px",borderRadius:8,background:"#f5f5f5",border:"1px solid #e0e0e0",color:"#080808",fontSize:13,fontWeight:700,cursor:"pointer"}}>Cancel</button>
+            </div>
+          </>}
+        </div>
+      </div>
+    )}
+
+    {/* ── CLAIM BUSINESS MODAL ── */}
+    {claimStore && (
+      <div style={{position:"fixed",inset:0,background:"#00000080",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div style={{background:"#fff",borderRadius:16,padding:28,maxWidth:440,width:"100%",boxShadow:"0 8px 32px rgba(0,0,0,.15)"}}>
+          {claimSubmitted ? (
+            <div style={{textAlign:"center",padding:"20px 0"}}>
+              <div style={{fontSize:36,marginBottom:10}}>🎉</div>
+              <div style={{fontWeight:700,fontSize:16,color:"#080808"}}>Claim Request Submitted!</div>
+              <div style={{fontSize:13,color:"#555",marginTop:6,lineHeight:1.6}}>TIN team will verify your ownership and link this listing to your account within 2-3 business days.</div>
+            </div>
+          ) : <>
+            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:20,color:"#080808",marginBottom:4}}>Claim This Business</div>
+            <div style={{fontSize:13,color:"#555",marginBottom:4}}>{claimStore.storeName}</div>
+            <div style={{fontSize:12,color:"#1d4ed8",background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:8,padding:"8px 12px",marginBottom:16,lineHeight:1.5}}>
+              Fill your business details below. TIN team will verify and link this listing to your account.
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+              {[["Your Name","name","Full name"],["Mobile Number","phone","Registered phone"],["Email","email","Business email"],["GST Number","gst","GST for verification"]].map(([label,key,ph])=>(
+                <div key={key}>
+                  <div style={{fontSize:10,fontWeight:700,color:"#080808",textTransform:"uppercase",letterSpacing:".06em",marginBottom:3}}>{label} {key!=="gst"&&<span style={{color:"#e85a2a"}}>*</span>}</div>
+                  <input className="fi" style={{fontSize:12}} placeholder={ph} value={claimData[key]||""} onChange={e=>setClaimData(d=>({...d,[key]:e.target.value}))} />
+                </div>
+              ))}
+            </div>
+            <div style={{fontSize:11,color:"#555",marginBottom:14,lineHeight:1.5}}>By submitting this claim you confirm this is your legitimate business listing. False claims may result in account suspension.</div>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={handleClaim} disabled={!claimData.phone&&!claimData.email} style={{flex:1,padding:"9px",borderRadius:8,background:"#e85a2a",border:"none",color:"white",fontSize:13,fontWeight:700,cursor:"pointer"}}>Submit Claim</button>
+              <button onClick={()=>setClaimStore(null)} style={{padding:"9px 16px",borderRadius:8,background:"#f5f5f5",border:"1px solid #e0e0e0",color:"#080808",fontSize:13,fontWeight:700,cursor:"pointer"}}>Cancel</button>
+            </div>
+          </>}
+        </div>
+      </div>
+    )}
+
+    </>
   );
 }
 
@@ -2617,6 +2834,18 @@ function ProfilePage({ user }) {
 }
 
 function AdminDashboard({ stores }) {
+  const handleVerify = async (storeId) => {
+    try {
+      await updateDoc(doc(db, "stores", storeId), { verificationStatus: "verified", verifiedAt: serverTimestamp(), verifiedBy: "admin" });
+      alert("Store verified!");
+    } catch(e) { alert("Error: " + e.message); }
+  };
+  const handleReject = async (storeId) => {
+    try {
+      await updateDoc(doc(db, "stores", storeId), { verificationStatus: "rejected" });
+      alert("Store rejected.");
+    } catch(e) { alert("Error: " + e.message); }
+  };
   const [section, setSection] = useState("dashboard");
   const [uploadType, setUploadType] = useState("stores");
   const [csvText, setCsvText] = useState("");
@@ -2641,6 +2870,9 @@ function AdminDashboard({ stores }) {
     { id: "upload", icon: "📤", label: "Bulk Upload" },
     { id: "duplicates", icon: "🔗", label: "Duplicate Manager" },
     { id: "enrichment", icon: "✨", label: "Enrichment Queue" },
+    { id: "reports", icon: "⚑", label: "Reports" },
+    { id: "claims", icon: "🏷", label: "Business Claims" },
+    { id: "suggestions", icon: "✏️", label: "Suggest Edits" },
     { id: "users", icon: "👥", label: "User Management" },
     { id: "records", icon: "🗂", label: "All Records" },
   ];
@@ -2671,7 +2903,7 @@ function AdminDashboard({ stores }) {
           <div className="table-wrap" style={{ marginBottom: 16 }}>
             <div className="table-hd"><span className="table-title">Recent Contributions</span><span style={{ fontSize: 12, color: "var(--t3)" }}>Last 24 hours</span></div>
             <table>
-              <thead><tr><th>Store / Name</th><th>City</th><th>Category</th><th>Market Champion</th><th>Status</th><th>Confidence</th></tr></thead>
+              <thead><tr><th>Store / Name</th><th>City</th><th>Category</th><th>Market Champion</th><th>Status</th><th>Confidence</th><th>Action</th></tr></thead>
               <tbody>
                 {stores.map(s => (
                   <tr key={s.id}>
@@ -2681,6 +2913,10 @@ function AdminDashboard({ stores }) {
                     <td>{s.contributorId}</td>
                     <td><span className={`badge ${s.verificationStatus === "verified" ? "bv" : "bc"}`}>{s.verificationStatus === "verified" ? "Verified" : "Community"}</span></td>
                     <td><span style={{ color: s.confidence >= 80 ? "var(--ok)" : s.confidence >= 50 ? "var(--warn)" : "#ef4444", fontWeight: 700 }}>{s.confidence}%</span></td>
+                    <td style={{display:"flex",gap:4}}>
+                      {s.verificationStatus !== "verified" && <button className="btn-sm btn-ok" onClick={()=>handleVerify(s.id)}>✓ Verify</button>}
+                      {s.verificationStatus === "verified" && <button className="btn-sm btn-out" onClick={()=>handleReject(s.id)}>✕ Unverify</button>}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -2803,6 +3039,39 @@ function AdminDashboard({ stores }) {
           ))}
         </>}
 
+        {section === "reports" && <>
+          <div className="admin-hd">
+            <div className="admin-title">Reports</div>
+            <div className="admin-sub">User-submitted store reports for review</div>
+          </div>
+          <div className="table-wrap">
+            <div style={{padding:20,textAlign:"center",color:"#888",fontSize:13}}>
+              Reports submitted by users will appear here. Connect to Firestore reports collection to view live data.
+            </div>
+          </div>
+        </>}
+        {section === "claims" && <>
+          <div className="admin-hd">
+            <div className="admin-title">Business Claims</div>
+            <div className="admin-sub">Retailers claiming their existing listings</div>
+          </div>
+          <div className="table-wrap">
+            <div style={{padding:20,textAlign:"center",color:"#888",fontSize:13}}>
+              Business claim requests will appear here. Verify GST/phone and link to retailer account.
+            </div>
+          </div>
+        </>}
+        {section === "suggestions" && <>
+          <div className="admin-hd">
+            <div className="admin-title">Suggested Edits</div>
+            <div className="admin-sub">Community-suggested store information updates</div>
+          </div>
+          <div className="table-wrap">
+            <div style={{padding:20,textAlign:"center",color:"#888",fontSize:13}}>
+              Suggested edits from users will appear here for review and approval.
+            </div>
+          </div>
+        </>}
         {section === "enrichment" && <>
           <div className="admin-hd">
             <div className="admin-title">Enrichment Queue</div>
@@ -2909,6 +3178,10 @@ function AdminDashboard({ stores }) {
                     <td>{s.businessType}</td>
                     <td><span className={`badge ${s.verificationStatus === "verified" ? "bv" : "bc"}`}>{s.verificationStatus === "verified" ? "Verified" : "Community"}</span></td>
                     <td><span style={{ color: s.confidence >= 80 ? "var(--ok)" : s.confidence >= 50 ? "var(--warn)" : "#ef4444", fontWeight: 700 }}>{s.confidence}%</span></td>
+                    <td style={{display:"flex",gap:4}}>
+                      {s.verificationStatus !== "verified" && <button className="btn-sm btn-ok" onClick={()=>handleVerify(s.id)}>✓ Verify</button>}
+                      {s.verificationStatus === "verified" && <button className="btn-sm btn-out" onClick={()=>handleReject(s.id)}>✕ Unverify</button>}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -3053,7 +3326,7 @@ export default function App() {
           )}
           <div className="topbar-right">
             {selectedCity && <div style={{ fontSize: 11, color: "var(--t3)", fontWeight: 600 }}>📍 {selectedCity}</div>}
-            {user.role !== "admin" && <div className="pts-badge">{user.points || 0} pts</div>}
+            {user.role !== "admin" && user.role !== "retailer" && <div className="pts-badge">{user.points || 0} pts</div>}
 
             <div className="avatar" onClick={() => setPage("profile")}>{user.name.charAt(0).toUpperCase()}</div>
             <button onClick={handleLogout} style={{padding:"4px 10px",borderRadius:8,background:"transparent",border:"1px solid var(--b3)",color:"#080808",fontSize:12,cursor:"pointer",fontFamily:"'Barlow',sans-serif"}} title="Logout">↩ Out</button>
