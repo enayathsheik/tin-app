@@ -267,6 +267,13 @@ const STATES = ["Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisga
 
 const PINCODE_STATE_MAP = {"11":"Delhi","12":"Haryana","13":"Haryana","14":"Punjab","15":"Punjab","16":"Punjab","17":"Himachal Pradesh","18":"Jammu & Kashmir","19":"Jammu & Kashmir","20":"Uttar Pradesh","21":"Uttar Pradesh","22":"Uttar Pradesh","23":"Uttar Pradesh","24":"Uttar Pradesh","25":"Uttar Pradesh","26":"Uttar Pradesh","27":"Uttar Pradesh","28":"Uttar Pradesh","30":"Rajasthan","31":"Rajasthan","32":"Rajasthan","33":"Rajasthan","34":"Rajasthan","36":"Gujarat","37":"Gujarat","38":"Gujarat","39":"Gujarat","40":"Maharashtra","41":"Maharashtra","42":"Maharashtra","43":"Maharashtra","44":"Maharashtra","45":"Madhya Pradesh","46":"Madhya Pradesh","47":"Madhya Pradesh","48":"Madhya Pradesh","49":"Chhattisgarh","50":"Telangana","51":"Telangana","52":"Andhra Pradesh","53":"Andhra Pradesh","56":"Karnataka","57":"Karnataka","58":"Karnataka","59":"Karnataka","60":"Tamil Nadu","61":"Tamil Nadu","62":"Tamil Nadu","63":"Tamil Nadu","64":"Tamil Nadu","67":"Kerala","68":"Kerala","69":"Kerala","70":"West Bengal","71":"West Bengal","72":"West Bengal","73":"West Bengal","74":"West Bengal","75":"Odisha","76":"Odisha","77":"Odisha","78":"Assam","79":"Assam","80":"Bihar","81":"Bihar","82":"Bihar","83":"Bihar","84":"Bihar","85":"Jharkhand","793":"Meghalaya","795":"Manipur","796":"Mizoram","797":"Nagaland","790":"Arunachal Pradesh","791":"Arunachal Pradesh","737":"Sikkim","799":"Tripura","744":"Andaman & Nicobar"};
 
+// Extract pincode from address string
+function extractPincodeFromText(text) {
+  if (!text) return "";
+  const matches = text.match(/[1-9][0-9]{5}/g);
+  return matches ? matches[0] : "";
+}
+
 function validatePincode(pin) {
   if (!pin || pin.length !== 6) return { valid: false, state: "" };
   const allDigits = /^[0-9]+$/.test(pin);
@@ -1483,35 +1490,112 @@ function RewardsPage({ user, onMessageAdmin }) {
 // BULK UPLOAD PANEL
 // ============================================================
 function BulkUploadPanel() {
+  const [uploadType, setUploadType] = useState("store"); // store / contractor / architect
   const [csvText, setCsvText] = useState("");
   const [preview, setPreview] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [uploaded, setUploaded] = useState(0);
   const [errors, setErrors] = useState([]);
   const [done, setDone] = useState(false);
-  const [tab, setTab] = useState("paste"); // paste or template
+  const [tab, setTab] = useState("paste");
 
-  const EXPECTED_COLS = ["storeName","phone","whatsapp","address","city","state","pincode","businessType","ownerName","email","gst","brands","instagram","website","categories"];
+  const TYPE_CONFIG = {
+    store: {
+      label: "🏪 Stores / Retailers",
+      collection: "stores",
+      templateCols: "storeName,phone,whatsapp,address,city,state,pincode,businessType,ownerName,email,gst,brands,instagram,website,categories",
+      templateRows: `Top Tiles World,9886984575,9886984575,"Shop No 2, MG Road, Bengaluru 560001",Bengaluru,Karnataka,560001,Retailer,Rajesh,,29ARAPD8170D1Z0,,,,Flooring
+ABC Hardware,9820012345,,,Mumbai,Maharashtra,400001,Distributor,Suresh,,,Hettich,,,Hardware & Fittings`,
+    },
+    contractor: {
+      label: "🔧 Contractors",
+      collection: "contractors",
+      templateCols: "name,phone,whatsapp,email,city,state,pincode,specialization,company,experience,website",
+      templateRows: `Rajesh Kumar,9820012345,9820012345,rajesh@gmail.com,Mumbai,Maharashtra,400001,Civil Contractor,Kumar Constructions,10 years,
+Suresh Patel,9876543210,,suresh@gmail.com,Pune,Maharashtra,411001,Interior Contractor,Patel Interiors,5 years,`,
+    },
+    architect: {
+      label: "✏️ Architects / Designers",
+      collection: "architects",
+      templateCols: "name,phone,whatsapp,email,city,state,pincode,specialization,firm,experience,linkedin,website",
+      templateRows: `Anita Sharma,9820012345,9820012345,anita@gmail.com,Mumbai,Maharashtra,400001,Residential Design,Sharma Associates,8 years,,www.sharma.com
+Vikram Nair,9876543210,,vikram@gmail.com,Bengaluru,Karnataka,560001,Commercial Design,Nair Design Studio,12 years,linkedin.com/in/vikram,`,
+    },
+  };
+
+  // Proper CSV parser that handles quoted fields with commas
+  const parseCSVLine = (line) => {
+    const result = [];
+    let current = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuotes && line[i+1] === '"') { current += '"'; i++; }
+        else inQuotes = !inQuotes;
+      } else if (ch === ',' && !inQuotes) {
+        result.push(current.trim()); current = "";
+      } else {
+        current += ch;
+      }
+    }
+    result.push(current.trim());
+    return result;
+  };
 
   const parseCSV = (text) => {
-    const lines = text.trim().split("\n").filter(l => l.trim());
+    // Normalize line endings
+    const normalized = text.replace(/\r\n/g,"\n").replace(/\r/g,"\n");
+    // Handle multiline quoted fields by joining them
+    const lines = [];
+    let current = "";
+    let inQuotes = false;
+    for (let i = 0; i < normalized.length; i++) {
+      const ch = normalized[i];
+      if (ch === '"') { inQuotes = !inQuotes; current += ch; }
+      else if (ch === '\n' && !inQuotes) { lines.push(current); current = ""; }
+      else { current += ch; }
+    }
+    if (current) lines.push(current);
+
     if (lines.length < 2) return [];
-    const headers = lines[0].split(",").map(h => h.trim().replace(/"/g,"").toLowerCase().replace(/ /g,""));
+    const rawHeaders = parseCSVLine(lines[0]);
+    const headers = rawHeaders.map(h => h.toLowerCase().replace(/[^a-z0-9]/g,""));
     const rows = [];
     for (let i = 1; i < lines.length; i++) {
-      const vals = lines[i].split(",").map(v => v.trim().replace(/"/g,""));
-      if (vals.filter(v => v).length < 2) continue;
+      if (!lines[i].trim()) continue;
+      const vals = parseCSVLine(lines[i]);
+      if (vals.filter(v=>v).length < 2) continue;
       const row = {};
-      headers.forEach((h, idx) => { row[h] = vals[idx] || ""; });
-      // Map common column variations
-      row.storeName = row.storename || row.store_name || row.name || row.storeName || "";
-      row.phone = row.phone || row.mobile || row.contact || "";
-      row.businessType = row.businesstype || row.business_type || row.type || "Retailer";
-      row.city = row.city || row.location || "";
-      row.state = row.state || (row.city ? (validatePincode(row.pincode||"").state || "") : "");
-      rows.push(row);
+      headers.forEach((h, idx) => { row[h] = (vals[idx]||"").trim(); });
+      // Map to standard field names
+      const address = row.address || row.addr || "";
+      const rawPincode = row.pincode || row.pin || "";
+      // Auto-extract pincode from address if not present
+      const pincode = rawPincode || extractPincodeFromText(address);
+      const pincodeResult = validatePincode(pincode);
+      const store = {
+        storeName: row.storename || row.store_name || row.storeName || "",
+        name: row.name || row.storename || row.store_name || "",
+        phone: row.phone || row.mobile || row.contact || "",
+        whatsapp: row.whatsapp || row.phone || row.mobile || "",
+        address: address,
+        city: row.city || row.location || "",
+        state: row.state || pincodeResult.state || "",
+        pincode: pincode,
+        businessType: row.businesstype || row.business_type || row.type || "Retailer",
+        ownerName: row.ownername || row.owner || row.owner_name || "",
+        email: row.email || "",
+        gst: row.gst || row.gstin || "",
+        brands: row.brands || row.brand || "",
+        instagram: row.instagram || row.ig || "",
+        website: row.website || row.web || "",
+        categories: row.categories || row.category || "",
+        _pincodeExtracted: !rawPincode && !!pincode,
+      };
+      if (store.storeName) rows.push(store);
     }
-    return rows.filter(r => r.storeName);
+    return rows;
   };
 
   const handlePreview = () => {
@@ -1530,27 +1614,47 @@ function BulkUploadPanel() {
 
     for (const row of preview) {
       try {
-        await addDoc(collection(db, "stores"), {
-          storeName: row.storeName || "",
-          phone: row.phone || "",
-          whatsapp: row.whatsapp || row.phone || "",
-          address: row.address || "",
-          city: row.city || "",
-          state: row.state || "",
-          pincode: row.pincode || "",
-          businessType: row.businessType || "Retailer",
-          ownerName: row.ownerName || row.ownername || "",
-          email: row.email || "",
-          gst: row.gst || "",
-          brands: row.brands || "",
-          instagram: row.instagram || "",
-          website: row.website || "",
-          categories: row.categories ? [{category: row.categories, subCategory:"", productType:""}] : [],
-          contributorId: "admin_bulk",
-          contributorEmail: "enayathsheik@gmail.com",
-          verificationStatus: "community_added",
-          pointsAwarded: 0,
-          confidence: 60,
+        await addDoc(collection(db, cfg.collection), {
+          // Store fields
+          ...(uploadType === "store" ? {
+            storeName: row.storeName || "",
+            phone: row.phone || "",
+            whatsapp: row.whatsapp || row.phone || "",
+            address: row.address || "",
+            city: row.city || "",
+            state: row.state || "",
+            pincode: row.pincode || "",
+            businessType: row.businessType || "Retailer",
+            ownerName: row.ownerName || "",
+            email: row.email || "",
+            gst: row.gst || "",
+            brands: row.brands || "",
+            instagram: row.instagram || "",
+            website: row.website || "",
+            categories: row.categories ? [{category: row.categories, subCategory:"", productType:""}] : [],
+            verificationStatus: "community_added",
+            pointsAwarded: 0,
+            confidence: 60,
+          } : {}),
+          // Contractor/Architect fields
+          ...(uploadType !== "store" ? {
+            name: row.name || row.storeName || "",
+            phone: row.phone || "",
+            whatsapp: row.whatsapp || row.phone || "",
+            email: row.email || "",
+            city: row.city || "",
+            state: row.state || "",
+            pincode: row.pincode || "",
+            specialization: row.specialization || "",
+            company: row.company || row.firm || "",
+            experience: row.experience || "",
+            linkedin: row.linkedin || "",
+            website: row.website || "",
+            type: uploadType,
+            verificationStatus: "community_added",
+          } : {}),
+          contributorId: auth.currentUser?.uid || "admin",
+          contributorEmail: auth.currentUser?.email || "enayathsheik@gmail.com",
           source: "bulk_upload",
           createdAt: serverTimestamp(),
         });
@@ -1573,40 +1677,49 @@ function BulkUploadPanel() {
     reader.readAsText(file);
   };
 
-  const TEMPLATE_CSV = `storeName,phone,whatsapp,address,city,state,pincode,businessType,ownerName,email,gst,brands,instagram,website,categories
-ABC Hardware Store,9820012345,9820012345,"123 Link Road, Andheri West",Mumbai,Maharashtra,400053,Retailer,Rajesh Shah,abc@gmail.com,27AABCS1429B1ZB,"Dorma,Hettich",@abcstore,www.abcstore.com,Hardware & Fittings
-XYZ Plywood,9876543210,9876543210,"45 Industrial Area",Pune,Maharashtra,411001,Distributor,Suresh Patel,xyz@gmail.com,,CenturyPly,,,"Plywood & Boards"`;
+  const cfg = TYPE_CONFIG[uploadType];
 
   const downloadTemplate = () => {
-    const blob = new Blob([TEMPLATE_CSV], {type:"text/csv"});
+    const csv = cfg.templateCols + "\n" + cfg.templateRows;
+    const blob = new Blob([csv], {type:"text/csv"});
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = "TIN_bulk_upload_template.csv"; a.click();
+    a.href = url; a.download = `TIN_${uploadType}_template.csv`; a.click();
   };
 
   return (
     <div style={{padding:24,maxWidth:900,margin:"0 auto"}}>
 
-      {/* TABS */}
-      <div style={{display:"flex",gap:8,marginBottom:20}}>
-        {[["paste","📋 Paste CSV"],["file","📁 Upload File"],["template","📥 Download Template"]].map(([id,label])=>(
-          <button key={id} onClick={()=>id==="template"?downloadTemplate():setTab(id)}
-            style={{padding:"8px 16px",borderRadius:8,background:tab===id?"#080808":"#f5f5f5",color:tab===id?"white":"#080808",border:`1px solid ${tab===id?"#080808":"#e0e0e0"}`,fontSize:13,fontWeight:700,cursor:"pointer"}}>
+      {/* TYPE SELECTOR */}
+      <div style={{display:"flex",gap:8,marginBottom:16}}>
+        {Object.entries(TYPE_CONFIG).map(([id,c])=>(
+          <button key={id} onClick={()=>{setUploadType(id);setCsvText("");setPreview([]);setDone(false);}}
+            style={{padding:"9px 18px",borderRadius:8,background:uploadType===id?"#080808":"#f5f5f5",color:uploadType===id?"white":"#080808",border:`1px solid ${uploadType===id?"#080808":"#e0e0e0"}`,fontSize:13,fontWeight:700,cursor:"pointer"}}>
+            {c.label}
+          </button>
+        ))}
+      </div>
+      <div style={{fontSize:12,color:"#555",marginBottom:16,padding:"8px 12px",background:"#f8f8f8",borderRadius:8}}>
+        Uploading to: <strong style={{color:"#e85a2a"}}>Firebase → {cfg.collection}</strong> collection
+      </div>
+
+      {/* INPUT TABS */}
+      <div style={{display:"flex",gap:8,marginBottom:16}}>
+        {[["paste","📋 Paste CSV"],["file","📁 Upload File"]].map(([id,label])=>(
+          <button key={id} onClick={()=>setTab(id)}
+            style={{padding:"7px 14px",borderRadius:8,background:tab===id?"#e85a2a":"#f5f5f5",color:tab===id?"white":"#080808",border:`1px solid ${tab===id?"#e85a2a":"#e0e0e0"}`,fontSize:12,fontWeight:700,cursor:"pointer"}}>
             {label}
           </button>
         ))}
+        <button onClick={downloadTemplate} style={{padding:"7px 14px",borderRadius:8,background:"#f5f5f5",border:"1px solid #e0e0e0",color:"#080808",fontSize:12,fontWeight:700,cursor:"pointer"}}>📥 Download Template</button>
       </div>
 
       {/* FORMAT GUIDE */}
       <div style={{background:"#f8f8f8",border:"1px solid #e0e0e0",borderRadius:10,padding:14,marginBottom:16,fontSize:12,color:"#080808"}}>
-        <div style={{fontWeight:700,marginBottom:6}}>📋 Required CSV Format</div>
-        <div style={{fontFamily:"monospace",fontSize:11,color:"#555",lineHeight:1.8}}>
-          storeName, phone, address, city, state, pincode, businessType, ownerName, brands, categories
-        </div>
-        <div style={{marginTop:6,color:"#555"}}>• businessType: Retailer / Distributor / Manufacturer / Wholesaler</div>
-        <div style={{color:"#555"}}>• categories: use exact names from TIN category list</div>
-        <div style={{color:"#555"}}>• First row must be headers</div>
-        <button onClick={downloadTemplate} style={{marginTop:8,padding:"5px 12px",borderRadius:6,background:"#e85a2a",border:"none",color:"white",fontSize:11,fontWeight:700,cursor:"pointer"}}>Download Template CSV</button>
+        <div style={{fontWeight:700,marginBottom:6}}>📋 CSV Columns for {cfg.label}</div>
+        <div style={{fontFamily:"monospace",fontSize:11,color:"#e85a2a",lineHeight:1.8,wordBreak:"break-all"}}>{cfg.templateCols}</div>
+        <div style={{marginTop:6,color:"#555"}}>• First row must be headers exactly as shown above</div>
+        <div style={{color:"#555"}}>• Pincode is auto-extracted from address if not provided</div>
       </div>
 
       {/* INPUT */}
@@ -1639,7 +1752,7 @@ XYZ Plywood,9876543210,9876543210,"45 Industrial Area",Pune,Maharashtra,411001,D
         </button>
         {preview.length>0 && !uploading && !done && (
           <button onClick={handleUpload} style={{padding:"9px 20px",borderRadius:8,background:"#e85a2a",border:"none",color:"white",fontSize:13,fontWeight:700,cursor:"pointer"}}>
-            📤 Upload {preview.length} Stores to Firebase
+            📤 Upload {preview.length} {uploadType==="store"?"Stores":uploadType==="contractor"?"Contractors":"Architects"} to Firebase
           </button>
         )}
       </div>
@@ -1658,7 +1771,7 @@ XYZ Plywood,9876543210,9876543210,"45 Industrial Area",Pune,Maharashtra,411001,D
       {done && (
         <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:16,marginBottom:16}}>
           <div style={{fontWeight:700,color:"#16a34a",fontSize:15}}>✅ Upload Complete!</div>
-          <div style={{fontSize:13,color:"#080808",marginTop:4}}>{uploaded} stores uploaded successfully to Firebase.</div>
+          <div style={{fontSize:13,color:"#080808",marginTop:4}}>{uploaded} {uploadType==="store"?"stores":uploadType==="contractor"?"contractors":"architects"} uploaded to Firebase → <strong>{cfg.collection}</strong> collection.</div>
           {errors.length>0 && <div style={{marginTop:8,fontSize:12,color:"#dc2626"}}>{errors.length} errors — {errors[0]}</div>}
           <button onClick={()=>{setDone(false);setCsvText("");setPreview([]);setUploaded(0);}} style={{marginTop:10,padding:"7px 14px",borderRadius:8,background:"#080808",border:"none",color:"white",fontSize:12,fontWeight:700,cursor:"pointer"}}>Upload Another Batch</button>
         </div>
@@ -1672,7 +1785,7 @@ XYZ Plywood,9876543210,9876543210,"45 Industrial Area",Pune,Maharashtra,411001,D
             <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
               <thead>
                 <tr style={{background:"#f8f8f8"}}>
-                  {["#","Store Name","Phone","City","State","Business Type","Brands","Status"].map(h=>(
+                  {["#","Store Name","Phone","City","State","Pincode","Business Type","Status"].map(h=>(
                     <th key={h} style={{padding:"8px 12px",textAlign:"left",fontWeight:700,color:"#080808",borderBottom:"1px solid #e0e0e0",whiteSpace:"nowrap"}}>{h}</th>
                   ))}
                 </tr>
@@ -1681,12 +1794,16 @@ XYZ Plywood,9876543210,9876543210,"45 Industrial Area",Pune,Maharashtra,411001,D
                 {preview.slice(0,50).map((row,i)=>(
                   <tr key={i} style={{borderBottom:"1px solid #f0f0f0",background:i%2===0?"#fff":"#fafafa"}}>
                     <td style={{padding:"7px 12px",color:"#555"}}>{i+1}</td>
-                    <td style={{padding:"7px 12px",fontWeight:600,color:"#080808"}}>{row.storeName||<span style={{color:"#dc2626"}}>⚠ Missing</span>}</td>
+                    <td style={{padding:"7px 12px",fontWeight:600,color:"#080808"}}>{(uploadType==="store"?row.storeName:row.name)||<span style={{color:"#dc2626"}}>⚠ Missing</span>}</td>
                     <td style={{padding:"7px 12px",color:"#080808"}}>{row.phone||"—"}</td>
                     <td style={{padding:"7px 12px",color:"#080808"}}>{row.city||"—"}</td>
                     <td style={{padding:"7px 12px",color:"#080808"}}>{row.state||"—"}</td>
+                    <td style={{padding:"7px 12px",color:"#080808"}}>
+                      {row.pincode
+                        ? <span style={{color:row._pincodeExtracted?"#d97706":"#080808"}}>{row.pincode}{row._pincodeExtracted&&" ✨"}</span>
+                        : "—"}
+                    </td>
                     <td style={{padding:"7px 12px",color:"#080808"}}>{row.businessType||"Retailer"}</td>
-                    <td style={{padding:"7px 12px",color:"#080808"}}>{row.brands||"—"}</td>
                     <td style={{padding:"7px 12px"}}><span style={{fontSize:10,fontWeight:700,background:"#f0fdf4",color:"#16a34a",padding:"2px 8px",borderRadius:10}}>Ready</span></td>
                   </tr>
                 ))}
@@ -3090,7 +3207,7 @@ function AdminDashboard({ stores }) {
   const navItems = [
     { id: "dashboard", icon: "📊", label: "Dashboard" },
     { id: "validation", icon: "✅", label: "Market Champion Validation" },
-    { id: "upload", icon: "📤", label: "Bulk Upload" },
+
     { id: "duplicates", icon: "🔗", label: "Duplicate Manager" },
     { id: "enrichment", icon: "✨", label: "Enrichment Queue" },
     { id: "reports", icon: "⚑", label: "Reports" },
@@ -3179,218 +3296,6 @@ function AdminDashboard({ stores }) {
           ))}
         </>}
 
-        {section === "upload" && <>
-          <div className="admin-hd">
-            <div className="admin-title">Bulk Upload</div>
-            <div className="admin-sub">Import stores, contractors, or architects from CSV</div>
-          </div>
-          <div className="tmpl-cards">
-            {BULK_TEMPLATES.map(t => (
-              <div key={t.id} className={`tmpl-card ${uploadType === t.id ? "sel" : ""}`} style={uploadType === t.id ? { borderColor: "var(--acc)", background: "var(--acc)10" } : {}} onClick={() => { setUploadType(t.id); setCsvText(""); setPreview([]); }}>
-                <div className="tmpl-icon">{t.icon}</div>
-                <div className="tmpl-name">{t.name}</div>
-                <div className="tmpl-desc">{t.desc}</div>
-                <div className="tmpl-fields"><strong>Required:</strong> {t.required.join(", ")}<br /><strong>Optional:</strong> {t.optional.slice(0, 4).join(", ")}...</div>
-              </div>
-            ))}
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <div style={{ fontSize: 13, color: "var(--t2)", fontWeight: 600 }}>
-              {BULK_TEMPLATES.find(t => t.id === uploadType)?.name} Template
-            </div>
-            <button className="btn-sm btn-out" onClick={() => {
-              const t = BULK_TEMPLATES.find(t => t.id === uploadType);
-              const blob = new Blob([t.sample], { type: "text/csv" });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement("a"); a.href = url; a.download = `TIN_${t.id}_template.csv`; a.click();
-            }}>⬇ Download Template CSV</button>
-          </div>
-          <div className="field" style={{ marginBottom: 16 }}>
-            <label className="fl">Paste CSV Data or edit below</label>
-            <textarea className="fta" style={{ minHeight: 160, fontFamily: "monospace", fontSize: 12 }}
-              placeholder={`Paste your CSV here...\nMinimum required: ${BULK_TEMPLATES.find(t => t.id === uploadType)?.required.join(", ")}`}
-              value={csvText} onChange={e => handleCSV(e.target.value)} />
-          </div>
-          {preview.length > 0 && <>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--t1)" }}>{preview.length} records ready to import</div>
-              <button className="btn-sm btn-acc" onClick={() => { alert(`${preview.length} records queued for import.\n\nConnect Firebase to complete.`); }}>
-                Import {preview.length} Records →
-              </button>
-            </div>
-            <div className="table-wrap preview-table">
-              <table>
-                <thead><tr>{Object.keys(preview[0]).filter(k => k !== "_row").map(h => <th key={h}>{h}</th>)}</tr></thead>
-                <tbody>{preview.slice(0, 5).map(row => (
-                  <tr key={row._row}>{Object.keys(row).filter(k => k !== "_row").map(h => <td key={h}>{row[h] || <span style={{ color: "var(--b3)" }}>—</span>}</td>)}</tr>
-                ))}</tbody>
-              </table>
-              {preview.length > 5 && <div style={{ padding: "10px 14px", fontSize: 12, color: "var(--t3)" }}>+{preview.length - 5} more rows</div>}
-            </div>
-          </>}
-        </>}
-
-        {section === "duplicates" && <>
-          <div className="admin-hd">
-            <div className="admin-title">Duplicate Manager</div>
-            <div className="admin-sub">{DUPLICATE_PAIRS.length} potential duplicates detected — review and merge</div>
-          </div>
-          {DUPLICATE_PAIRS.map(dp => (
-            <div key={dp.id} className="dup-pair">
-              <div className="dup-reason">⚠ {dp.matchReason}</div>
-              <div className="dup-grid">
-                {[dp.store1, dp.store2].map((s, si) => (
-                  <div key={si} className="dup-card">
-                    <div className="dup-card-title">{s.storeName}</div>
-                    {[["Phone", "phone"], ["City", "city"], ["Category", "category"], ["Address", "address"]].map(([lbl, key]) => (
-                      <div key={key} className="dup-field">
-                        <div className="dup-field-lbl">{lbl}</div>
-                        <div className={`dup-field-val ${dp.store1[key] !== dp.store2[key] ? "diff" : ""}`}>{s[key] || "—"}</div>
-                      </div>
-                    ))}
-                    <div style={{ marginTop: 8 }}><span className="badge" style={{ fontSize: 10 }}>Confidence: {s.confidence}%</span></div>
-                  </div>
-                ))}
-                <div className="vs-badge">VS</div>
-              </div>
-              <div className="dup-actions">
-                <button className="btn-sm btn-acc" onClick={() => setDupAction(d => ({ ...d, [dp.id]: "merged" }))}>Merge → Keep Record 1</button>
-                <button className="btn-sm btn-out" onClick={() => setDupAction(d => ({ ...d, [dp.id]: "keep2" }))}>Merge → Keep Record 2</button>
-                <button className="btn-sm btn-ok" onClick={() => setDupAction(d => ({ ...d, [dp.id]: "notdup" }))}>Not a Duplicate</button>
-                {dupAction[dp.id] && <span style={{ fontSize: 12, color: "var(--ok)", padding: "7px 0", fontWeight: 700 }}>✓ {dupAction[dp.id] === "merged" ? "Merged" : dupAction[dp.id] === "keep2" ? "Merged (2)" : "Marked distinct"}</span>}
-              </div>
-            </div>
-          ))}
-        </>}
-
-        {section === "reports" && <>
-          <div className="admin-hd">
-            <div className="admin-title">Reports</div>
-            <div className="admin-sub">User-submitted store reports for review</div>
-          </div>
-          <div className="table-wrap">
-            <div style={{padding:20,textAlign:"center",color:"#888",fontSize:13}}>
-              Reports submitted by users will appear here. Connect to Firestore reports collection to view live data.
-            </div>
-          </div>
-        </>}
-        {section === "claims" && <>
-          <div className="admin-hd">
-            <div className="admin-title">Business Claims</div>
-            <div className="admin-sub">Retailers claiming their existing listings</div>
-          </div>
-          <div className="table-wrap">
-            <div style={{padding:20,textAlign:"center",color:"#888",fontSize:13}}>
-              Business claim requests will appear here. Verify GST/phone and link to retailer account.
-            </div>
-          </div>
-        </>}
-        {section === "suggestions" && <>
-          <div className="admin-hd">
-            <div className="admin-title">Suggested Edits</div>
-            <div className="admin-sub">Community-suggested store information updates</div>
-          </div>
-          <div className="table-wrap">
-            <div style={{padding:20,textAlign:"center",color:"#888",fontSize:13}}>
-              Suggested edits from users will appear here for review and approval.
-            </div>
-          </div>
-        </>}
-        {section === "enrichment" && <>
-          <div className="admin-hd">
-            <div className="admin-title">Enrichment Queue</div>
-            <div className="admin-sub">Custom category reviews + records pending AI enrichment</div>
-          </div>
-
-          {/* CUSTOM CATEGORY REVIEW */}
-          <div className="table-wrap" style={{marginBottom:20}}>
-            <div className="table-hd">
-              <span className="table-title">🆕 Custom Category Submissions</span>
-              <span style={{fontSize:12,color:"#555"}}>Review user-submitted categories</span>
-            </div>
-            <div style={{padding:16}}>
-              <div style={{textAlign:"center",padding:"12px 0",color:"#888",fontSize:13}}>Submissions will appear here as users add custom categories, sub-categories and product types.</div>
-            </div>
-          </div>
-
-          <div style={{ background: "var(--s2)", border: "1px solid var(--b2)", borderRadius: "var(--r)", padding: 20, marginBottom: 16 }}>
-            <div style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Enrichment Roadmap</div>
-            {[
-              { phase: "Phase 1 — Live", label: "Truecaller API", desc: "Name + city from mobile number", status: "ready", icon: "📞" },
-              { phase: "Phase 2 — Planned", label: "LinkedIn via Proxycurl", desc: "Profile from name + company", status: "planned", icon: "💼" },
-              { phase: "Phase 2 — Planned", label: "Google Places API", desc: "Address, hours, category from name + city", status: "planned", icon: "🗺" },
-              { phase: "Phase 3 — Future", label: "AI Profile Matching", desc: "LLM-based enrichment with confidence score", status: "future", icon: "🤖" },
-              { phase: "Phase 3 — Future", label: "WhatsApp OTP Verification", desc: "Self-verification by business owner", status: "future", icon: "✅" },
-            ].map(e => (
-              <div key={e.label} style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 0", borderBottom: "1px solid var(--b1)" }}>
-                <div style={{ fontSize: 20, width: 30 }}>{e.icon}</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)" }}>{e.label}</div>
-                  <div style={{ fontSize: 11, color: "var(--t3)" }}>{e.phase} · {e.desc}</div>
-                </div>
-                <span className={`badge ${e.status === "ready" ? "bv" : e.status === "planned" ? "bp" : "bc"}`}>
-                  {e.status === "ready" ? "Ready" : e.status === "planned" ? "Planned" : "Future"}
-                </span>
-              </div>
-            ))}
-          </div>
-          <div className="table-wrap">
-            <div className="table-hd"><span className="table-title">Records Pending Enrichment</span></div>
-            <table>
-              <thead><tr><th>Name</th><th>City</th><th>Phone</th><th>Missing Data</th><th>Action</th></tr></thead>
-              <tbody>
-                {stores.filter(s => !s.email || !s.gst || s.confidence < 60).map(s => (
-                  <tr key={s.id}>
-                    <td style={{ color: "var(--t1)", fontWeight: 500 }}>{s.storeName}</td>
-                    <td>{s.city}</td>
-                    <td>{s.phone}</td>
-                    <td style={{ fontSize: 11, color: "var(--warn)" }}>
-                      {[!s.email && "Email", !s.gst && "GST", !s.ownerName && "Owner"].filter(Boolean).join(", ")}
-                    </td>
-                    <td><button className="btn-sm btn-out" style={{ fontSize: 11 }}>Enrich →</button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>}
-
-        {section === "users" && <>
-          <div className="admin-hd">
-            <div className="admin-title">User Management</div>
-            <div className="admin-sub">All registered users and their contribution status</div>
-          </div>
-          <div className="table-wrap">
-            <div className="table-hd"><span className="table-title">Contributors</span></div>
-            <table>
-              <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>City</th><th>Points</th><th>Stores</th><th>Level</th></tr></thead>
-              <tbody>
-                {MOCK_CONTRIBUTORS.map(c => {
-                  const lv = getLevel(c.points);
-                  return (
-                    <tr key={c.id}>
-                      <td style={{ color: "var(--t1)", fontWeight: 600 }}>{c.name}</td>
-                      <td>{c.email}</td>
-                      <td><span className="badge bp">{c.role}</span></td>
-                      <td>{c.city}</td>
-                      <td style={{ color: "var(--acc)", fontWeight: 700 }}>{c.points}</td>
-                      <td>{c.storesAdded}</td>
-                      <td style={{ color: lv.color, fontWeight: 700 }}>{lv.name}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </>}
-
-        {section === "bulk" && <>
-          <div className="admin-hd">
-            <div className="admin-title">Bulk Upload</div>
-            <div className="admin-sub">Upload stores in bulk via CSV paste or file upload</div>
-          </div>
-          <BulkUploadPanel />
-        </>}
         {section === "records" && <>
           <div className="admin-hd">
             <div className="admin-title">All Records</div>
