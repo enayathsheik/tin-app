@@ -3296,6 +3296,14 @@ function AdminDashboard({ stores }) {
           ))}
         </>}
 
+        {section === "bulk" && <>
+          <div className="admin-hd">
+            <div className="admin-title">Bulk Upload</div>
+            <div className="admin-sub">Upload stores, contractors or architects from CSV</div>
+          </div>
+          <BulkUploadPanel />
+        </>}
+
         {section === "records" && <>
           <div className="admin-hd">
             <div className="admin-title">All Records</div>
