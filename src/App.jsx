@@ -385,6 +385,7 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:'Barlow',
 
 /* LAYOUT */
 .app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+.mobile-nav{display:none}
 .topbar{height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:var(--bg);border-bottom:1px solid var(--b1);flex-shrink:0;z-index:200}
 .logo{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:18px;letter-spacing:.06em;color:var(--t1)}
 .logo em{color:var(--acc);font-style:normal}
@@ -1291,7 +1292,7 @@ function RewardsPage({ user, onMessageAdmin }) {
 
   const nextCashReward = CASH_REWARDS.find(r => r.points > points);
   const ptsToNext = nextCashReward ? nextCashReward.points - points : 0;
-  const refCode = `TIN${(user.name||"USER").toUpperCase().replace(/\s/g,"").substring(0,5)}${Math.floor(Math.random()*1000)+100}`;
+  const refCode = user.referralCode || `TIN${(user.name||"USER").toUpperCase().replace(/\s/g,"").substring(0,5)}${String(user.uid||"").slice(-3).toUpperCase() || "001"}`;
 
   const avColors = ["#e85a2a","#3b82f6","#22c55e","#f59e0b","#8b5cf6","#ec4899"];
 
@@ -2244,6 +2245,7 @@ function LoginPage({ onLogin }) {
   const [name, setName] = useState("");
   const [linkedin, setLinkedin] = useState("");
   const [personalEmail, setPersonalEmail] = useState("");
+  const [referralCode, setReferralCode] = useState("");
   const [showForgot, setShowForgot] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotSent, setForgotSent] = useState(false);
@@ -2300,10 +2302,29 @@ function LoginPage({ onLogin }) {
           storesAdded: 0,
           citiesCovered: 0,
           validationStatus: isContrib ? (linkedin ? "pending" : "unvalidated") : "n/a",
+          referralCode: "TIN" + (name||emailToUse).replace(/[^A-Z0-9]/gi,"").substring(0,5).toUpperCase() + Math.floor(Math.random()*900+100),
+          referredBy: referralCode.trim().toUpperCase() || null,
           createdAt: new Date().toISOString(),
           uid: cred.user.uid
         };
         await saveUserProfile(cred.user.uid, ud);
+        // If a referral code was entered, find the referrer and credit 50 points (pending validation)
+        if (referralCode.trim()) {
+          try {
+            const refSnap = await getDocs(query(collection(db, "users"), where("referralCode", "==", referralCode.trim().toUpperCase())));
+            if (!refSnap.empty) {
+              const referrerId = refSnap.docs[0].id;
+              // Points awarded when the new contributor gets validated (store pending status for now)
+              await addDoc(collection(db, "referrals"), {
+                referrerId, referralCode: referralCode.trim().toUpperCase(),
+                newUserId: cred.user.uid, newUserEmail: emailToUse,
+                status: "pending", // becomes 'credited' after admin validates new user
+                pointsToAward: 50,
+                createdAt: serverTimestamp(),
+              });
+            }
+          } catch(e) { console.log("Referral processing error:", e); }
+        }
         onLogin(ud);
       }
     } catch(err) {
@@ -2407,6 +2428,12 @@ function LoginPage({ onLogin }) {
             <label>Password</label>
             <input className="fi" type="password" placeholder="••••••••" value={pass} onChange={e => setPass(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSubmit()} />
           </div>
+          {mode === "register" && (
+            <div className="lf">
+              <label>Referral Code <span style={{fontSize:10,color:"#555",fontWeight:400}}>(optional — if someone referred you)</span></label>
+              <input className="fi" placeholder="e.g. TINSUMAI898" value={referralCode} onChange={e => setReferralCode(e.target.value.toUpperCase())} style={{letterSpacing:".08em",fontWeight:600}} />
+            </div>
+          )}
         </div>
 
         <button className="btn-login" onClick={handleSubmit} disabled={loading} style={{opacity:loading?0.7:1}}>
@@ -2435,37 +2462,46 @@ function LoginPage({ onLogin }) {
   );
 }
 
-function HeroPage({ onCitySelect, selectedCity, onExplore, onAdd }) {
+function HeroPage({ onCitySelect, selectedCity, onExplore, onAdd, stores, contributors }) {
   const [search, setSearch] = useState("");
   const topCities = ["Mumbai", "Delhi", "Bengaluru", "Hyderabad", "Chennai", "Pune", "Ahmedabad", "Kolkata", "Jaipur", "Surat"];
   const filtered = search ? CITIES.filter(c => c.toLowerCase().includes(search.toLowerCase())) : CITIES;
+
+  // Real stats derived from live data
+  const totalStores = stores.length;
+  const totalContributors = contributors.length;
+  const totalCities = new Set(stores.map(s => s.city).filter(Boolean)).size;
+  const totalCategories = Object.keys(CATEGORY_TREE).length;
 
   return (
     <div className="hero">
       <div className="hero-top">
         <div className="hero-eyebrow">Trade Intelligence Network</div>
-        <div className="hero-title">India's Building<br /><span>Materials Database</span></div>
+        <div className="hero-title">India's Building Materials<br /><span>Intelligence Network</span></div>
         <div className="hero-sub">Community-driven intelligence for the building materials trade. Discover stores, verify data, contribute to grow.</div>
         <div className="stats-row">
-          <div className="stat-card"><div className="stat-num">12,847</div><div className="stat-lbl">Stores</div></div>
-          <div className="stat-card"><div className="stat-num">3,291</div><div className="stat-lbl">Contributors</div></div>
-          <div className="stat-card"><div className="stat-num">284</div><div className="stat-lbl">Cities</div></div>
-          <div className="stat-card"><div className="stat-num">17</div><div className="stat-lbl">Categories</div></div>
+          <div className="stat-card"><div className="stat-num">{totalStores.toLocaleString()}</div><div className="stat-lbl">Stores</div></div>
+          <div className="stat-card"><div className="stat-num">{totalContributors.toLocaleString()}</div><div className="stat-lbl">Market Champions</div></div>
+          <div className="stat-card"><div className="stat-num">{totalCities}</div><div className="stat-lbl">Cities</div></div>
+          <div className="stat-card"><div className="stat-num">{totalCategories}</div><div className="stat-lbl">Categories</div></div>
         </div>
         <div className="hero-cta">
           <button className="btn btn-primary" onClick={onExplore}>Explore {selectedCity || "Stores"}</button>
-          <button className="btn btn-ghost" onClick={onAdd}>+ Add a Store</button>
+          <button className="btn btn-ghost" onClick={onAdd}>+ Add a Business</button>
         </div>
       </div>
       <div className="city-section">
         <div className="section-hd">Quick Cities</div>
         <div className="city-grid" style={{ marginBottom: 20 }}>
-          {topCities.map(c => (
+          {topCities.map(c => {
+            const cityCount = stores.filter(s => s.city === c).length;
+            return (
             <div key={c} className={`city-pill ${selectedCity === c ? "sel" : ""}`} onClick={() => onCitySelect(c)}>
               <span className="city-name">{c}</span>
-              <span className="city-count">{Math.floor(Math.random() * 400 + 50)}</span>
+              {cityCount > 0 && <span className="city-count">{cityCount}</span>}
             </div>
-          ))}
+            );
+          })}
         </div>
         <div className="section-hd">All Cities</div>
         <input className="fi" style={{ marginBottom: 12 }} placeholder="Search any city..." value={search} onChange={e => setSearch(e.target.value)} />
@@ -2531,6 +2567,8 @@ function AddPage({ user, onSubmit, toast }) {
   const [locating, setLocating] = useState(false);
   const [checklist, setChecklist] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [gstStatus, setGstStatus] = useState(null); // null | "checking" | "verified" | "invalid" | "error"
+  const [gstData, setGstData] = useState(null);
   const [form, setForm] = useState({
     storeName: "", phone: "", address: "", city: "", state: "", pincode: "",
      businessType: "",
@@ -2540,6 +2578,35 @@ function AddPage({ user, onSubmit, toast }) {
 
   const upd = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const toggleChk = (item) => setChecklist(c => c.includes(item) ? c.filter(x => x !== item) : [...c, item]);
+
+  // GST Verification — uses free public GST search API
+  const verifyGST = async (gstin) => {
+    if (!gstin || gstin.length !== 15) return;
+    setGstStatus("checking");
+    setGstData(null);
+    try {
+      // Using the free public GSTIN lookup proxy
+      const res = await fetch(`https://sheet.gstincheck.co.in/check/${gstin.toUpperCase()}`);
+      const data = await res.json();
+      if (data && data.flag === true && data.data) {
+        const d = data.data;
+        setGstData(d);
+        setGstStatus("verified");
+        // Auto-fill fields from GST data
+        if (!form.storeName && d.lgnm) upd("storeName", d.lgnm);
+        if (!form.state && d.stj) {
+          const stateFromGST = d.pradr?.addr?.stcd || "";
+          if (stateFromGST) upd("state", stateFromGST);
+        }
+        if (!form.address && d.pradr?.adr) upd("address", d.pradr.adr);
+        if (!form.ownerName && d.ctb) upd("ownerName", d.ctb);
+      } else {
+        setGstStatus("invalid");
+      }
+    } catch(e) {
+      setGstStatus("error");
+    }
+  };
 
   const getGPS = () => {
     setLocating(true);
@@ -2579,8 +2646,10 @@ function AddPage({ user, onSubmit, toast }) {
         contributorId: user.uid || user.email || "anonymous",
         contributorEmail: user.email || "",
         verificationStatus: "community_added",
-        pointsAwarded: 10,
-        confidence: 20,
+        gstVerified: gstStatus === "verified",
+        gstVerifiedData: gstData ? { legalName: gstData.lgnm, status: gstData.sts, registrationDate: gstData.rgdt, constitutionOfBusiness: gstData.ctb } : null,
+        pointsAwarded: gstStatus === "verified" ? 20 : 10,
+        confidence: gstStatus === "verified" ? 85 : 20,
         createdAt: serverTimestamp(),
       };
 
@@ -2588,10 +2657,10 @@ function AddPage({ user, onSubmit, toast }) {
       const docRef = await addDoc(collection(db, "stores"), storeData);
       console.log("Store saved:", docRef.id);
 
-      // Update contributor points
+      // Update contributor points — 20 pts for GST verified, 10 for community
       if (user.uid && user.uid !== "admin") {
         await updateDoc(doc(db, "users", user.uid), {
-          points: increment(10),
+          points: increment(gstStatus === "verified" ? 20 : 10),
           storesAdded: increment(1),
         });
       }
@@ -2730,9 +2799,44 @@ function AddPage({ user, onSubmit, toast }) {
               <label className="fl">Email</label>
               <input className="fi" placeholder="Business email" value={form.email} onChange={e => upd("email", e.target.value)} />
             </div>
-            {recType === "store" && <div className="field">
-              <label className="fl">GST Number</label>
-              <input className="fi" placeholder="GSTIN" value={form.gst} onChange={e => upd("gst", e.target.value)} />
+            {recType === "store" && <div className="field" style={{gridColumn:"1/-1"}}>
+              <label className="fl">GST Number <span style={{fontSize:10,color:"#555",fontWeight:400}}>(verify to get GST Verified badge + 20 pts)</span></label>
+              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                <input className="fi" placeholder="e.g. 27AABCS1429B1ZB" value={form.gst}
+                  style={{flex:1, borderColor: gstStatus==="verified"?"#16a34a": gstStatus==="invalid"?"#dc2626":""}}
+                  onChange={e => { upd("gst", e.target.value.toUpperCase()); setGstStatus(null); setGstData(null); }}
+                  maxLength={15}
+                />
+                <button type="button"
+                  onClick={() => verifyGST(form.gst)}
+                  disabled={!form.gst || form.gst.length !== 15 || gstStatus === "checking"}
+                  style={{padding:"9px 16px",borderRadius:8,background: form.gst?.length===15?"#080808":"#f0f0f0",border:"none",color:form.gst?.length===15?"white":"#aaa",fontSize:12,fontWeight:700,cursor:form.gst?.length===15?"pointer":"default",whiteSpace:"nowrap",flexShrink:0}}>
+                  {gstStatus === "checking" ? "Checking..." : "Verify GST"}
+                </button>
+              </div>
+              {gstStatus === "verified" && gstData && (
+                <div style={{marginTop:8,padding:"10px 14px",background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:8}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                    <span style={{fontSize:14}}>✅</span>
+                    <span style={{fontSize:12,fontWeight:700,color:"#16a34a"}}>GST Verified — this store will get a verified badge</span>
+                  </div>
+                  <div style={{fontSize:12,color:"#080808"}}><strong>Legal Name:</strong> {gstData.lgnm}</div>
+                  {gstData.sts && <div style={{fontSize:12,color:"#080808"}}><strong>Status:</strong> {gstData.sts}</div>}
+                  {gstData.rgdt && <div style={{fontSize:12,color:"#080808"}}><strong>Registered:</strong> {gstData.rgdt}</div>}
+                  {gstData.ctb && <div style={{fontSize:12,color:"#080808"}}><strong>Business Type:</strong> {gstData.ctb}</div>}
+                  <div style={{fontSize:11,color:"#16a34a",marginTop:4,fontWeight:600}}>+20 points awarded for GST verified store 🎉</div>
+                </div>
+              )}
+              {gstStatus === "invalid" && (
+                <div style={{marginTop:6,padding:"8px 12px",background:"#fff0f0",border:"1px solid #fecaca",borderRadius:8,fontSize:12,color:"#dc2626"}}>
+                  ❌ GST number not found in public registry — please check and try again.
+                </div>
+              )}
+              {gstStatus === "error" && (
+                <div style={{marginTop:6,padding:"8px 12px",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:8,fontSize:12,color:"#d97706"}}>
+                  ⚠ Could not connect to GST registry — store will be saved as community added.
+                </div>
+              )}
             </div>}
             <div className="field">
               <label className="fl">Website</label>
@@ -2830,12 +2934,22 @@ function DiscoveryPage({ stores, selectedCity }) {
     setTimeout(() => { setClaimStore(null); setClaimSubmitted(false); setClaimData({name:"",phone:"",email:"",gst:""}); }, 3000);
   };
 
-  const cats = ["All", ...Object.keys(CATEGORY_TREE).slice(0, 8)];
+  const cats = ["All", ...Object.keys(CATEGORY_TREE)];
   const types = ["All", ...BUSINESS_TYPES];
 
   const filtered = stores.filter(s => {
-    const ms = s.storeName.toLowerCase().includes(search.toLowerCase()) || s.city.toLowerCase().includes(search.toLowerCase()) || (s.brands || "").toLowerCase().includes(search.toLowerCase());
-    const mc = catFilter === "All" || s.category === catFilter;
+    const searchLower = search.toLowerCase();
+    const ms = (s.storeName||"").toLowerCase().includes(searchLower)
+      || (s.city||"").toLowerCase().includes(searchLower)
+      || (s.brands||"").toLowerCase().includes(searchLower)
+      || (s.pincode||"").includes(search)
+      || (s.address||"").toLowerCase().includes(searchLower)
+      || (s.ownerName||"").toLowerCase().includes(searchLower)
+      || (s.category||"").toLowerCase().includes(searchLower)
+      || (s.categories||[]).some(c => (c.category||"").toLowerCase().includes(searchLower));
+    const mc = catFilter === "All"
+      || s.category === catFilter
+      || (s.categories||[]).some(c => c.category === catFilter);
     const mt = typeFilter === "All" || s.businessType === typeFilter;
     const mst = statusFilter === "All" || s.verificationStatus === statusFilter;
     const mcity = !selectedCity || s.city === selectedCity;
@@ -2873,8 +2987,11 @@ function DiscoveryPage({ stores, selectedCity }) {
             <div key={s.id} className={`sc ${selected?.id === s.id ? "sel" : ""}`} onClick={() => setSelected(s)}>
               <div className="sc-top">
                 <div className="sc-name">{s.storeName}</div>
-                <div className={`badge ${s.verificationStatus === "verified" ? "bv" : "bc"}`}>
-                  {s.verificationStatus === "verified" ? "✓ Verified" : "Community"}
+                <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                  <div className={`badge ${s.verificationStatus === "verified" ? "bv" : "bc"}`}>
+                    {s.verificationStatus === "verified" ? "✓ Verified" : "Community"}
+                  </div>
+                  {s.gstVerified && <div className="badge" style={{background:"#f0fdf4",color:"#16a34a",border:"1px solid #bbf7d0",fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:10}}>🏛 GST</div>}
                 </div>
               </div>
               <div className="sc-meta">
@@ -2900,6 +3017,16 @@ function DiscoveryPage({ stores, selectedCity }) {
                   <span className={`badge ${selected.verificationStatus==="verified"?"bv":"bc"}`}>
                     {selected.verificationStatus==="verified"?"✓ Verified":"⏳ Pending Verification"}
                   </span>
+                  {selected.gstVerified && (
+                    <span style={{fontSize:11,fontWeight:700,color:"#16a34a",background:"#f0fdf4",border:"1px solid #bbf7d0",padding:"3px 10px",borderRadius:10}}>
+                      🏛 GST Verified
+                    </span>
+                  )}
+                  {selected.gstVerified && selected.gstVerifiedData && (
+                    <span style={{fontSize:11,color:"#555",background:"#f8f8f8",border:"1px solid #e0e0e0",padding:"3px 10px",borderRadius:10}}>
+                      {selected.gstVerifiedData.legalName}
+                    </span>
+                  )}
                   {selected.businessType && <span className="badge bp">{selected.businessType}</span>}
                 </div>
               </div>
@@ -3086,8 +3213,8 @@ function LeaderboardPage({ contributors }) {
         <div className="lb-stats">
           <div className="lb-stat"><div className="lb-sv">{contributors.length}</div><div className="lb-sl">Contributors</div></div>
           <div className="lb-stat"><div className="lb-sv">{total}</div><div className="lb-sl">Stores Added</div></div>
-          <div className="lb-stat"><div className="lb-sv">{Math.max(...contributors.map(c => c.citiesCovered))}+</div><div className="lb-sl">Cities</div></div>
-          <div className="lb-stat"><div className="lb-sv">12.8K</div><div className="lb-sl">Total Records</div></div>
+          <div className="lb-stat"><div className="lb-sv">{contributors.length > 0 ? Math.max(...contributors.map(c => c.citiesCovered)) : 0}+</div><div className="lb-sl">Cities</div></div>
+          <div className="lb-stat"><div className="lb-sv">{total.toLocaleString()}</div><div className="lb-sl">Total Records</div></div>
         </div>
         {sorted.map((c, i) => {
           const lv = getLevel(c.points);
@@ -3115,9 +3242,39 @@ function LeaderboardPage({ contributors }) {
   );
 }
 
-function ProfilePage({ user }) {
+function ProfilePage({ user, onUpdateUser }) {
   const lv = getLevel(user.points);
   const nextLv = CONTRIBUTOR_LEVELS.find(l => l.min > user.points);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    linkedin: user.linkedin || "",
+    youtube: user.youtube || "",
+    instagram: user.instagram || "",
+    bio: user.bio || "",
+    city: user.city || "",
+    phone: user.phone || "",
+    company: user.company || "",
+    specialization: user.specialization || "",
+  });
+
+  const upd = (k, v) => setProfileForm(f => ({ ...f, [k]: v }));
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      if (user.uid) {
+        await updateDoc(doc(db, "users", user.uid), profileForm);
+      }
+      if (onUpdateUser) onUpdateUser({ ...user, ...profileForm });
+      setSaved(true);
+      setEditing(false);
+      setTimeout(() => setSaved(false), 3000);
+    } catch(e) { console.log("Profile save error:", e); }
+    setSaving(false);
+  };
+
   const acts = [
     { text: `Added ${user.storesAdded || 1} store${(user.storesAdded || 1) > 1 ? "s" : ""} recently`, pts: `+${(user.storesAdded || 1) * 10} pts`, time: "Today" },
     { text: "Joined Trade Intelligence Network", pts: "Welcome!", time: "Account created" },
@@ -3129,12 +3286,71 @@ function ProfilePage({ user }) {
         <div className="prof-hero">
           <div className="prof-top">
             <div className="prof-av">{user.name.charAt(0).toUpperCase()}</div>
-            <div>
+            <div style={{flex:1}}>
               <div className="prof-name">{user.name}</div>
               <div className="prof-role">{ROLES.find(r => r.id === user.role)?.label || user.role}</div>
               <div className="prof-lbadge" style={{ background: lv.bg, color: lv.color, border: `1px solid ${lv.color}30` }}>◆ {lv.name} Contributor</div>
             </div>
+            <button onClick={() => setEditing(!editing)} style={{padding:"6px 14px",borderRadius:8,background: editing?"#f5f5f5":"#080808",border:"1px solid #e0e0e0",color:editing?"#080808":"white",fontSize:12,fontWeight:700,cursor:"pointer",flexShrink:0}}>
+              {editing ? "Cancel" : "✏️ Edit Profile"}
+            </button>
           </div>
+
+          {/* SOCIAL LINKS DISPLAY */}
+          {!editing && (
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
+              {(user.linkedin||profileForm.linkedin) && <a href={(user.linkedin||profileForm.linkedin).startsWith("http")?(user.linkedin||profileForm.linkedin):`https://${user.linkedin||profileForm.linkedin}`} target="_blank" rel="noreferrer" style={{display:"flex",alignItems:"center",gap:5,padding:"5px 12px",borderRadius:20,background:"#EFF6FF",border:"1px solid #BFDBFE",color:"#1D4ED8",fontSize:12,fontWeight:700,textDecoration:"none"}}>🔗 LinkedIn</a>}
+              {(user.instagram||profileForm.instagram) && <a href={`https://instagram.com/${(user.instagram||profileForm.instagram).replace("@","")}`} target="_blank" rel="noreferrer" style={{display:"flex",alignItems:"center",gap:5,padding:"5px 12px",borderRadius:20,background:"#FDF4FF",border:"1px solid #E9D5FF",color:"#7C3AED",fontSize:12,fontWeight:700,textDecoration:"none"}}>📸 Instagram</a>}
+              {(user.youtube||profileForm.youtube) && <a href={(user.youtube||profileForm.youtube).startsWith("http")?(user.youtube||profileForm.youtube):`https://${user.youtube||profileForm.youtube}`} target="_blank" rel="noreferrer" style={{display:"flex",alignItems:"center",gap:5,padding:"5px 12px",borderRadius:20,background:"#FFF1F2",border:"1px solid #FECDD3",color:"#BE123C",fontSize:12,fontWeight:700,textDecoration:"none"}}>▶ YouTube</a>}
+            </div>
+          )}
+
+          {/* EDIT FORM */}
+          {editing && (
+            <div style={{background:"#f8f8f8",borderRadius:12,padding:16,marginBottom:16,border:"1px solid #e0e0e0"}}>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,color:"#080808",marginBottom:12}}>Edit Profile</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+                {[
+                  ["Phone","phone","Your mobile number"],
+                  ["City","city","Your city"],
+                  ["Company / Firm","company","Company name"],
+                  ["Specialization","specialization","e.g. Tiles, Plywood"],
+                ].map(([label,key,ph]) => (
+                  <div key={key}>
+                    <div style={{fontSize:10,fontWeight:700,color:"#555",textTransform:"uppercase",letterSpacing:".06em",marginBottom:3}}>{label}</div>
+                    <input className="fi" style={{fontSize:12}} placeholder={ph} value={profileForm[key]||""} onChange={e=>upd(key,e.target.value)} />
+                  </div>
+                ))}
+              </div>
+              <div style={{marginBottom:10}}>
+                <div style={{fontSize:10,fontWeight:700,color:"#555",textTransform:"uppercase",letterSpacing:".06em",marginBottom:3}}>Bio / About</div>
+                <textarea className="fta" rows={2} placeholder="Brief intro about yourself and your expertise..." value={profileForm.bio||""} onChange={e=>upd("bio",e.target.value)} style={{fontSize:12}} />
+              </div>
+              {/* ENRICHMENT SECTION */}
+              <div style={{background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:10,padding:12,marginBottom:10}}>
+                <div style={{fontSize:11,fontWeight:700,color:"#1D4ED8",marginBottom:8}}>🔗 Profile Enrichment — Social & Professional Links</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr",gap:8}}>
+                  <div>
+                    <div style={{fontSize:10,fontWeight:700,color:"#555",textTransform:"uppercase",letterSpacing:".06em",marginBottom:3}}>LinkedIn Profile URL</div>
+                    <input className="fi" style={{fontSize:12}} placeholder="linkedin.com/in/yourname" value={profileForm.linkedin||""} onChange={e=>upd("linkedin",e.target.value)} />
+                  </div>
+                  <div>
+                    <div style={{fontSize:10,fontWeight:700,color:"#555",textTransform:"uppercase",letterSpacing:".06em",marginBottom:3}}>Instagram Handle</div>
+                    <input className="fi" style={{fontSize:12}} placeholder="@yourinstagram or instagram.com/yourname" value={profileForm.instagram||""} onChange={e=>upd("instagram",e.target.value)} />
+                  </div>
+                  <div>
+                    <div style={{fontSize:10,fontWeight:700,color:"#555",textTransform:"uppercase",letterSpacing:".06em",marginBottom:3}}>YouTube Channel</div>
+                    <input className="fi" style={{fontSize:12}} placeholder="youtube.com/@yourchannel or channel URL" value={profileForm.youtube||""} onChange={e=>upd("youtube",e.target.value)} />
+                  </div>
+                </div>
+              </div>
+              <button onClick={handleSave} disabled={saving} style={{padding:"9px 20px",borderRadius:8,background:"#e85a2a",border:"none",color:"white",fontSize:13,fontWeight:700,cursor:"pointer"}}>
+                {saving?"Saving...":"Save Changes →"}
+              </button>
+              {saved && <span style={{marginLeft:10,color:"#16a34a",fontSize:13,fontWeight:600}}>✓ Saved!</span>}
+            </div>
+          )}
+
           <div className="prof-grid">
             <div className="prof-stat"><div className="prof-sv" style={{ color: "var(--acc)" }}>{user.points}</div><div className="prof-sl">Points</div></div>
             <div className="prof-stat"><div className="prof-sv">{user.storesAdded}</div><div className="prof-sl">Stores Added</div></div>
@@ -3237,9 +3453,18 @@ function AdminDashboard({ stores }) {
             <div className="admin-sub">Platform overview — Trade Intelligence Network</div>
           </div>
           <div className="admin-stats">
-            {[["12,847","Total Records","+247 this week"],["3,291","Contributors","+34 this week"],["284","Cities Covered","+8 this week"],["47","Pending Verify","Needs attention"]].map(([v, l, d]) => (
-              <div key={l} className="as-card"><div className="as-val">{v}</div><div className="as-lbl">{l}</div><div className="as-delta">{d}</div></div>
-            ))}
+            {(() => {
+              const pendingCount = stores.filter(s => s.verificationStatus !== "verified").length;
+              const citiesCount = new Set(stores.map(s => s.city).filter(Boolean)).size;
+              return [
+                [stores.length.toLocaleString(),"Total Records","Live data"],
+                [pendingContribs.length,"Pending Validation","Needs attention"],
+                [citiesCount,"Cities Covered","Active cities"],
+                [pendingCount,"Unverified Stores","Needs review"],
+              ].map(([v, l, d]) => (
+                <div key={l} className="as-card"><div className="as-val">{v}</div><div className="as-lbl">{l}</div><div className="as-delta">{d}</div></div>
+              ));
+            })()}
           </div>
           <div className="table-wrap" style={{ marginBottom: 16 }}>
             <div className="table-hd"><span className="table-title">Recent Contributions</span><span style={{ fontSize: 12, color: "var(--t3)" }}>Last 24 hours</span></div>
@@ -3368,6 +3593,18 @@ export default function App() {
       }
     };
     loadStores();
+
+    // Load real contributors from Firestore
+    const loadContributors = async () => {
+      try {
+        const snap = await getDocs(query(collection(db, "users"), where("role", "==", "contributor")));
+        if (!snap.empty) {
+          const firestoreContribs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          setContributors([...firestoreContribs, ...MOCK_CONTRIBUTORS]);
+        }
+      } catch(e) { console.log("Contributors load error:", e.message); }
+    };
+    loadContributors();
   }, []);
   const [selectedCity, setSelectedCity] = useState(null);
   const [toast, setToast] = useState({ show: false, msg: "", type: "ok" });
@@ -3513,7 +3750,7 @@ export default function App() {
         <div className="page">
           {page === "home" && (isRetailer
             ? <RetailerDashboard user={user} stores={stores} onNavigate={setPage} />
-            : <HeroPage onCitySelect={handleCitySelect} selectedCity={selectedCity} onExplore={handleExplore} onAdd={handleAddStore} />
+            : <HeroPage onCitySelect={handleCitySelect} selectedCity={selectedCity} onExplore={handleExplore} onAdd={handleAddStore} stores={stores} contributors={contributors} />
           )}
           {page === "discover" && <DiscoveryPage stores={stores} selectedCity={selectedCity} />}
           {page === "add" && <AddPage user={user} onSubmit={handleSubmitStore} toast={showToast} />}
@@ -3521,7 +3758,7 @@ export default function App() {
           {page === "staff" && <StaffProfilePage user={user} />}
           {page === "leaderboard" && <LeaderboardPage contributors={contributors} />}
           {page === "deals" && <DealsPage />}
-          {page === "profile" && <ProfilePage user={user} />}
+          {page === "profile" && <ProfilePage user={user} onUpdateUser={(updated) => setUser(updated)} />}
           {page === "admin" && <AdminDashboard stores={stores} />}
         </div>
         <Toast {...toast} />
