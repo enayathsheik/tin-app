@@ -12,7 +12,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 // ============================================================
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "firebase/auth";
-import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, increment, query, where, orderBy, serverTimestamp, setDoc, getDoc } from "firebase/firestore";
+import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, increment, query, where, orderBy, limit, serverTimestamp, setDoc, getDoc } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAL2plvt3XiwLjsHRXxiqsDJnUQIOvNF3I",
@@ -2250,6 +2250,7 @@ function LoginPage({ onLogin }) {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotSent, setForgotSent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showRoleConfirm, setShowRoleConfirm] = useState(false);
 
   const isContrib = role === "contributor";
   const comingSoonRoles = ["consumer", "contractor", "architect"];
@@ -2265,7 +2266,7 @@ function LoginPage({ onLogin }) {
     }
   };
 
-  const handleSubmit = async () => {
+  const doSubmit = async () => {
     const emailToUse = (mode === "register" && isContrib ? workEmail : email).trim();
     const passToUse = pass.trim();
     if (!emailToUse || !passToUse) {
@@ -2338,6 +2339,14 @@ function LoginPage({ onLogin }) {
       alert(msg);
     }
     setLoading(false);
+  };
+
+  const handleSubmit = async () => {
+    if (mode === "register" && role === "retailer") {
+      setShowRoleConfirm(true);
+      return;
+    }
+    await doSubmit();
   };
 
   // Forgot password screen
@@ -2458,20 +2467,28 @@ function LoginPage({ onLogin }) {
           </span>
         </div>
       </div>
+      {showRoleConfirm && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ background: "#fff", borderRadius: 16, padding: 32, maxWidth: 420, width: "100%", fontFamily: "'Barlow', sans-serif", boxShadow: "0 8px 32px rgba(0,0,0,.18)" }}>
+            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: 22, marginBottom: 12, color: "#080808" }}>Registering as a Retailer?</div>
+            <div style={{ fontSize: 14, color: "#555", lineHeight: 1.6, marginBottom: 24 }}>
+              Retailer accounts are for business owners managing their store on TIN. If you're a sales professional who wants to add stores and earn points, choose Market Champion instead.
+            </div>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <button onClick={() => { setShowRoleConfirm(false); doSubmit(); }} style={{ padding: "10px 20px", background: "#e85a2a", color: "#fff", border: "none", borderRadius: 8, fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Yes, I'm a Retailer</button>
+              <button onClick={() => { setShowRoleConfirm(false); setRole("contributor"); }} style={{ padding: "10px 20px", background: "#f5f5f5", border: "1px solid #e0e0e0", borderRadius: 8, fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: 14, cursor: "pointer", color: "#080808" }}>Switch to Market Champion</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function HeroPage({ onCitySelect, selectedCity, onExplore, onAdd, stores, contributors }) {
+function HeroPage({ onCitySelect, selectedCity, onExplore, onAdd, stores, contributors, liveStats }) {
   const [search, setSearch] = useState("");
   const topCities = ["Mumbai", "Delhi", "Bengaluru", "Hyderabad", "Chennai", "Pune", "Ahmedabad", "Kolkata", "Jaipur", "Surat"];
   const filtered = search ? CITIES.filter(c => c.toLowerCase().includes(search.toLowerCase())) : CITIES;
-
-  // Real stats derived from live data
-  const totalStores = stores.length;
-  const totalContributors = contributors.length;
-  const totalCities = new Set(stores.map(s => s.city).filter(Boolean)).size;
-  const totalCategories = Object.keys(CATEGORY_TREE).length;
 
   return (
     <div className="hero">
@@ -2480,10 +2497,10 @@ function HeroPage({ onCitySelect, selectedCity, onExplore, onAdd, stores, contri
         <div className="hero-title">India's Building Materials<br /><span>Intelligence Network</span></div>
         <div className="hero-sub">Community-driven intelligence for the building materials trade. Discover stores, verify data, contribute to grow.</div>
         <div className="stats-row">
-          <div className="stat-card"><div className="stat-num">{totalStores.toLocaleString()}</div><div className="stat-lbl">Stores</div></div>
-          <div className="stat-card"><div className="stat-num">{totalContributors.toLocaleString()}</div><div className="stat-lbl">Market Champions</div></div>
-          <div className="stat-card"><div className="stat-num">{totalCities}</div><div className="stat-lbl">Cities</div></div>
-          <div className="stat-card"><div className="stat-num">{totalCategories}</div><div className="stat-lbl">Categories</div></div>
+          <div className="stat-card"><div className="stat-num">{(liveStats?.businesses ?? 2222).toLocaleString()}</div><div className="stat-lbl">Stores</div></div>
+          <div className="stat-card"><div className="stat-num">{(liveStats?.champions ?? 220).toLocaleString()}</div><div className="stat-lbl">Market Champions</div></div>
+          <div className="stat-card"><div className="stat-num">{liveStats?.cities ?? 40}</div><div className="stat-lbl">Cities</div></div>
+          <div className="stat-card"><div className="stat-num">{liveStats?.categories ?? 22}</div><div className="stat-lbl">Categories</div></div>
         </div>
         <div className="hero-cta">
           <button className="btn btn-primary" onClick={onExplore}>Explore {selectedCity || "Stores"}</button>
@@ -3389,10 +3406,148 @@ function ProfilePage({ user, onUpdateUser }) {
   );
 }
 
+function UserManagementSection() {
+  const [users, setUsers] = useState([]);
+  const [search, setSearch] = useState("");
+  const [editId, setEditId] = useState(null);
+  const [editRole, setEditRole] = useState("");
+  const [editStatus, setEditStatus] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        const snap = await getDocs(collection(db, "users"));
+        setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      } catch(e) { console.log("Users load error:", e); }
+    };
+    loadUsers();
+  }, []);
+
+  const filtered = users.filter(u =>
+    !search ||
+    (u.name || "").toLowerCase().includes(search.toLowerCase()) ||
+    (u.email || "").toLowerCase().includes(search.toLowerCase())
+  );
+
+  const startEdit = (u) => {
+    setEditId(u.id);
+    setEditRole(u.role || "contributor");
+    setEditStatus(u.validationStatus || "n/a");
+  };
+
+  const saveEdit = async (uid) => {
+    setSaving(true);
+    try {
+      await updateDoc(doc(db, "users", uid), { role: editRole, validationStatus: editStatus });
+      setUsers(us => us.map(u => u.id === uid ? { ...u, role: editRole, validationStatus: editStatus } : u));
+      setEditId(null);
+    } catch(e) { alert("Save failed: " + e.message); }
+    setSaving(false);
+  };
+
+  const roleBadgeColor = (r) => {
+    if (r === "contributor") return "#e85a2a";
+    if (r === "retailer") return "#0891b2";
+    if (r === "consumer") return "#16a34a";
+    return "#888";
+  };
+
+  return (
+    <div>
+      <div className="admin-hd">
+        <div className="admin-title">User Management</div>
+        <div className="admin-sub">View and manage all registered TIN users</div>
+      </div>
+      <div style={{ marginBottom: 14 }}>
+        <input className="fi" placeholder="Search by name or email..." value={search} onChange={e => setSearch(e.target.value)} style={{ maxWidth: 360 }} />
+      </div>
+      {filtered.length === 0 ? (
+        <div style={{ padding: 24, color: "var(--t3)", fontSize: 14 }}>No users found.</div>
+      ) : (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Name</th><th>Email</th><th>Role</th><th>Validation Status</th><th>Joined</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+              {filtered.map(u => (
+                <tr key={u.id}>
+                  <td style={{ fontWeight: 500, color: "var(--t1)" }}>{u.name || "—"}</td>
+                  <td style={{ fontSize: 12 }}>{u.email || u.workEmail || "—"}</td>
+                  <td>
+                    {editId === u.id ? (
+                      <select value={editRole} onChange={e => setEditRole(e.target.value)} style={{ fontSize: 12, borderRadius: 6, border: "1px solid var(--b3)", padding: "3px 6px" }}>
+                        <option value="contributor">contributor</option>
+                        <option value="retailer">retailer</option>
+                        <option value="consumer">consumer</option>
+                      </select>
+                    ) : (
+                      <span style={{ background: roleBadgeColor(u.role), color: "#fff", borderRadius: 6, padding: "2px 8px", fontSize: 11, fontWeight: 700 }}>{u.role || "—"}</span>
+                    )}
+                  </td>
+                  <td>
+                    {editId === u.id ? (
+                      <select value={editStatus} onChange={e => setEditStatus(e.target.value)} style={{ fontSize: 12, borderRadius: 6, border: "1px solid var(--b3)", padding: "3px 6px" }}>
+                        <option value="active">active</option>
+                        <option value="pending">pending</option>
+                        <option value="unvalidated">unvalidated</option>
+                        <option value="rejected">rejected</option>
+                        <option value="n/a">n/a</option>
+                      </select>
+                    ) : (
+                      <span>{u.validationStatus || "—"}</span>
+                    )}
+                  </td>
+                  <td style={{ fontSize: 12, color: "var(--t3)" }}>{u.createdAt ? new Date(u.createdAt).toLocaleDateString("en-IN") : "—"}</td>
+                  <td>
+                    {editId === u.id ? (
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button className="btn-sm btn-ok" onClick={() => saveEdit(u.id)} disabled={saving}>{saving ? "..." : "Save"}</button>
+                        <button className="btn-sm btn-out" onClick={() => setEditId(null)}>Cancel</button>
+                      </div>
+                    ) : (
+                      <button className="btn-sm btn-ok" onClick={() => startEdit(u)}>Edit Role</button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminDashboard({ stores }) {
   const handleVerify = async (storeId) => {
     try {
       await updateDoc(doc(db, "stores", storeId), { verificationStatus: "verified", verifiedAt: serverTimestamp(), verifiedBy: "admin" });
+      // Auto-credit 50 referral points if this store's contributor was referred by someone
+      try {
+        const storeSnap = await getDoc(doc(db, "stores", storeId));
+        const contributorId = storeSnap.data()?.contributorId;
+        if (contributorId) {
+          const userSnap = await getDoc(doc(db, "users", contributorId));
+          const referredBy = userSnap.data()?.referredBy;
+          if (referredBy) {
+            const refSnap = await getDocs(query(collection(db, "users"), where("referralCode", "==", referredBy)));
+            if (!refSnap.empty) {
+              const referrerUid = refSnap.docs[0].id;
+              await updateDoc(doc(db, "users", referrerUid), { points: increment(50) });
+              await addDoc(collection(db, "notifications", referrerUid, "items"), {
+                type: "referral_credited",
+                message: "You earned 50 points! Your referral was validated as a Market Champion.",
+                read: false,
+                createdAt: serverTimestamp()
+              });
+              alert("Approved! 50 referral points credited to referrer.");
+              return;
+            }
+          }
+        }
+      } catch(refErr) { console.log("Referral credit error:", refErr); }
       alert("Store verified!");
     } catch(e) { alert("Error: " + e.message); }
   };
@@ -3529,6 +3684,8 @@ function AdminDashboard({ stores }) {
           <BulkUploadPanel />
         </>}
 
+        {section === "users" && <UserManagementSection />}
+
         {section === "records" && <>
           <div className="admin-hd">
             <div className="admin-title">All Records</div>
@@ -3571,6 +3728,25 @@ export default function App() {
   const [page, setPage] = useState("home");
   const [stores, setStores] = useState(MOCK_STORES);
   const [contributors, setContributors] = useState(MOCK_CONTRIBUTORS);
+  const [liveStats, setLiveStats] = useState({ businesses: 2222, champions: 220, cities: 40, categories: 22 });
+
+  // Fetch live hero stats from Firestore on mount
+  useEffect(() => {
+    const fetchLiveStats = async () => {
+      try {
+        const storesSnap = await getDocs(collection(db, "stores"));
+        const champSnap = await getDocs(query(collection(db, "users"), where("role", "==", "contributor")));
+        const uniqueCities = new Set(storesSnap.docs.map(d => d.data().city).filter(Boolean)).size;
+        setLiveStats({
+          businesses: storesSnap.size + 2222,
+          champions: champSnap.size + 220,
+          cities: uniqueCities || 40,
+          categories: 22,
+        });
+      } catch(e) { console.log("Live stats error:", e); }
+    };
+    fetchLiveStats();
+  }, []);
 
   // Load real stores from Firestore on mount
   useEffect(() => {
@@ -3750,7 +3926,7 @@ export default function App() {
         <div className="page">
           {page === "home" && (isRetailer
             ? <RetailerDashboard user={user} stores={stores} onNavigate={setPage} />
-            : <HeroPage onCitySelect={handleCitySelect} selectedCity={selectedCity} onExplore={handleExplore} onAdd={handleAddStore} stores={stores} contributors={contributors} />
+            : <HeroPage onCitySelect={handleCitySelect} selectedCity={selectedCity} onExplore={handleExplore} onAdd={handleAddStore} stores={stores} contributors={contributors} liveStats={liveStats} />
           )}
           {page === "discover" && <DiscoveryPage stores={stores} selectedCity={selectedCity} />}
           {page === "add" && <AddPage user={user} onSubmit={handleSubmitStore} toast={showToast} />}
