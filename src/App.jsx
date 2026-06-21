@@ -333,10 +333,7 @@ const MOCK_ARCHITECTS = [];
 
 const MOCK_LEADS = [];
 
-const DUPLICATE_PAIRS = [
-  { id:"d1", store1: MOCK_STORES[1], store2: {...MOCK_STORES[1], id:"s2b", storeName:"Delhi Tiles Centre", phone:"9811234567", confidence:72}, matchReason:"Same phone number" },
-  { id:"d2", store1: MOCK_STORES[2], store2: {...MOCK_STORES[2], id:"s3b", storeName:"Raj Ply House", address:"Kirti Nagar Timber", confidence:41}, matchReason:"Same city + category + similar name" },
-];
+const DUPLICATE_PAIRS = [];
 
 // ============================================================
 // STYLES
