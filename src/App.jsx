@@ -2922,17 +2922,28 @@ function HeroPage({ onCitySelect, selectedCity, onExplore, onAdd, stores, contri
   const topCities = ["Mumbai", "Delhi", "Bengaluru", "Hyderabad", "Chennai", "Pune", "Ahmedabad", "Kolkata", "Jaipur", "Surat"];
   const filtered = search ? CITIES.filter(c => c.toLowerCase().includes(search.toLowerCase())) : CITIES;
 
+  const totalStores = stores?.length || 0;
+  const totalContributors = contributors?.length || 0;
+  const uniqueCities = [...new Set((stores || []).map(s => s.city).filter(Boolean))];
+  const totalCities = uniqueCities.length;
+  const uniqueCategories = [...new Set((stores || []).map(s => s.category).filter(Boolean))];
+  const totalCategories = uniqueCategories.length;
+  const cityCounts = (stores || []).reduce((acc, s) => {
+    if (s.city) acc[s.city] = (acc[s.city] || 0) + 1;
+    return acc;
+  }, {});
+
   return (
     <div className="hero">
       <div className="hero-top">
-        <div className="hero-eyebrow">Trade Intelligence Network</div>
-        <div className="hero-title">India's Building Materials<br /><span>Intelligence Network</span></div>
-        <div className="hero-sub">Community-driven intelligence for the building materials trade. Discover stores, verify data, contribute to grow.</div>
+        <div className="hero-eyebrow">TIN</div>
+        <div className="hero-title">India's Largest Building<br /><span>Materials Network</span></div>
+        <div className="hero-sub">Discover stores, brands, products, architects, designers, and contractors. Connecting the industry. Helping everyone grow together.</div>
         <div className="stats-row">
-          <div className="stat-card"><div className="stat-num">{(liveStats?.businesses ?? 2222).toLocaleString()}</div><div className="stat-lbl">Stores</div></div>
-          <div className="stat-card"><div className="stat-num">{(liveStats?.champions ?? 220).toLocaleString()}</div><div className="stat-lbl">Market Champions</div></div>
-          <div className="stat-card"><div className="stat-num">{liveStats?.cities ?? 40}</div><div className="stat-lbl">Cities</div></div>
-          <div className="stat-card"><div className="stat-num">{liveStats?.categories ?? 22}</div><div className="stat-lbl">Categories</div></div>
+          <div className="stat-card"><div className="stat-num">{totalStores.toLocaleString()}</div><div className="stat-lbl">Stores</div></div>
+          <div className="stat-card"><div className="stat-num">{totalContributors.toLocaleString()}</div><div className="stat-lbl">Market Champions</div></div>
+          <div className="stat-card"><div className="stat-num">{totalCities.toLocaleString()}</div><div className="stat-lbl">Cities</div></div>
+          <div className="stat-card"><div className="stat-num">{totalCategories.toLocaleString()}</div><div className="stat-lbl">Categories</div></div>
         </div>
         <div className="hero-cta">
           <button className="btn btn-primary" onClick={onExplore}>Explore {selectedCity || "Stores"}</button>
@@ -2942,15 +2953,12 @@ function HeroPage({ onCitySelect, selectedCity, onExplore, onAdd, stores, contri
       <div className="city-section">
         <div className="section-hd">Quick Cities</div>
         <div className="city-grid" style={{ marginBottom: 20 }}>
-          {topCities.map(c => {
-            const cityCount = stores.filter(s => s.city === c).length;
-            return (
+          {topCities.map(c => (
             <div key={c} className={`city-pill ${selectedCity === c ? "sel" : ""}`} onClick={() => onCitySelect(c)}>
               <span className="city-name">{c}</span>
-              {cityCount > 0 && <span className="city-count">{cityCount}</span>}
+              <span className="city-count">{cityCounts[c] || 0}</span>
             </div>
-            );
-          })}
+          ))}
         </div>
         <div className="section-hd">All Cities</div>
         <input className="fi" style={{ marginBottom: 12 }} placeholder="Search any city..." value={search} onChange={e => setSearch(e.target.value)} />
