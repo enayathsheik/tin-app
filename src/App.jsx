@@ -307,21 +307,9 @@ function getLevel(pts) { return CONTRIBUTOR_LEVELS.find(l => pts >= l.min && pts
 // ============================================================
 // MOCK DATA
 // ============================================================
-const MOCK_STORES = [
-  { id:"s1", type:"store", storeName:"Sharma Hardware & Tools", phone:"9820012345", address:"Shop 5, Link Road", city:"Mumbai", state:"Maharashtra", pincode:"400053", categories:[{category:"Hardware",subCategory:"Architectural Hardware",productType:"Handles"},{category:"Paints",subCategory:"Interior Paints",productType:"Emulsion"}], businessType:"Retailer", ownerName:"Rajesh Sharma", email:"sharma@gmail.com", gst:"27AABCS1429B1ZB", brands:"Dorma, Hettich, Hafele", verificationStatus:"verified", lat:19.1334, lng:72.8269, contributorId:"u1", pointsAwarded:10, createdAt:"2024-01-15", confidence:92 },
-  { id:"s2", type:"store", storeName:"Delhi Tiles & Marble Centre", phone:"9811234567", address:"Plot 12, Okhla Phase 2", city:"Delhi", state:"Delhi", pincode:"110020", category:"Ceramic Tiles", subCategory:"Vitrified Tiles", productType:"GVT", businessType:"Distributor", ownerName:"Suresh Kumar", email:"", gst:"", whatsapp:"9811234567", instagram:"", brands:"Kajaria, Somany, Johnson", verificationStatus:"community_added", lat:28.5355, lng:77.2910, contributorId:"u2", pointsAwarded:10, createdAt:"2024-01-20", confidence:45 },
-  { id:"s3", type:"store", storeName:"Raj Plywood & Laminates", phone:"9899876543", address:"Timber Market, Kirti Nagar", city:"Delhi", state:"Delhi", pincode:"110015", category:"Plywood", subCategory:"Commercial Ply", productType:"BWR", businessType:"Wholesaler", ownerName:"", email:"", gst:"", whatsapp:"", instagram:"@rajplydelhi", brands:"Greenply, Century, Kitply", verificationStatus:"community_added", lat:28.6509, lng:77.1445, contributorId:"u1", pointsAwarded:10, createdAt:"2024-02-01", confidence:38 },
-  { id:"s4", type:"store", storeName:"Asian Paints Color World", phone:"9867543210", address:"MG Road, Pune", city:"Pune", state:"Maharashtra", pincode:"411001", category:"Paints", subCategory:"Interior Paints", productType:"Emulsion", businessType:"Retailer", ownerName:"Priya Patel", email:"priya@colorworld.in", gst:"27BBPCS9876A1ZC", brands:"Asian Paints, Berger, Nerolac", verificationStatus:"verified", lat:18.5204, lng:73.8567, contributorId:"u3", pointsAwarded:10, createdAt:"2024-02-10", confidence:88 },
-  { id:"s5", type:"individual", storeName:"Amit Contractors", phone:"9988776655", address:"Sector 14, Gurgaon", city:"Delhi", state:"Haryana", pincode:"122001", category:"Interior Solutions", subCategory:"False Ceiling", productType:"Gypsum", businessType:"Contractor", ownerName:"Amit Verma", email:"amit.v@gmail.com", gst:"", brands:"", verificationStatus:"community_added", lat:28.4595, lng:77.0266, contributorId:"u2", pointsAwarded:10, createdAt:"2024-02-15", confidence:55 },
-];
+const MOCK_STORES = [];
 
-const MOCK_CONTRIBUTORS = [
-  { id:"u1", name:"Ravi Kumar", email:"ravi@aaronbuilders.com", workEmail:"ravi@aaronbuilders.com", personalEmail:"ravi.kumar@gmail.com", role:"contributor", points:1240, storesAdded:47, citiesCovered:8, city:"Mumbai", company:"Aaron Builders", linkedin:"linkedin.com/in/ravikumar", validationStatus:"active" },
-  { id:"u2", name:"Priya Singh", email:"priya@designstudio.in", workEmail:"priya@designstudio.in", personalEmail:"priya.s@gmail.com", role:"contributor", points:890, storesAdded:31, citiesCovered:5, city:"Delhi", company:"Design Studio", linkedin:"linkedin.com/in/priyasingh", validationStatus:"active" },
-  { id:"u3", name:"Amit Patel", email:"amit@infratech.co.in", workEmail:"amit@infratech.co.in", personalEmail:"amit.p@gmail.com", role:"contributor", points:650, storesAdded:22, citiesCovered:4, city:"Pune", company:"InfraTech", linkedin:"", validationStatus:"pending" },
-  { id:"u4", name:"Sunita Rao", email:"sunita@buildcorp.in", workEmail:"sunita@buildcorp.in", personalEmail:"sunita.r@gmail.com", role:"contributor", points:420, storesAdded:18, citiesCovered:3, city:"Bengaluru", company:"BuildCorp", linkedin:"linkedin.com/in/sunitarao", validationStatus:"pending" },
-  { id:"u5", name:"Vikram Joshi", email:"vikram@renovate.in", workEmail:"vikram@renovate.in", personalEmail:"vikram.j@gmail.com", role:"contributor", points:180, storesAdded:9, citiesCovered:2, city:"Hyderabad", company:"Renovate India", linkedin:"linkedin.com/in/vikramjoshi", validationStatus:"active" },
-];
+const MOCK_CONTRIBUTORS = [];
 
 
 // ============================================================
@@ -339,27 +327,11 @@ const BULK_REWARDS = [
   { type: "Architect / Designer Data", count: 1000, amount: 3000, points: 1000 },
 ];
 
-const MOCK_CONTRACTORS = [
-  { id:"c1", name:"Suresh Sharma", phone:"9820011111", city:"Mumbai", category:"Civil Contractor", company:"Sharma Constructions", experience:"12 yrs", email:"suresh@sharmaconstruct.com", linkedin:"linkedin.com/in/sureshsharma", specialization:"Residential & Commercial" },
-  { id:"c2", name:"Ramesh Patel", phone:"9811022222", city:"Delhi", category:"Interior Contractor", company:"Patel Interiors", experience:"8 yrs", email:"ramesh@patelinteriors.in", linkedin:"", specialization:"False Ceiling & Flooring" },
-  { id:"c3", name:"Vijay Kumar", phone:"9867033333", city:"Mumbai", category:"MEP Contractor", company:"VK Services", experience:"15 yrs", email:"vijay@vkservices.com", linkedin:"linkedin.com/in/vijaykumar", specialization:"Plumbing & Electrical" },
-  { id:"c4", name:"Anil Verma", phone:"9988044444", city:"Pune", category:"Painting Contractor", company:"Verma Paints", experience:"6 yrs", email:"", linkedin:"", specialization:"Interior & Exterior Painting" },
-  { id:"c5", name:"Deepak Singh", phone:"9876055555", city:"Delhi", category:"Civil Contractor", company:"Singh Builders", experience:"20 yrs", email:"deepak@singhbuilders.in", linkedin:"linkedin.com/in/deepaksingh", specialization:"High-rise Construction" },
-];
+const MOCK_CONTRACTORS = [];
 
-const MOCK_ARCHITECTS = [
-  { id:"a1", name:"Priya Mehta", phone:"9820099001", city:"Mumbai", category:"Architect", firm:"Mehta Associates", experience:"14 yrs", email:"priya@mehtaarch.com", linkedin:"linkedin.com/in/priyamehta", specialization:"Residential & Hospitality" },
-  { id:"a2", name:"Rahul Sharma", phone:"9811099002", city:"Delhi", category:"Interior Designer", firm:"Sharma Design Studio", experience:"9 yrs", email:"rahul@sharmadesign.in", linkedin:"linkedin.com/in/rahulsharma", specialization:"Commercial Interiors" },
-  { id:"a3", name:"Neha Joshi", phone:"9867099003", city:"Mumbai", category:"Architect", firm:"Joshi & Partners", experience:"11 yrs", email:"neha@joshiarch.com", linkedin:"linkedin.com/in/nehajoshi", specialization:"Healthcare & Institutional" },
-  { id:"a4", name:"Sanjay Gupta", phone:"9988099004", city:"Bengaluru", category:"Interior Designer", firm:"Gupta Interiors", experience:"7 yrs", email:"", linkedin:"", specialization:"Luxury Residential" },
-  { id:"a5", name:"Anita Rao", phone:"9876099005", city:"Delhi", category:"Architect", firm:"Rao Architecture", experience:"18 yrs", email:"anita@raoarch.in", linkedin:"linkedin.com/in/anitarao", specialization:"Urban Planning & Commercial" },
-];
+const MOCK_ARCHITECTS = [];
 
-const MOCK_LEADS = [
-  { id:"l1", type:"Project Lead", title:"3BHK Renovation - Bandra West", budget:"₹18-22 Lakhs", city:"Mumbai", category:"Interior Solutions", postedBy:"Homeowner", contact:"Available to Legend", date:"2024-03-01" },
-  { id:"l2", type:"Market Lead", title:"New Housing Project - 200 Units", budget:"₹2-3 Crore materials", city:"Pune", category:"Multiple", postedBy:"Developer", contact:"Available to Legend", date:"2024-03-05" },
-  { id:"l3", type:"Project Lead", title:"Office Fitout - 8000 sqft", budget:"₹45 Lakhs", city:"Delhi", category:"Furniture & Flooring", postedBy:"Corporate", contact:"Available to Legend", date:"2024-03-08" },
-];
+const MOCK_LEADS = [];
 
 const DUPLICATE_PAIRS = [
   { id:"d1", store1: MOCK_STORES[1], store2: {...MOCK_STORES[1], id:"s2b", storeName:"Delhi Tiles Centre", phone:"9811234567", confidence:72}, matchReason:"Same phone number" },
@@ -426,11 +398,13 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:'Barlow',
 .btn-ghost:hover{color:var(--t1);border-color:var(--b3);background:var(--s2)}
 .btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important}
 
-/* DISCOVERY */
-.discovery{display:flex;height:100%}
-.disc-sidebar{width:340px;flex-shrink:0;background:var(--s1);border-right:1px solid var(--b1);display:flex;flex-direction:column;overflow:hidden}
-.disc-main{flex:1;overflow-y:auto}
-.disc-sidebar-hd{padding:14px 16px;border-bottom:1px solid var(--b1)}
+/* DISCOVERY — 3 COLUMN LAYOUT */
+.discovery{display:flex;height:100%;overflow:hidden}
+.disc-filters{width:220px;flex-shrink:0;background:var(--s1);border-right:1px solid var(--b1);overflow-y:auto;padding:14px 12px;transition:width .2s ease,padding .2s ease,opacity .2s ease}
+.disc-filters.collapsed{width:0;padding:0;opacity:0;overflow:hidden;border-right:none}
+.disc-list-col{width:360px;flex-shrink:0;background:var(--s1);border-right:1px solid var(--b1);display:flex;flex-direction:column;overflow:hidden}
+.disc-list-hd{padding:10px 14px;border-bottom:1px solid var(--b1);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.disc-main{flex:1;overflow-y:auto;min-width:0}
 .srch{display:flex;align-items:center;gap:8px;background:var(--s2);border:1px solid var(--b2);border-radius:var(--r);padding:8px 12px;margin-bottom:10px}
 .srch input{flex:1;background:none;border:none;outline:none;color:var(--t1);font-size:13px;font-family:'Barlow',sans-serif}
 .srch input::placeholder{color:#080808}
@@ -452,7 +426,7 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:'Barlow',
 .conf-fill{height:100%;border-radius:2px;transition:width .6s}
 
 /* STORE DETAIL */
-.detail-panel{padding:24px;max-width:640px}
+.detail-panel{padding:24px;max-width:760px}
 .detail-hd{margin-bottom:20px}
 .detail-name{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:26px;margin-bottom:8px}
 .detail-badges{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
@@ -804,7 +778,8 @@ tr:hover td{background:var(--s2);color:var(--t1)}
 .light .role-opt.on{background:#fff3ef;border-color:var(--acc)}
 .light .section-card,.light .info-card,.light .prog-sec,.light .act-sec{background:#fff;border-color:#e0e0ea}
 .light .profile-reveal{background:#f8f8fc;border-color:#e0e0ea}
-.light .disc-sidebar{background:#fff;border-color:#e0e0ea}
+.light .disc-filters{background:#fff;border-color:#e0e0ea}
+.light .disc-list-col{background:#fff;border-color:#e0e0ea}
 .light .sc{background:#f8f8fc;border-color:#e0e0ea}
 .light .dg-item{background:#f8f8fc;border-color:#e0e0ea}
 .light .conf-section{background:#f8f8fc;border-color:#e0e0ea}
@@ -878,9 +853,13 @@ tr:hover td{background:var(--s2);color:var(--t1)}
   .page{padding-bottom:70px}
   
   /* Discovery */
-  .discovery{flex-direction:column}
-  .disc-sidebar{width:100%;max-height:none;border-right:none;border-bottom:1px solid #e0e0e0}
+  .discovery{flex-direction:column;overflow:visible}
+  .disc-filters{width:100%;border-right:none;border-bottom:1px solid #e0e0e0}
+  .disc-filters.collapsed{display:none}
+  .disc-list-col{width:100%;border-right:none}
+  .disc-list-col.hidden-mob{display:none}
   .disc-main{flex:1}
+  .disc-main.hidden-mob{display:none}
   .disc-main .detail-panel{position:fixed;inset:0;z-index:200;background:#fff;overflow-y:auto;padding:16px 16px 80px}
   
   /* Forms */
@@ -928,8 +907,10 @@ tr:hover td{background:var(--s2);color:var(--t1)}
 
 @media(max-width:768px){
   .disc-main.hidden-mob{display:none}
+  .disc-list-col.hidden-mob{display:none}
   .discovery{flex-direction:column}
-  .disc-sidebar{width:100%}
+  .disc-filters{width:100%}
+  .disc-list-col{width:100%}
   .stats-row{grid-template-columns:repeat(2,1fr)}
   .fg{grid-template-columns:1fr}
   .fg3{grid-template-columns:1fr 1fr}
@@ -2199,7 +2180,7 @@ function RetailerDashboard({ user, stores, onNavigate }) {
         )}
 
         {/* ---- DISCOVER TAB ---- */}
-        {activeTab === "discover" && <DiscoveryPage stores={stores} selectedCity={null} />}
+        {activeTab === "discover" && <DiscoveryPage stores={stores} selectedCity={null} user={null} />}
 
         {/* ---- STAFF TAB ---- */}
         {activeTab === "staff" && <StaffProfilePage user={user} />}
@@ -2230,6 +2211,459 @@ function RetailerDashboard({ user, stores, onNavigate }) {
 
         {/* ---- PROFILE TAB ---- */}
         {activeTab === "profile" && <ProfilePage user={user} />}
+
+      </div>
+    </div>
+  );
+}
+
+function MarketChampionHome({ user, contributors, onAddStore, onLeaderboard, onRewards, onDiscover }) {
+  const points = user.points || 0;
+  const storesAdded = user.storesAdded || 0;
+  const citiesCovered = user.citiesCovered || 0;
+  const streak = user.streak || 0;
+  const lv = getLevel(points);
+  const nextLv = CONTRIBUTOR_LEVELS.find(l => l.min > points);
+  const nextMin = nextLv ? nextLv.min : lv.max;
+  const ptsToNext = nextLv ? nextLv.min - points : 0;
+  const pct = nextLv ? Math.min(Math.round(((points - lv.min) / (nextLv.min - lv.min)) * 100), 100) : 100;
+
+  const sorted = [...contributors].sort((a, b) => b.points - a.points);
+  const myRank = sorted.findIndex(c => c.id === user.uid || c.name === user.name) + 1 || 34;
+  const top3 = sorted.slice(0, 3);
+  const avColors = ["#E6F1FB","#EAF3DE","#FAEEDA","#EEEDFE","#FAECE7"];
+  const avText = ["#0C447C","#27500A","#633806","#3C3489","#712B13"];
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const firstName = (user.name || "Champion").split(" ")[0];
+
+  return (
+    <div style={{height:"100%",overflowY:"auto"}}>
+      <div style={{maxWidth:720,margin:"0 auto",padding:"20px 16px 80px"}}>
+
+        {/* HERO */}
+        <div style={{background:"var(--s1)",border:"1px solid var(--b2)",borderRadius:"var(--rl)",padding:20,marginBottom:12}}>
+          <div style={{fontSize:19,fontWeight:700,fontFamily:"'Barlow Condensed',sans-serif",marginBottom:14,color:"var(--t1)"}}>
+            {greeting}, {firstName} 👋
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8,marginBottom:14}}>
+            {[
+              {icon:"🏆",label:"Level",value:lv.name+" Builder",color:lv.color},
+              {icon:"⭐",label:"Total points",value:points.toLocaleString()+" pts",color:"var(--ok)"},
+              {icon:"🏅",label:"State rank",value:`#${myRank} Maharashtra`,color:"var(--info)"},
+              {icon:"🔥",label:"Streak",value:streak+" days",color:"var(--warn)"},
+            ].map(s => (
+              <div key={s.label} style={{background:"var(--s2)",border:"1px solid var(--b1)",borderRadius:"var(--r)",padding:"10px 12px"}}>
+                <div style={{fontSize:16,marginBottom:3}}>{s.icon}</div>
+                <div style={{fontSize:11,color:"var(--t3)",marginBottom:2}}>{s.label}</div>
+                <div style={{fontSize:13,fontWeight:700,color:s.color}}>{s.value}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{background:"var(--s2)",border:"1px solid var(--b1)",borderRadius:"var(--r)",padding:"12px 14px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <span style={{fontSize:12,fontWeight:700,color:"var(--t1)"}}>
+                {nextLv ? `${ptsToNext} points to ${nextLv.name} Builder` : "Max level reached — Legend 🌟"}
+              </span>
+              <span style={{fontSize:11,color:"var(--t3)"}}>{points} / {nextLv ? nextMin : points}</span>
+            </div>
+            <div style={{height:8,background:"var(--b2)",borderRadius:99,overflow:"hidden",marginBottom:7}}>
+              <div style={{height:"100%",width:`${pct}%`,background:lv.color,borderRadius:99,transition:"width 1s ease"}}/>
+            </div>
+            <div style={{fontSize:11,color:"var(--t3)",lineHeight:1.5}}>
+              You're among Maharashtra's top contributors.{" "}
+              {nextLv && <span style={{color:lv.color,fontWeight:700}}>One more contribution can take you to {nextLv.name}.</span>}
+            </div>
+          </div>
+        </div>
+
+        {/* ADD STORE CTA */}
+        <div style={{background:"var(--s1)",border:"2px solid var(--acc)",borderRadius:"var(--rl)",padding:20,marginBottom:12,display:"flex",alignItems:"center",gap:16,cursor:"pointer"}} onClick={onAddStore}>
+          <div style={{width:52,height:52,borderRadius:"var(--r)",background:"#fff0eb",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:26}}>🏪</div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:18,color:"var(--t1)",marginBottom:3}}>Add a Store</div>
+            <div style={{fontSize:12,color:"var(--t3)",lineHeight:1.5}}>Help expand India's largest building materials discovery network. Each store earns you <strong style={{color:"var(--acc)"}}>+10 points</strong>.</div>
+          </div>
+          <button onClick={onAddStore} style={{background:"var(--acc)",color:"white",border:"none",borderRadius:"var(--r)",padding:"10px 18px",fontSize:14,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,fontFamily:"'Barlow',sans-serif"}}>
+            + Add Store
+          </button>
+        </div>
+
+        {/* LEADERBOARD */}
+        <div style={{background:"var(--s1)",border:"1px solid var(--b2)",borderRadius:"var(--rl)",padding:20,marginBottom:12}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:16,color:"var(--t1)"}}>🏆 Top Contributors This Week</div>
+            <span onClick={onLeaderboard} style={{fontSize:12,color:"var(--acc)",cursor:"pointer",fontWeight:700}}>Full leaderboard →</span>
+          </div>
+          {top3.map((c, i) => (
+            <div key={c.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid var(--b1)"}}>
+              <div style={{fontSize:14,width:22,textAlign:"center",fontWeight:800,color:["#D4920A","#888","#A0522D"][i]}}>
+                {["🥇","🥈","🥉"][i]}
+              </div>
+              <div style={{width:30,height:30,borderRadius:"50%",background:avColors[i%avColors.length],color:avText[i%avText.length],display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,flexShrink:0}}>
+                {c.name.charAt(0)}
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:600,color:"var(--t1)"}}>{c.name}</div>
+                <div style={{fontSize:11,color:"var(--t3)"}}>{c.storesAdded} stores · {c.city}</div>
+              </div>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:15,color:"var(--acc)"}}>{c.points.toLocaleString()}</div>
+            </div>
+          ))}
+          <div style={{background:"var(--s2)",borderRadius:"var(--r)",padding:"12px 14px",marginTop:12}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div>
+                <div style={{fontSize:14,fontWeight:700,color:"var(--t1)"}}>🏅 #{myRank} in Maharashtra <span style={{fontSize:11,background:"#E6F1FB",color:"#0C447C",borderRadius:4,padding:"2px 6px",marginLeft:4,fontWeight:700}}>You</span></div>
+                <div style={{fontSize:11,color:"var(--t3)",marginTop:2}}>{points.toLocaleString()} points this week</div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontSize:12,color:"var(--ok)",fontWeight:700}}>↑ 5 places this week</div>
+              </div>
+            </div>
+            <div style={{fontSize:11,color:"var(--t3)",marginTop:8}}>
+              <span style={{color:"var(--info)",fontWeight:700}}>120 points</span> needed to enter Top 25 — about 12 store additions.
+            </div>
+          </div>
+        </div>
+
+        {/* EARN POINTS GRID */}
+        <div style={{background:"var(--s1)",border:"1px solid var(--b2)",borderRadius:"var(--rl)",padding:20}}>
+          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:16,color:"var(--t1)",marginBottom:14}}>⚡ Ways to Earn Points</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}}>
+            {[
+              {icon:"🏪",title:"Add a Store",desc:"List a store not yet on TIN",pts:"+10 pts",action:onAddStore},
+              {icon:"✅",title:"Verify a Store",desc:"Confirm an existing listing's details",pts:"+5 pts",action:onDiscover},
+              {icon:"📸",title:"Add Photos",desc:"Upload real storefront photos",pts:"+3 pts",action:onDiscover},
+              {icon:"👥",title:"Refer a Contributor",desc:"Earn when they get validated",pts:"+50 pts",action:onRewards},
+            ].map(t => (
+              <div key={t.title} onClick={t.action||undefined} style={{background:"var(--s2)",border:"1px solid var(--b1)",borderRadius:"var(--r)",padding:"12px 14px",cursor:t.action?"pointer":"default",display:"flex",flexDirection:"column",gap:4}}>
+                <div style={{fontSize:20}}>{t.icon}</div>
+                <div style={{fontSize:13,fontWeight:700,color:"var(--t1)"}}>{t.title}</div>
+                <div style={{fontSize:11,color:"var(--t3)",lineHeight:1.4}}>{t.desc}</div>
+                <div style={{fontSize:12,color:"var(--ok)",fontWeight:700,marginTop:2}}>{t.pts}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// MY ZONE PAGE
+// ============================================================
+function MyZonePage({ user, stores, onNavigate }) {
+  const [tab, setTab] = useState("stores");
+  const [search, setSearch] = useState("");
+  const [insightDismissed, setInsightDismissed] = useState(false);
+
+  const uid = user.uid || user.id;
+  const userName = user.name || "Champion";
+  const points = user.points || 0;
+  const city = user.city || "Mumbai";
+
+  // Derive my contributions from stores list
+  const myStores = stores.filter(s => s.contributorId === uid || s.contributorEmail === user.email || s.contributorId === "u1");
+  const myArchitects = (user.architects || []);
+  const myContractors = (user.contractors || []);
+  const myEvents = (user.events || []);
+
+  const totalStores = myStores.length;
+  const totalArchitects = myArchitects.length;
+  const totalContractors = myContractors.length;
+  const totalEvents = myEvents.length;
+
+  // Activity score: weighted formula
+  const activityScore = Math.min(100, Math.round(
+    (totalStores * 5) + (totalArchitects * 8) + (totalContractors * 8) + (totalEvents * 10) + (points * 0.02)
+  ));
+
+  // Territory health
+  const healthScore = Math.min(100, Math.round(activityScore * 0.6 + (totalStores > 0 ? 20 : 0) + (totalEvents > 0 ? 10 : 0) + (points > 100 ? 10 : 0)));
+  const healthLabel = healthScore >= 75 ? "🟢 Excellent" : healthScore >= 50 ? "🟡 Moderate" : "🔴 Needs Attention";
+  const healthColor = healthScore >= 75 ? "var(--ok)" : healthScore >= 50 ? "var(--warn)" : "#dc2626";
+
+  const STATUS_LABELS = {
+    verified: { label: "✅ Verified by TIN", color: "var(--ok)", bg: "#f0fdf4" },
+    community_added: { label: "🟡 Pending Review", color: "var(--warn)", bg: "#fffbeb" },
+    pending: { label: "🟡 Pending Review", color: "var(--warn)", bg: "#fffbeb" },
+    needs_info: { label: "🔴 Needs Info", color: "#dc2626", bg: "#fef2f2" },
+    rejected: { label: "⚫ Inactive", color: "#555", bg: "#f5f5f5" },
+  };
+
+  const getStatus = (s) => STATUS_LABELS[s?.verificationStatus] || STATUS_LABELS["community_added"];
+
+  const filteredStores = myStores.filter(s =>
+    !search || s.storeName?.toLowerCase().includes(search.toLowerCase()) || s.city?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const SMART_INSIGHTS = [
+    totalStores === 0 && "Add your first store to start building your territory.",
+    totalStores > 0 && myStores.filter(s => s.verificationStatus !== "verified").length > 0 &&
+      `${myStores.filter(s => s.verificationStatus !== "verified").length} stores are pending TIN verification.`,
+    totalEvents === 0 && "Log your first market event to boost your activity score.",
+    points < 500 && `Earn ${500 - points} more points to reach Gold Builder status.`,
+    totalArchitects === 0 && "Add architects & designers to grow your influence network.",
+  ].filter(Boolean).slice(0, 3);
+
+  const SUGGESTED_EVENTS = [
+    { icon: "🏢", name: "Dealer Meet — Mumbai North", date: "Jun 22", type: "Dealer Meet" },
+    { icon: "🎨", name: "Architect & Design Conclave", date: "Jun 28", type: "Architect Meet" },
+    { icon: "🏛", name: "ACETECH Mumbai 2025", date: "Jul 10", type: "Trade Exhibition" },
+    { icon: "🪵", name: "Hettich Product Launch", date: "Jul 15", type: "Product Launch" },
+  ];
+
+  const BADGES = [
+    { icon: "🏪", name: "Store Builder", unlocked: totalStores >= 5, req: "5 stores" },
+    { icon: "🎨", name: "Influencer Connector", unlocked: totalArchitects >= 3, req: "3 architects" },
+    { icon: "🏗", name: "Contractor Champion", unlocked: totalContractors >= 3, req: "3 contractors" },
+    { icon: "📅", name: "Event Explorer", unlocked: totalEvents >= 2, req: "2 events" },
+    { icon: "🚀", name: "Market Leader", unlocked: points >= 1000, req: "1,000 pts" },
+    { icon: "🌟", name: "Territory Builder", unlocked: healthScore >= 75, req: "75% health" },
+  ];
+
+  const card = (label, value, icon, color) => (
+    <div key={label} style={{background:"var(--s1)",border:"1px solid var(--b2)",borderRadius:"var(--r)",padding:"12px 14px",flex:1,minWidth:0}}>
+      <div style={{fontSize:18,marginBottom:4}}>{icon}</div>
+      <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:22,color:color||"var(--t1)",lineHeight:1}}>{value}</div>
+      <div style={{fontSize:11,color:"var(--t3)",marginTop:2}}>{label}</div>
+    </div>
+  );
+
+  return (
+    <div style={{height:"100%",overflowY:"auto"}}>
+      <div style={{maxWidth:760,margin:"0 auto",padding:"20px 16px 100px"}}>
+
+        {/* HEADER */}
+        <div style={{marginBottom:16}}>
+          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:26,color:"var(--t1)",marginBottom:2}}>🗺 My Zone</div>
+          <div style={{fontSize:13,color:"var(--t3)"}}>Your personal market territory & network command center</div>
+        </div>
+
+        {/* SMART INSIGHTS */}
+        {!insightDismissed && SMART_INSIGHTS.length > 0 && (
+          <div style={{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:"var(--r)",padding:"12px 14px",marginBottom:14,position:"relative"}}>
+            <div style={{fontSize:12,fontWeight:700,color:"#1d4ed8",marginBottom:6}}>💡 Smart Insights</div>
+            {SMART_INSIGHTS.map((ins, i) => (
+              <div key={i} style={{fontSize:12,color:"#1e40af",padding:"3px 0",lineHeight:1.5}}>· {ins}</div>
+            ))}
+            <div onClick={() => setInsightDismissed(true)} style={{position:"absolute",top:10,right:12,fontSize:14,color:"#93c5fd",cursor:"pointer"}}>✕</div>
+          </div>
+        )}
+
+        {/* KPI CARDS ROW 1 */}
+        <div style={{display:"flex",gap:8,marginBottom:8,flexWrap:"wrap"}}>
+          {card("My Stores", totalStores, "🏪", "var(--acc)")}
+          {card("Architects", totalArchitects, "🎨", "#7c3aed")}
+          {card("Contractors", totalContractors, "🏗", "#0891b2")}
+          {card("Events", totalEvents, "📅", "#059669")}
+        </div>
+
+        {/* KPI CARDS ROW 2 */}
+        <div style={{display:"flex",gap:8,marginBottom:16}}>
+          <div style={{background:"var(--s1)",border:"1px solid var(--b2)",borderRadius:"var(--r)",padding:"12px 14px",flex:1}}>
+            <div style={{fontSize:11,color:"var(--t3)",marginBottom:4}}>⭐ Activity Score</div>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:24,color:"var(--acc)"}}>{activityScore}</div>
+              <div style={{flex:1,height:6,background:"var(--b2)",borderRadius:99,overflow:"hidden"}}>
+                <div style={{height:"100%",width:`${activityScore}%`,background:"var(--acc)",borderRadius:99}}/>
+              </div>
+              <div style={{fontSize:11,color:"var(--t3)"}}>/100</div>
+            </div>
+          </div>
+          <div style={{background:"var(--s1)",border:"1px solid var(--b2)",borderRadius:"var(--r)",padding:"12px 14px",flex:1}}>
+            <div style={{fontSize:11,color:"var(--t3)",marginBottom:4}}>🌍 Territory Health</div>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:22,color:healthColor}}>{healthScore}%</div>
+              <div style={{flex:1}}>
+                <div style={{height:6,background:"var(--b2)",borderRadius:99,overflow:"hidden",marginBottom:3}}>
+                  <div style={{height:"100%",width:`${healthScore}%`,background:healthColor,borderRadius:99}}/>
+                </div>
+                <div style={{fontSize:10,color:healthColor,fontWeight:700}}>{healthLabel}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* TAB NAV */}
+        <div style={{display:"flex",gap:4,marginBottom:14,background:"var(--s2)",borderRadius:"var(--r)",padding:4}}>
+          {[
+            ["stores","🏪 My Stores"],
+            ["architects","🎨 Architects"],
+            ["contractors","🏗 Contractors"],
+            ["events","📅 Events"],
+          ].map(([id,label]) => (
+            <button key={id} onClick={() => { setTab(id); setSearch(""); }}
+              style={{flex:1,padding:"7px 4px",borderRadius:"var(--r)",border:"none",fontSize:12,fontWeight:tab===id?700:400,
+                background:tab===id?"var(--s1)":"transparent",color:tab===id?"var(--acc)":"var(--t3)",cursor:"pointer",
+                boxShadow:tab===id?"0 1px 3px rgba(0,0,0,.08)":"none",fontFamily:"'Barlow',sans-serif",transition:"all .15s"}}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── MY STORES TAB ── */}
+        {tab === "stores" && (
+          <div>
+            <div style={{display:"flex",gap:8,marginBottom:12}}>
+              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search stores or city…"
+                style={{flex:1,padding:"8px 12px",border:"1px solid var(--b3)",borderRadius:"var(--r)",fontSize:13,background:"var(--s1)",color:"var(--t1)",fontFamily:"'Barlow',sans-serif"}}/>
+              <button onClick={() => onNavigate("add")}
+                style={{background:"var(--acc)",color:"white",border:"none",borderRadius:"var(--r)",padding:"8px 16px",fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",fontFamily:"'Barlow',sans-serif"}}>
+                + Add Store
+              </button>
+            </div>
+            {filteredStores.length === 0 ? (
+              <div style={{textAlign:"center",padding:"40px 20px",color:"var(--t3)"}}>
+                <div style={{fontSize:36,marginBottom:8}}>🏪</div>
+                <div style={{fontSize:14,fontWeight:700,color:"var(--t2)",marginBottom:4}}>No stores yet</div>
+                <div style={{fontSize:12,marginBottom:16}}>Start building your territory by adding stores in your area.</div>
+                <button onClick={() => onNavigate("add")} style={{background:"var(--acc)",color:"white",border:"none",borderRadius:"var(--r)",padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"'Barlow',sans-serif"}}>Add Your First Store →</button>
+              </div>
+            ) : filteredStores.map(s => {
+              const st = getStatus(s);
+              return (
+                <div key={s.id} style={{background:"var(--s1)",border:"1px solid var(--b2)",borderRadius:"var(--r)",padding:"12px 14px",marginBottom:8}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontWeight:700,fontSize:14,color:"var(--t1)",marginBottom:2}}>{s.storeName}</div>
+                      <div style={{fontSize:11,color:"var(--t3)",marginBottom:6}}>📍 {s.address ? `${s.address}, ` : ""}{s.city} · {s.businessType || "Store"}</div>
+                      {s.categories?.length > 0 && (
+                        <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}>
+                          {s.categories.slice(0,3).map((c,i) => (
+                            <span key={i} style={{fontSize:10,background:"var(--s2)",border:"1px solid var(--b1)",borderRadius:4,padding:"2px 6px",color:"var(--t3)"}}>
+                              {c.category||c}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <div style={{display:"inline-flex",alignItems:"center",fontSize:11,fontWeight:700,color:st.color,background:st.bg,borderRadius:4,padding:"2px 7px"}}>
+                        {st.label}
+                      </div>
+                    </div>
+                    <div style={{flexShrink:0,textAlign:"right"}}>
+                      {s.phone && <div style={{fontSize:12,color:"var(--info)"}}>{s.phone}</div>}
+                      <div style={{fontSize:10,color:"var(--t3)",marginTop:4}}>{s.createdAt || "Recently added"}</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── ARCHITECTS TAB ── */}
+        {tab === "architects" && (
+          <div>
+            <div style={{display:"flex",gap:8,marginBottom:12}}>
+              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search architects…"
+                style={{flex:1,padding:"8px 12px",border:"1px solid var(--b3)",borderRadius:"var(--r)",fontSize:13,background:"var(--s1)",color:"var(--t1)",fontFamily:"'Barlow',sans-serif"}}/>
+              <button onClick={() => onNavigate("add")}
+                style={{background:"#7c3aed",color:"white",border:"none",borderRadius:"var(--r)",padding:"8px 16px",fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",fontFamily:"'Barlow',sans-serif"}}>
+                + Add Architect
+              </button>
+            </div>
+            <div style={{textAlign:"center",padding:"40px 20px",color:"var(--t3)"}}>
+              <div style={{fontSize:36,marginBottom:8}}>🎨</div>
+              <div style={{fontSize:14,fontWeight:700,color:"var(--t2)",marginBottom:4}}>No architects added yet</div>
+              <div style={{fontSize:12,marginBottom:16}}>Add architects & interior designers you've met in the field.</div>
+              <button onClick={() => onNavigate("add")} style={{background:"#7c3aed",color:"white",border:"none",borderRadius:"var(--r)",padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"'Barlow',sans-serif"}}>Add First Architect →</button>
+            </div>
+          </div>
+        )}
+
+        {/* ── CONTRACTORS TAB ── */}
+        {tab === "contractors" && (
+          <div>
+            <div style={{display:"flex",gap:8,marginBottom:12}}>
+              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search contractors…"
+                style={{flex:1,padding:"8px 12px",border:"1px solid var(--b3)",borderRadius:"var(--r)",fontSize:13,background:"var(--s1)",color:"var(--t1)",fontFamily:"'Barlow',sans-serif"}}/>
+              <button onClick={() => onNavigate("add")}
+                style={{background:"#0891b2",color:"white",border:"none",borderRadius:"var(--r)",padding:"8px 16px",fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",fontFamily:"'Barlow',sans-serif"}}>
+                + Add Contractor
+              </button>
+            </div>
+            <div style={{textAlign:"center",padding:"40px 20px",color:"var(--t3)"}}>
+              <div style={{fontSize:36,marginBottom:8}}>🏗</div>
+              <div style={{fontSize:14,fontWeight:700,color:"var(--t2)",marginBottom:4}}>No contractors added yet</div>
+              <div style={{fontSize:12,marginBottom:16}}>Add contractors from your market visits to grow your network.</div>
+              <button onClick={() => onNavigate("add")} style={{background:"#0891b2",color:"white",border:"none",borderRadius:"var(--r)",padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"'Barlow',sans-serif"}}>Add First Contractor →</button>
+            </div>
+          </div>
+        )}
+
+        {/* ── EVENTS TAB ── */}
+        {tab === "events" && (
+          <div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+              <div style={{fontWeight:700,fontSize:14,color:"var(--t1)"}}>Market Activity Log</div>
+              <button style={{background:"#059669",color:"white",border:"none",borderRadius:"var(--r)",padding:"8px 14px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"'Barlow',sans-serif"}}>
+                📅 Add Event
+              </button>
+            </div>
+            {myEvents.length === 0 && (
+              <div style={{textAlign:"center",padding:"30px 20px",color:"var(--t3)",marginBottom:16}}>
+                <div style={{fontSize:32,marginBottom:8}}>📅</div>
+                <div style={{fontSize:14,fontWeight:700,color:"var(--t2)",marginBottom:4}}>No events logged yet</div>
+                <div style={{fontSize:12}}>Log dealer meets, site visits, exhibitions, and client meetings.</div>
+              </div>
+            )}
+            <div style={{fontWeight:700,fontSize:13,color:"var(--t2)",marginBottom:10}}>📌 Suggested Events Near You</div>
+            {SUGGESTED_EVENTS.map((e,i) => (
+              <div key={i} style={{background:"var(--s1)",border:"1px solid var(--b2)",borderRadius:"var(--r)",padding:"11px 14px",marginBottom:8,display:"flex",alignItems:"center",gap:12}}>
+                <div style={{fontSize:22,flexShrink:0}}>{e.icon}</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:700,color:"var(--t1)",marginBottom:2}}>{e.name}</div>
+                  <div style={{fontSize:11,color:"var(--t3)"}}>{e.type} · {e.date}</div>
+                </div>
+                <button style={{fontSize:12,color:"var(--acc)",background:"transparent",border:"1px solid var(--acc)",borderRadius:"var(--r)",padding:"5px 10px",cursor:"pointer",whiteSpace:"nowrap",fontWeight:700,fontFamily:"'Barlow',sans-serif"}}>
+                  Register
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* BADGES */}
+        <div style={{background:"var(--s1)",border:"1px solid var(--b2)",borderRadius:"var(--r)",padding:"14px 16px",marginTop:14}}>
+          <div style={{fontWeight:700,fontSize:13,color:"var(--t1)",marginBottom:10}}>🏅 Achievement Badges</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
+            {BADGES.map(b => (
+              <div key={b.name} style={{background:b.unlocked?"#f0fdf4":"var(--s2)",border:`1px solid ${b.unlocked?"#86efac":"var(--b1)"}`,borderRadius:"var(--r)",padding:"10px 8px",textAlign:"center",opacity:b.unlocked?1:0.55}}>
+                <div style={{fontSize:22,marginBottom:4}}>{b.icon}</div>
+                <div style={{fontSize:10,fontWeight:700,color:b.unlocked?"var(--ok)":"var(--t3)",lineHeight:1.3}}>{b.name}</div>
+                {!b.unlocked && <div style={{fontSize:9,color:"var(--t3)",marginTop:2}}>{b.req}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* NETWORK IMPACT */}
+        <div style={{background:"var(--s1)",border:"1px solid var(--b2)",borderRadius:"var(--r)",padding:"14px 16px",marginTop:10}}>
+          <div style={{fontWeight:700,fontSize:13,color:"var(--t1)",marginBottom:8}}>🌐 Your Network Impact</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8,marginBottom:10}}>
+            {[
+              ["🏪",totalStores,"Stores in network"],
+              ["🎨",totalArchitects,"Architects connected"],
+              ["🏗",totalContractors,"Contractors linked"],
+              ["📅",totalEvents,"Events participated"],
+            ].map(([icon,val,label]) => (
+              <div key={label} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",background:"var(--s2)",borderRadius:"var(--r)"}}>
+                <div style={{fontSize:18}}>{icon}</div>
+                <div>
+                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:18,color:"var(--t1)",lineHeight:1}}>{val}</div>
+                  <div style={{fontSize:10,color:"var(--t3)"}}>{label}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{fontSize:12,color:"var(--t3)",lineHeight:1.6,borderTop:"1px solid var(--b1)",paddingTop:10}}>
+            Your network contributes to building material decisions across <strong style={{color:"var(--t2)"}}>{city}</strong> and surrounding areas. Keep growing your territory to increase your market influence.
+          </div>
+        </div>
 
       </div>
     </div>
@@ -2896,7 +3330,7 @@ function AddPage({ user, onSubmit, toast }) {
   );
 }
 
-function DiscoveryPage({ stores, selectedCity }) {
+function DiscoveryPage({ stores, selectedCity, user, isGuest, onRequireLogin }) {
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("All");
   const [typeFilter, setTypeFilter] = useState("All");
@@ -2973,33 +3407,237 @@ function DiscoveryPage({ stores, selectedCity }) {
     return ms && mc && mt && mst && mcity;
   });
 
-  return (
-    <>
-    <div className="discovery">
-      <div className="disc-sidebar">
-        <div className="disc-sidebar-hd">
-          <div className="srch">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ color: "var(--t3)", flexShrink: 0 }}><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
-            <input placeholder={`Search store, brand, category, pincode, area${selectedCity ? ` in ${selectedCity}` : ""}...`} value={search} onChange={e => setSearch(e.target.value)} />
+  const isContrib = user?.role === "contributor";
+  const [discMode, setDiscMode] = useState(isContrib ? "opportunity" : "database");
+  const [savedNetwork, setSavedNetwork] = useState([]);
+  const [locSearch, setLocSearch] = useState("");
+  const [radius, setRadius] = useState(5);
+
+  const handleSaveToNetwork = (item) => {
+    setSavedNetwork(n => n.find(x => x.id === item.id) ? n : [...n, { ...item, savedAt: new Date().toISOString(), notes: "" }]);
+  };
+
+  const nearbyStores = stores.filter(s => s.city === (selectedCity || "Mumbai")).slice(0, 24);
+  const verifiedNearby = nearbyStores.filter(s => s.verificationStatus === "verified");
+  const pendingNearby = nearbyStores.filter(s => s.verificationStatus !== "verified");
+
+  const OPPORTUNITY_INSIGHTS = [
+    `This locality has ${nearbyStores.length} stores but only ${Math.floor(nearbyStores.length * 0.08)} architects on record.`,
+    `${verifiedNearby.length} verified stores available for engagement nearby.`,
+    pendingNearby.length > 0 && `${pendingNearby.length} stores are pending TIN review — contribute to verify them.`,
+    "No designers from your network exist within this area.",
+    "This market cluster is growing — 3 new stores added this week.",
+  ].filter(Boolean);
+
+  const SUGGESTED_EVENTS = [
+    { icon: "🏢", name: "Dealer Meet — Mumbai North", date: "Jun 22", type: "Dealer Meet", city: selectedCity || "Mumbai" },
+    { icon: "🎨", name: "Architect & Design Conclave", date: "Jun 28", type: "Architect Meet", city: selectedCity || "Mumbai" },
+    { icon: "🏛", name: "ACETECH Mumbai 2025", date: "Jul 10", type: "Trade Exhibition", city: selectedCity || "Mumbai" },
+    { icon: "🪵", name: "Hettich Product Launch", date: "Jul 15", type: "Product Launch", city: selectedCity || "Mumbai" },
+    { icon: "🤝", name: "Contractor Network Evening", date: "Jul 18", type: "Networking", city: selectedCity || "Mumbai" },
+  ];
+
+  const SMART_RECS = [
+    `${nearbyStores.length} verified stores are available within ${radius} km.`,
+    "You have not added any architects to your network in this locality.",
+    "8 contractors attended recent events near your territory.",
+    "Expand your network by adding professionals from this category.",
+  ];
+
+  const LOCALITY_SUGGESTIONS = ["Andheri West", "Bandra Kurla", "Koramangala", "Banjara Hills", "Whitefield", "Powai", "Malad West", "Thane West"];
+
+  const OpportunityEngine = () => (
+    <div style={{maxWidth:760,margin:"0 auto",padding:"16px 16px 100px"}}>
+
+      {/* MODE TOGGLE */}
+      <div style={{display:"flex",gap:4,marginBottom:16,background:"var(--s2)",borderRadius:"var(--r)",padding:4}}>
+        {[["opportunity","⚡ Opportunities"],["database","🔍 Database Search"],["network","⭐ My Network"]].map(([id,label]) => (
+          <button key={id} onClick={()=>setDiscMode(id)}
+            style={{flex:1,padding:"7px 6px",borderRadius:"var(--r)",border:"none",fontSize:12,fontWeight:discMode===id?700:400,
+              background:discMode===id?"var(--s1)":"transparent",color:discMode===id?"var(--acc)":"var(--t3)",cursor:"pointer",
+              boxShadow:discMode===id?"0 1px 3px rgba(0,0,0,.08)":"none",fontFamily:"'Barlow',sans-serif",transition:"all .15s",whiteSpace:"nowrap"}}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── OPPORTUNITY MODE ── */}
+      {discMode === "opportunity" && <>
+
+        {/* LOCATION SEARCH */}
+        <div style={{background:"var(--s1)",border:"1px solid var(--b2)",borderRadius:"var(--r)",padding:"14px 16px",marginBottom:12}}>
+          <div style={{fontWeight:700,fontSize:13,color:"var(--t1)",marginBottom:10}}>📍 Search by Location</div>
+          <div style={{display:"flex",gap:8,marginBottom:10}}>
+            <input value={locSearch} onChange={e=>setLocSearch(e.target.value)}
+              placeholder="Area, locality, city or PIN code…"
+              style={{flex:1,padding:"8px 12px",border:"1px solid var(--b3)",borderRadius:"var(--r)",fontSize:13,background:"var(--s1)",color:"var(--t1)",fontFamily:"'Barlow',sans-serif"}}/>
+            <button style={{background:"var(--acc)",color:"white",border:"none",borderRadius:"var(--r)",padding:"8px 14px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"'Barlow',sans-serif",whiteSpace:"nowrap"}}>
+              📍 Near Me
+            </button>
           </div>
-          <div className="chips" style={{ marginBottom: 6 }}>
-            {["All", "verified", "community_added"].map(s => (
-              <div key={s} className={`chip ${statusFilter === s ? "on" : ""}`} onClick={() => setStatusFilter(s)}>
-                {s === "All" ? "All" : s === "verified" ? "✓ Verified" : "Community"}
-              </div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
+            {LOCALITY_SUGGESTIONS.map(l => (
+              <span key={l} onClick={()=>setLocSearch(l)} style={{fontSize:11,padding:"3px 9px",borderRadius:99,background:"var(--s2)",border:"1px solid var(--b2)",color:"var(--t3)",cursor:"pointer",fontWeight:500}}>
+                {l}
+              </span>
             ))}
           </div>
-          <div className="chips" style={{ marginBottom: 6 }}>
-            {cats.map(c => <div key={c} className={`chip ${catFilter === c ? "on" : ""}`} onClick={() => setCatFilter(c)}>{c}</div>)}
-          </div>
-          <div className="chips">
-            {["All", "Retailer", "Distributor", "Wholesaler", "Contractor"].map(t => (
-              <div key={t} className={`chip ${typeFilter === t ? "on" : ""}`} onClick={() => setTypeFilter(t)}>{t}</div>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <span style={{fontSize:11,color:"var(--t3)",whiteSpace:"nowrap"}}>Radius:</span>
+            {[2,5,10,25].map(r => (
+              <span key={r} onClick={()=>setRadius(r)} style={{fontSize:11,padding:"3px 9px",borderRadius:99,cursor:"pointer",fontWeight:600,
+                background:radius===r?"var(--acc)":"var(--s2)",color:radius===r?"white":"var(--t3)",border:`1px solid ${radius===r?"var(--acc)":"var(--b2)"}`}}>
+                {r} km
+              </span>
             ))}
           </div>
         </div>
+
+        {/* NEAR ME SUMMARY */}
+        <div style={{background:"var(--s1)",border:"1px solid var(--b2)",borderRadius:"var(--r)",padding:"14px 16px",marginBottom:12}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+            <div style={{fontWeight:700,fontSize:13,color:"var(--t1)"}}>📍 Near Me — within {radius} km</div>
+            <span style={{fontSize:11,color:"var(--t3)"}}>{selectedCity || "Mumbai"}</span>
+          </div>
+          {[
+            { icon: "🏪", label: "Stores", count: nearbyStores.length, color: "var(--acc)" },
+            { icon: "🎨", label: "Architects & Designers", count: Math.floor(nearbyStores.length * 0.08), color: "#7c3aed" },
+            { icon: "🏗", label: "Contractors", count: Math.floor(nearbyStores.length * 0.05), color: "#0891b2" },
+          ].map(row => (
+            <div key={row.label} style={{display:"flex",alignItems:"center",gap:12,padding:"9px 0",borderBottom:"1px solid var(--b1)"}}>
+              <div style={{fontSize:18,width:24}}>{row.icon}</div>
+              <div style={{flex:1}}>
+                <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:20,color:row.color}}>{row.count}</span>
+                <span style={{fontSize:12,color:"var(--t3)",marginLeft:6}}>{row.label}</span>
+              </div>
+              <div style={{display:"flex",gap:6}}>
+                <button onClick={()=>setDiscMode("database")} style={{fontSize:11,color:"var(--info)",background:"transparent",border:"1px solid var(--b2)",borderRadius:6,padding:"4px 9px",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600}}>View All</button>
+                <button onClick={()=>handleSaveToNetwork({id:"near-"+row.label,storeName:row.label,city:selectedCity||"Mumbai"})} style={{fontSize:11,color:"var(--ok)",background:"transparent",border:"1px solid var(--b2)",borderRadius:6,padding:"4px 9px",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600}}>⭐ Save</button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* OPPORTUNITY INSIGHTS / WHITE SPACE */}
+        <div style={{background:"var(--s1)",border:"1px solid var(--b2)",borderRadius:"var(--r)",padding:"14px 16px",marginBottom:12}}>
+          <div style={{fontWeight:700,fontSize:13,color:"var(--t1)",marginBottom:10}}>⚡ Opportunity Insights</div>
+          {OPPORTUNITY_INSIGHTS.map((ins,i) => (
+            <div key={i} style={{display:"flex",gap:10,padding:"8px 0",borderBottom:"1px solid var(--b1)",alignItems:"flex-start"}}>
+              <span style={{fontSize:14,color:"var(--warn)",flexShrink:0}}>⚡</span>
+              <div style={{flex:1,fontSize:12,color:"var(--t2)",lineHeight:1.5}}>{ins}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* SMART RECOMMENDATIONS */}
+        <div style={{background:"var(--s1)",border:"1px solid var(--b2)",borderRadius:"var(--r)",padding:"14px 16px",marginBottom:12}}>
+          <div style={{fontWeight:700,fontSize:13,color:"var(--t1)",marginBottom:10}}>💡 Smart Recommendations</div>
+          {SMART_RECS.map((rec,i) => (
+            <div key={i} style={{display:"flex",gap:10,padding:"7px 10px",borderRadius:"var(--r)",background:"#eff6ff",border:"1px solid #bfdbfe",marginBottom:6,alignItems:"flex-start"}}>
+              <span style={{fontSize:13,color:"#2563eb",flexShrink:0}}>💡</span>
+              <div style={{flex:1,fontSize:12,color:"#1e40af",lineHeight:1.5}}>{rec}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* SUGGESTED EVENTS */}
+        <div style={{background:"var(--s1)",border:"1px solid var(--b2)",borderRadius:"var(--r)",padding:"14px 16px",marginBottom:12}}>
+          <div style={{fontWeight:700,fontSize:13,color:"var(--t1)",marginBottom:10}}>📅 Suggested Events Near You</div>
+          {SUGGESTED_EVENTS.map((ev,i) => (
+            <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"9px 0",borderBottom:"1px solid var(--b1)"}}>
+              <div style={{fontSize:22,flexShrink:0}}>{ev.icon}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:700,color:"var(--t1)",marginBottom:1}}>{ev.name}</div>
+                <div style={{fontSize:11,color:"var(--t3)"}}>{ev.type} · {ev.date} · {ev.city}</div>
+              </div>
+              <div style={{display:"flex",gap:5,flexShrink:0}}>
+                <button style={{fontSize:11,color:"var(--ok)",background:"transparent",border:"1px solid var(--b2)",borderRadius:6,padding:"4px 9px",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600}}>Save</button>
+                <button style={{fontSize:11,color:"white",background:"var(--acc)",border:"none",borderRadius:6,padding:"4px 9px",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600}}>Register</button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* QUICK JUMP TO DATABASE */}
+        <div style={{textAlign:"center",padding:"16px 0"}}>
+          <button onClick={()=>setDiscMode("database")} style={{background:"transparent",color:"var(--t3)",border:"1px solid var(--b3)",borderRadius:"var(--r)",padding:"9px 20px",fontSize:13,cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600}}>
+            🔍 Search the Database →
+          </button>
+        </div>
+      </>}
+
+      {/* ── MY NETWORK MODE ── */}
+      {discMode === "network" && <>
+        <div style={{marginBottom:14}}>
+          <div style={{fontWeight:700,fontSize:14,color:"var(--t1)",marginBottom:4}}>⭐ My Network</div>
+          <div style={{fontSize:12,color:"var(--t3)"}}>People and businesses you follow, track, or want to engage with — regardless of whether you contributed them.</div>
+        </div>
+        {savedNetwork.length === 0 ? (
+          <div style={{textAlign:"center",padding:"40px 20px",background:"var(--s1)",border:"1px solid var(--b2)",borderRadius:"var(--r)"}}>
+            <div style={{fontSize:36,marginBottom:8}}>⭐</div>
+            <div style={{fontSize:14,fontWeight:700,color:"var(--t2)",marginBottom:4}}>Your network is empty</div>
+            <div style={{fontSize:12,color:"var(--t3)",marginBottom:16,lineHeight:1.5}}>Save stores, architects, contractors, and professionals you discover to build your personal network.</div>
+            <button onClick={()=>setDiscMode("opportunity")} style={{background:"var(--acc)",color:"white",border:"none",borderRadius:"var(--r)",padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"'Barlow',sans-serif"}}>Discover Opportunities →</button>
+          </div>
+        ) : (
+          <div>
+            {savedNetwork.map((item,i) => (
+              <div key={i} style={{background:"var(--s1)",border:"1px solid var(--b2)",borderRadius:"var(--r)",padding:"12px 14px",marginBottom:8,display:"flex",alignItems:"center",gap:12}}>
+                <div style={{fontSize:20}}>🏪</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:700,color:"var(--t1)"}}>{item.storeName || item.name}</div>
+                  <div style={{fontSize:11,color:"var(--t3)"}}>📍 {item.city} · Saved {item.savedAt?.substring(0,10)}</div>
+                </div>
+                <div style={{display:"flex",gap:5}}>
+                  <button style={{fontSize:11,color:"var(--info)",background:"transparent",border:"1px solid var(--b2)",borderRadius:6,padding:"4px 9px",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600}}>📝 Note</button>
+                  <button style={{fontSize:11,color:"var(--acc)",background:"transparent",border:"1px solid var(--b2)",borderRadius:6,padding:"4px 9px",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600}}>📅 Follow-up</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </>}
+
+    </div>
+  );
+
+  if (discMode !== "database") {
+    return <OpportunityEngine />;
+  }
+
+  return (
+    <>
+    <div className="discovery">
+
+      {/* COLUMN 1 — FILTERS */}
+      <div className={`disc-filters ${selected ? "collapsed" : ""}`}>
+        <div className="srch">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ color: "var(--t3)", flexShrink: 0 }}><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
+          <input placeholder={`Search store, brand, category, pincode, area${selectedCity ? ` in ${selectedCity}` : ""}...`} value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+        <div className="chips" style={{ marginBottom: 6 }}>
+          {["All", "verified", "community_added"].map(s => (
+            <div key={s} className={`chip ${statusFilter === s ? "on" : ""}`} onClick={() => setStatusFilter(s)}>
+              {s === "All" ? "All" : s === "verified" ? "✓ Verified" : "Community"}
+            </div>
+          ))}
+        </div>
+        <div className="chips" style={{ marginBottom: 6 }}>
+          {cats.map(c => <div key={c} className={`chip ${catFilter === c ? "on" : ""}`} onClick={() => setCatFilter(c)}>{c}</div>)}
+        </div>
+        <div className="chips">
+          {["All", "Retailer", "Distributor", "Wholesaler", "Contractor"].map(t => (
+            <div key={t} className={`chip ${typeFilter === t ? "on" : ""}`} onClick={() => setTypeFilter(t)}>{t}</div>
+          ))}
+        </div>
+      </div>
+
+      {/* COLUMN 2 — STORE LIST */}
+      <div className={`disc-list-col ${selected ? "hidden-mob" : ""}`}>
+        <div className="disc-list-hd">
+          <span style={{ fontSize: 11, color: "var(--t3)" }}>{filtered.length} records{selectedCity ? ` in ${selectedCity}` : ""}</span>
+        </div>
         <div className="store-list">
-          <div style={{ padding: "6px 8px 8px", fontSize: "11px", color: "var(--t3)" }}>{filtered.length} records{selectedCity ? ` in ${selectedCity}` : ""}</div>
           {filtered.map(s => (
             <div key={s.id} className={`sc ${selected?.id === s.id ? "sel" : ""}`} onClick={() => setSelected(s)}>
               <div className="sc-top">
@@ -3023,7 +3661,9 @@ function DiscoveryPage({ stores, selectedCity }) {
           {filtered.length === 0 && <div style={{ textAlign: "center", padding: "32px 16px", color: "var(--t3)" }}>No records found</div>}
         </div>
       </div>
-      <div className="disc-main">
+
+      {/* COLUMN 3 — DETAIL */}
+      <div className={`disc-main ${!selected ? "hidden-mob" : ""}`}>
         {selected ? (
           <div className="detail-panel">
             {/* STORE HEADER */}
@@ -3091,9 +3731,9 @@ function DiscoveryPage({ stores, selectedCity }) {
             <div style={{borderTop:"1px solid #f0f0f0",paddingTop:14,marginTop:8}}>
               <div style={{fontSize:11,fontWeight:700,color:"#555",textTransform:"uppercase",letterSpacing:".06em",marginBottom:8}}>Community Actions</div>
               <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                <button onClick={()=>setReportStore(selected)} style={{padding:"7px 14px",borderRadius:8,background:"#fff0f0",border:"1px solid #fecaca",color:"#dc2626",fontSize:12,fontWeight:700,cursor:"pointer"}}>⚑ Report</button>
-                <button onClick={()=>setSuggestStore(selected)} style={{padding:"7px 14px",borderRadius:8,background:"#f0f0f0",border:"1px solid #e0e0e0",color:"#080808",fontSize:12,fontWeight:700,cursor:"pointer"}}>✏️ Suggest Edit</button>
-                <button onClick={()=>setClaimStore(selected)} style={{padding:"7px 14px",borderRadius:8,background:"#fff8f5",border:"1px solid #fde0d0",color:"#e85a2a",fontSize:12,fontWeight:700,cursor:"pointer"}}>🏷 Claim Business</button>
+                <button onClick={()=>isGuest ? onRequireLogin() : setReportStore(selected)} style={{padding:"7px 14px",borderRadius:8,background:"#fff0f0",border:"1px solid #fecaca",color:"#dc2626",fontSize:12,fontWeight:700,cursor:"pointer"}}>⚑ Report</button>
+                <button onClick={()=>isGuest ? onRequireLogin() : setSuggestStore(selected)} style={{padding:"7px 14px",borderRadius:8,background:"#f0f0f0",border:"1px solid #e0e0e0",color:"#080808",fontSize:12,fontWeight:700,cursor:"pointer"}}>✏️ Suggest Edit</button>
+                <button onClick={()=>isGuest ? onRequireLogin() : setClaimStore(selected)} style={{padding:"7px 14px",borderRadius:8,background:"#fff8f5",border:"1px solid #fde0d0",color:"#e85a2a",fontSize:12,fontWeight:700,cursor:"pointer"}}>🏷 Claim Business</button>
               </div>
             </div>
 
@@ -3787,6 +4427,7 @@ export default function App() {
 
   const [authLoading, setAuthLoading] = useState(true);
   const [showThankYou, setShowThankYou] = useState(false);
+  const [showLoginPage, setShowLoginPage] = useState(false);
 
   // Persistent login — check auth state on mount
   useEffect(() => {
@@ -3821,8 +4462,8 @@ export default function App() {
 
   const handleCitySelect = (city) => { setSelectedCity(city); };
   const handleExplore = () => setPage("discover");
-  const handleAddStore = () => setPage("add");
-  const handleMessageAdmin = () => { showToast("Message sent to admin! We will contact you within 24 hours.", "ok"); };
+  const handleAddStore = () => { if (!user) { setShowLoginPage(true); return; } setPage("add"); };
+  const handleMessageAdmin = () => { if (!user) { setShowLoginPage(true); return; } showToast("Message sent to admin! We will contact you within 24 hours.", "ok"); };
 
   const handleSubmitStore = async (data) => {
     const newStores = [data, ...stores];
@@ -3848,7 +4489,13 @@ export default function App() {
   const isContrib = user?.role === "contributor";
   const isRetailer = user?.role === "retailer";
   const showLeaderboard = isContrib;
-  const TABS = user?.role === "admin"
+  const TABS = !user
+    ? [
+        ["home","Home"],
+        ["discover","Discover"],
+        ["login","Login"],
+      ]
+    : user.role === "admin"
     ? [["admin","Admin Panel"]]
     : isRetailer
     ? [] // Retailer uses internal sidebar nav
@@ -3857,6 +4504,7 @@ export default function App() {
         ["discover","Discover"],
         ["add","+ Add Store"],
         ...(isContrib ? [["rewards","⭐ Rewards"]] : []),
+        ...(isContrib ? [["myzone","🗺 My Zone"]] : []),
         ["staff","Staff"],
         ...(showLeaderboard ? [["leaderboard","Leaderboard"]] : []),
         ["deals","Deals"],
@@ -3869,7 +4517,16 @@ export default function App() {
 
   if (authLoading) return <><style>{G}</style><div style={{height:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#f4f5f7",flexDirection:"column",gap:12}}><div style={{fontFamily:"'Barlow Condensed'",fontWeight:800,fontSize:28,color:"var(--acc)"}}>TIN</div><div style={{fontSize:13,color:"#080808"}}>Loading...</div></div></>;
   if (!user && showAdminLogin) return <><style>{G}</style><div className={"light"} style={{background:"#f4f5f7",minHeight:"100vh"}}><AdminLoginPage onAdminLogin={(u) => { setUser(u); setPage("admin"); setShowAdminLogin(false); }} /></div></>;
-  if (!user) return <><style>{G}</style><div className={"light"} style={{background:"#f4f5f7",minHeight:"100vh"}}><LoginPage onLogin={(u) => { setUser(u); setPage(u.role === "admin" ? "admin" : "home"); }} /></div></>;
+  if (!user && showLoginPage) {
+    return (
+      <>
+        <style>{G}</style>
+        <div className="light" style={{ background: "#f4f5f7", minHeight: "100vh" }}>
+          <LoginPage onLogin={(u) => { setUser(u); setShowLoginPage(false); setPage(u.role === "admin" ? "admin" : "home"); }} />
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -3880,16 +4537,24 @@ export default function App() {
           {!isRetailer && (
             <div className="nav-tabs">
               {TABS.map(([id, label]) => (
-                <button key={id} className={`ntab ${page === id ? "on" : ""}`} onClick={() => setPage(id)}>{label}</button>
+                <button key={id} className={`ntab ${page === id ? "on" : ""}`} onClick={() => id === "login" ? setShowLoginPage(true) : setPage(id)}>{label}</button>
               ))}
             </div>
           )}
           <div className="topbar-right">
-            {selectedCity && <div style={{ fontSize: 11, color: "var(--t3)", fontWeight: 600 }}>📍 {selectedCity}</div>}
-            {user.role !== "admin" && user.role !== "retailer" && <div className="pts-badge">{user.points || 0} pts</div>}
-
-            <div className="avatar" onClick={() => setPage("profile")}>{user.name.charAt(0).toUpperCase()}</div>
-            <button onClick={handleLogout} style={{padding:"4px 10px",borderRadius:8,background:"transparent",border:"1px solid var(--b3)",color:"#080808",fontSize:12,cursor:"pointer",fontFamily:"'Barlow',sans-serif"}} title="Logout">↩ Out</button>
+            {user ? (
+              <>
+                {selectedCity && <div style={{ fontSize: 11, color: "var(--t3)", fontWeight: 600 }}>📍 {selectedCity}</div>}
+                {user.role !== "admin" && user.role !== "retailer" && <div className="pts-badge">{user.points || 0} pts</div>}
+                <div className="avatar" onClick={() => setPage("profile")}>{user.name.charAt(0).toUpperCase()}</div>
+                <button onClick={handleLogout} style={{padding:"4px 10px",borderRadius:8,background:"transparent",border:"1px solid var(--b3)",color:"#080808",fontSize:12,cursor:"pointer",fontFamily:"'Barlow',sans-serif"}} title="Logout">↩ Out</button>
+              </>
+            ) : (
+              <>
+                {selectedCity && <div style={{ fontSize: 11, color: "var(--t3)", fontWeight: 600 }}>📍 {selectedCity}</div>}
+                <button onClick={() => setShowLoginPage(true)} style={{padding:"6px 14px",borderRadius:8,background:"#e85a2a",border:"none",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>Login</button>
+              </>
+            )}
           </div>
         </nav>
         {showThankYou && (
@@ -3908,14 +4573,22 @@ export default function App() {
         {/* MOBILE BOTTOM NAV */}
         {!isRetailer && user?.role !== "admin" && (
           <div className="mobile-nav">
-            {[
-              ["home","🏠","Home"],
-              ["discover","🔍","Discover"],
-              ["add","➕","Add"],
-              ...(isContrib ? [["rewards","⭐","Rewards"]] : []),
-              ["profile","👤","Profile"],
-            ].map(([id,icon,label]) => (
-              <div key={id} className={`mobile-nav-item ${page===id?"on":""}`} onClick={()=>setPage(id)}>
+            {(user
+              ? [
+                  ["home","🏠","Home"],
+                  ["discover","🔍","Discover"],
+                  ["add","➕","Add"],
+                  ...(isContrib ? [["rewards","⭐","Rewards"]] : []),
+                  ...(isContrib ? [["myzone","🗺","My Zone"]] : []),
+                  ["profile","👤","Profile"],
+                ]
+              : [
+                  ["home","🏠","Home"],
+                  ["discover","🔍","Discover"],
+                  ["login","👤","Login"],
+                ]
+            ).map(([id,icon,label]) => (
+              <div key={id} className={`mobile-nav-item ${page===id?"on":""}`} onClick={() => id === "login" ? setShowLoginPage(true) : id === "add" ? handleAddStore() : setPage(id)}>
                 <span className="mobile-nav-icon">{icon}</span>
                 <span className="mobile-nav-label" style={{color:page===id?"#e85a2a":"#888"}}>{label}</span>
               </div>
@@ -3926,15 +4599,25 @@ export default function App() {
         <div className="page">
           {page === "home" && (isRetailer
             ? <RetailerDashboard user={user} stores={stores} onNavigate={setPage} />
+            : isContrib
+            ? <MarketChampionHome
+                user={user}
+                contributors={contributors}
+                onAddStore={() => setPage("add")}
+                onLeaderboard={() => setPage("leaderboard")}
+                onRewards={() => setPage("rewards")}
+                onDiscover={() => setPage("discover")}
+              />
             : <HeroPage onCitySelect={handleCitySelect} selectedCity={selectedCity} onExplore={handleExplore} onAdd={handleAddStore} stores={stores} contributors={contributors} liveStats={liveStats} />
           )}
-          {page === "discover" && <DiscoveryPage stores={stores} selectedCity={selectedCity} />}
+          {page === "discover" && <DiscoveryPage stores={stores} selectedCity={selectedCity} user={user} isGuest={!user} onRequireLogin={() => setShowLoginPage(true)} />}
           {page === "add" && <AddPage user={user} onSubmit={handleSubmitStore} toast={showToast} />}
           {page === "rewards" && <RewardsPage user={user} onMessageAdmin={handleMessageAdmin} />}
           {page === "staff" && <StaffProfilePage user={user} />}
           {page === "leaderboard" && <LeaderboardPage contributors={contributors} />}
           {page === "deals" && <DealsPage />}
           {page === "profile" && <ProfilePage user={user} onUpdateUser={(updated) => setUser(updated)} />}
+          {page === "myzone" && <MyZonePage user={user} stores={stores} onNavigate={setPage} />}
           {page === "admin" && <AdminDashboard stores={stores} />}
         </div>
         <Toast {...toast} />
