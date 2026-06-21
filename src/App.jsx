@@ -615,7 +615,7 @@ tr:hover td{background:var(--s2);color:var(--t1)}
 .toast.err{border-color:#ef444430;color:#ef4444}
 
 /* LOGIN */
-.login-pg{height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg)}
+.login-pg{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);overflow-y:auto;padding:24px 16px}
 .login-card{width:420px;background:var(--s1);border:1px solid var(--b2);border-radius:var(--rxl);padding:36px}
 .login-logo{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:13px;letter-spacing:.14em;color:#080808;margin-bottom:6px;text-transform:uppercase}
 .login-title{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:30px;margin-bottom:6px;color:#080808}
@@ -890,6 +890,7 @@ tr:hover td{background:var(--s2);color:var(--t1)}
   .admin-stats{grid-template-columns:repeat(2,1fr)}
   
   /* Login */
+  .login-pg{padding:16px 12px}
   .login-card{width:100%;max-width:400px;padding:24px 20px;margin:10px}
   .role-grid{grid-template-columns:1fr 1fr}
   
@@ -3867,7 +3868,7 @@ function LeaderboardPage({ contributors }) {
         <div className="lb-stats">
           <div className="lb-stat"><div className="lb-sv">{contributors.length}</div><div className="lb-sl">Contributors</div></div>
           <div className="lb-stat"><div className="lb-sv">{total}</div><div className="lb-sl">Stores Added</div></div>
-          <div className="lb-stat"><div className="lb-sv">{contributors.length > 0 ? Math.max(...contributors.map(c => c.citiesCovered)) : 0}+</div><div className="lb-sl">Cities</div></div>
+          <div className="lb-stat"><div className="lb-sv">{contributors.length > 0 ? Math.max(...contributors.map(c => c.citiesCovered || 0)) : 0}+</div><div className="lb-sl">Cities</div></div>
           <div className="lb-stat"><div className="lb-sv">{total.toLocaleString()}</div><div className="lb-sl">Total Records</div></div>
         </div>
         {sorted.map((c, i) => {
@@ -4157,7 +4158,7 @@ function UserManagementSection() {
   );
 }
 
-function AdminDashboard({ stores }) {
+function AdminDashboard({ stores, contributors }) {
   const handleVerify = async (storeId) => {
     try {
       await updateDoc(doc(db, "stores", storeId), { verificationStatus: "verified", verifiedAt: serverTimestamp(), verifiedBy: "admin" });
@@ -4225,7 +4226,7 @@ function AdminDashboard({ stores }) {
     { id: "records", icon: "🗂", label: "All Records" },
     { id: "bulk", icon: "📤", label: "Bulk Upload" },
   ];
-  const pendingContribs = MOCK_CONTRIBUTORS.filter(c=>c.validationStatus==="pending");
+  const pendingContribs = contributors.filter(c=>c.validationStatus==="pending");
 
   return (
     <div className="admin-pg">
@@ -4364,7 +4365,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [page, setPage] = useState("home");
   const [stores, setStores] = useState(MOCK_STORES);
-  const [contributors, setContributors] = useState(MOCK_CONTRIBUTORS);
+  const [contributors, setContributors] = useState([]);
   const [liveStats, setLiveStats] = useState({ businesses: 2222, champions: 220, cities: 40, categories: 22 });
 
   // Fetch live hero stats from Firestore on mount
@@ -4411,11 +4412,12 @@ export default function App() {
     const loadContributors = async () => {
       try {
         const snap = await getDocs(query(collection(db, "users"), where("role", "==", "contributor")));
-        if (!snap.empty) {
-          const firestoreContribs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-          setContributors([...firestoreContribs, ...MOCK_CONTRIBUTORS]);
-        }
-      } catch(e) { console.log("Contributors load error:", e.message); }
+        const realContributors = snap.docs.map(d => ({ id: d.id, uid: d.id, ...d.data() }));
+        setContributors(realContributors);
+      } catch(e) {
+        console.log("Contributors load error:", e.message);
+        setContributors([]);
+      }
     };
     loadContributors();
   }, []);
@@ -4615,7 +4617,7 @@ export default function App() {
           {page === "deals" && <DealsPage />}
           {page === "profile" && <ProfilePage user={user} onUpdateUser={(updated) => setUser(updated)} />}
           {page === "myzone" && <MyZonePage user={user} stores={stores} onNavigate={setPage} />}
-          {page === "admin" && <AdminDashboard stores={stores} />}
+          {page === "admin" && <AdminDashboard stores={stores} contributors={contributors} />}
         </div>
         <Toast {...toast} />
       </div>
