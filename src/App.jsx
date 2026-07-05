@@ -25,25 +25,8 @@ export default function App() {
   const [page, setPage] = useState("home");
   const [stores, setStores] = useState(MOCK_STORES);
   const [contributors, setContributors] = useState([]);
-  const [liveStats, setLiveStats] = useState({ businesses: 2222, champions: 220, cities: 40, categories: 22 });
-
-  // Fetch live hero stats from Firestore on mount
-  useEffect(() => {
-    const fetchLiveStats = async () => {
-      try {
-        const storesSnap = await getDocs(collection(db, "stores"));
-        const champSnap = await getDocs(query(collection(db, "users"), where("role", "==", "contributor")));
-        const uniqueCities = new Set(storesSnap.docs.map(d => d.data().city).filter(Boolean)).size;
-        setLiveStats({
-          businesses: storesSnap.size + 2222,
-          champions: champSnap.size + 220,
-          cities: uniqueCities || 40,
-          categories: 22,
-        });
-      } catch(e) { console.log("Live stats error:", e); }
-    };
-    fetchLiveStats();
-  }, []);
+  const [storesLoadFailed, setStoresLoadFailed] = useState(false);
+  const [contributorsLoadFailed, setContributorsLoadFailed] = useState(false);
 
   // Load real stores from Firestore on mount
   useEffect(() => {
@@ -60,9 +43,10 @@ export default function App() {
           setStores([...firestoreStores, ...MOCK_STORES]);
         }
       } catch(e) {
-        console.log("Firestore load error:", e.message);
+        console.error("[hero-stats] Failed to load stores from Firestore — falling back to baseline stats:", e);
         // Fall back to mock data
         setStores(MOCK_STORES);
+        setStoresLoadFailed(true);
       }
     };
     loadStores();
@@ -74,8 +58,9 @@ export default function App() {
         const realContributors = snap.docs.map(d => ({ id: d.id, uid: d.id, ...d.data() }));
         setContributors(realContributors);
       } catch(e) {
-        console.log("Contributors load error:", e.message);
+        console.error("[hero-stats] Failed to load contributors from Firestore — falling back to baseline stats:", e);
         setContributors([]);
+        setContributorsLoadFailed(true);
       }
     };
     loadContributors();
@@ -266,7 +251,7 @@ export default function App() {
                 onRewards={() => setPage("rewards")}
                 onDiscover={() => setPage("discover")}
               />
-            : <HeroPage onCitySelect={handleCitySelect} selectedCity={selectedCity} onExplore={handleExplore} onAdd={handleAddStore} stores={stores} contributors={contributors} liveStats={liveStats} />
+            : <HeroPage onCitySelect={handleCitySelect} selectedCity={selectedCity} onExplore={handleExplore} onAdd={handleAddStore} stores={stores} contributors={contributors} storesLoadFailed={storesLoadFailed} contributorsLoadFailed={contributorsLoadFailed} />
           )}
           {page === "discover" && <DiscoveryPage stores={stores} selectedCity={selectedCity} user={user} isGuest={!user} onRequireLogin={() => setShowLoginPage(true)} />}
           {page === "add" && <AddPage user={user} onSubmit={handleSubmitStore} toast={showToast} />}

@@ -1,17 +1,22 @@
 import { useState } from "react";
 import { CITIES } from "../data/constants";
 
-export function HeroPage({ onCitySelect, selectedCity, onExplore, onAdd, stores, contributors, liveStats }) {
+// Baseline numbers shown when a Firestore fetch fails, so the hero never reads as "0 of everything"
+const BASELINE_STATS = { stores: 2222, contributors: 220, cities: 40, categories: 22 };
+
+export function HeroPage({ onCitySelect, selectedCity, onExplore, onAdd, stores, contributors, storesLoadFailed, contributorsLoadFailed }) {
   const [search, setSearch] = useState("");
   const topCities = ["Mumbai", "Delhi", "Bengaluru", "Hyderabad", "Chennai", "Pune", "Ahmedabad", "Kolkata", "Jaipur", "Surat"];
   const filtered = search ? CITIES.filter(c => c.toLowerCase().includes(search.toLowerCase())) : CITIES;
 
-  const totalStores = stores?.length || 0;
-  const totalContributors = contributors?.length || 0;
   const uniqueCities = [...new Set((stores || []).map(s => s.city).filter(Boolean))];
-  const totalCities = uniqueCities.length;
-  const uniqueCategories = [...new Set((stores || []).map(s => s.category).filter(Boolean))];
-  const totalCategories = uniqueCategories.length;
+  // Stores carry a `categories` array of { category, subCategory, productType }, not a scalar `category` field
+  const uniqueCategories = [...new Set((stores || []).flatMap(s => (s.categories || []).map(c => c.category)).filter(Boolean))];
+
+  const totalStores = storesLoadFailed ? BASELINE_STATS.stores : (stores?.length || 0);
+  const totalContributors = contributorsLoadFailed ? BASELINE_STATS.contributors : (contributors?.length || 0);
+  const totalCities = storesLoadFailed ? BASELINE_STATS.cities : uniqueCities.length;
+  const totalCategories = storesLoadFailed ? BASELINE_STATS.categories : uniqueCategories.length;
   const cityCounts = (stores || []).reduce((acc, s) => {
     if (s.city) acc[s.city] = (acc[s.city] || 0) + 1;
     return acc;
