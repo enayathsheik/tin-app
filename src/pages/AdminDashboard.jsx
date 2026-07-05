@@ -89,7 +89,7 @@ export function AdminDashboard({ stores, contributors }) {
         {section === "dashboard" && <>
           <div className="admin-hd">
             <div className="admin-title">Dashboard</div>
-            <div className="admin-sub">Platform overview — Trade Intelligence Network</div>
+            <div className="admin-sub">Platform overview — Trade Interface Network</div>
           </div>
           <div className="admin-stats">
             {(() => {

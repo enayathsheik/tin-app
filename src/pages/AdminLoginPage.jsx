@@ -31,7 +31,7 @@ export function AdminLoginPage({ onAdminLogin }) {
   return (
     <div className="login-pg">
       <div className="login-card" style={{maxWidth:360}}>
-        <div className="login-logo">Trade Intelligence Network</div>
+        <div className="login-logo">Trade Interface Network</div>
         <div className="login-title"><em>Admin</em> Access</div>
         <div className="login-sub" style={{marginBottom:20}}>Restricted area. Authorized personnel only.</div>
         {error && <div style={{background:"var(--danger)10",border:"1px solid var(--danger)25",borderRadius:"var(--r)",padding:"10px 14px",fontSize:13,color:"var(--danger)",marginBottom:14}}>{error}</div>}

@@ -39,7 +39,7 @@ export function ProfilePage({ user, onUpdateUser }) {
 
   const acts = [
     { text: `Added ${user.storesAdded || 1} store${(user.storesAdded || 1) > 1 ? "s" : ""} recently`, pts: `+${(user.storesAdded || 1) * 10} pts`, time: "Today" },
-    { text: "Joined Trade Intelligence Network", pts: "Welcome!", time: "Account created" },
+    { text: "Joined Trade Interface Network", pts: "Welcome!", time: "Account created" },
   ];
 
   return (

@@ -121,7 +121,7 @@ export function LoginPage({ onLogin }) {
   if (showForgot) return (
     <div className="login-pg">
       <div className="login-card">
-        <div className="login-logo">Trade Intelligence Network</div>
+        <div className="login-logo">Trade Interface Network</div>
         <div className="login-title">Reset <em>Password</em></div>
         <div className="login-sub">Enter your registered email — we will send a reset link.</div>
         {forgotSent ? (
@@ -142,7 +142,7 @@ export function LoginPage({ onLogin }) {
   return (
     <div className="login-pg">
       <div className="login-card">
-        <div className="login-logo">Trade Intelligence Network</div>
+        <div className="login-logo">Trade Interface Network</div>
         <div className="login-title">Welcome to <em>TIN</em></div>
         <div className="login-sub">
           {mode === "login" ? "Sign in to your account." : "Create your TIN account — select your role first."}
