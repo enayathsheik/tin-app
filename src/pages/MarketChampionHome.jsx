@@ -31,10 +31,12 @@ export function MarketChampionHome({ user, contributors, onAddStore, onLeaderboa
           <div style={{fontSize:19,fontWeight:700,fontFamily:"'Barlow Condensed',sans-serif",marginBottom:14,color:"var(--t1)"}}>
             {greeting}, {firstName} 👋
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8,marginBottom:14}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:14}}>
             {[
               {icon:"🏆",label:"Level",value:lv.name+" Builder",color:lv.color},
               {icon:"⭐",label:"Total points",value:points.toLocaleString()+" pts",color:"var(--ok)"},
+              {icon:"🏪",label:"Stores added",value:storesAdded.toLocaleString(),color:"var(--acc)"},
+              {icon:"🗺",label:"Cities covered",value:citiesCovered.toLocaleString(),color:"var(--info)"},
               {icon:"🏅",label:"State rank",value:`#${myRank} Maharashtra`,color:"var(--info)"},
               {icon:"🔥",label:"Streak",value:streak+" days",color:"var(--warn)"},
             ].map(s => (

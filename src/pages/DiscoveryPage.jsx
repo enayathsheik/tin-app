@@ -4,10 +4,10 @@ import { db } from "../firebase/config";
 import { CATEGORY_TREE, BUSINESS_TYPES } from "../data/constants";
 import { ConfidenceBar } from "../components/shared/ConfidenceBar";
 
-export function DiscoveryPage({ stores, selectedCity, user, isGuest, onRequireLogin }) {
+export function DiscoveryPage({ stores, selectedCity, user, isGuest, onRequireLogin, initialBusinessType }) {
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("All");
-  const [typeFilter, setTypeFilter] = useState("All");
+  const [typeFilter, setTypeFilter] = useState(initialBusinessType || "All");
   const [statusFilter, setStatusFilter] = useState("All");
   const [selected, setSelected] = useState(null);
   const [showMap, setShowMap] = useState(false);

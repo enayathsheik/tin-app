@@ -21,7 +21,7 @@ export function LoginPage({ onLogin }) {
   const [showRoleConfirm, setShowRoleConfirm] = useState(false);
 
   const isContrib = role === "contributor";
-  const comingSoonRoles = ["consumer", "contractor", "architect"];
+  const comingSoonRoles = [];
   const visibleRoles = ROLES.filter(r => r.id !== "manufacturer" && r.id !== "admin");
 
   const handleForgotPassword = async () => {

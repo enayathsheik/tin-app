@@ -9,6 +9,9 @@ import { AdminLoginPage } from "./pages/AdminLoginPage";
 import { LoginPage } from "./pages/LoginPage";
 import { RetailerDashboard } from "./pages/RetailerDashboard";
 import { MarketChampionHome } from "./pages/MarketChampionHome";
+import { ConsumerHome } from "./pages/ConsumerHome";
+import { ContractorHome } from "./pages/ContractorHome";
+import { ArchitectHome } from "./pages/ArchitectHome";
 import { HeroPage } from "./pages/HeroPage";
 import { DiscoveryPage } from "./pages/DiscoveryPage";
 import { AddPage } from "./pages/AddPage";
@@ -67,6 +70,7 @@ export default function App() {
   }, []);
   const [selectedCity, setSelectedCity] = useState(null);
   const [toast, setToast] = useState({ show: false, msg: "", type: "ok" });
+  const [pendingBusinessType, setPendingBusinessType] = useState(null);
 
   const [authLoading, setAuthLoading] = useState(true);
   const [showThankYou, setShowThankYou] = useState(false);
@@ -131,6 +135,9 @@ export default function App() {
 
   const isContrib = user?.role === "contributor";
   const isRetailer = user?.role === "retailer";
+  const isConsumer = user?.role === "consumer";
+  const isContractor = user?.role === "contractor";
+  const isArchitect = user?.role === "architect";
   const showLeaderboard = isContrib;
   const TABS = !user
     ? [
@@ -251,9 +258,15 @@ export default function App() {
                 onRewards={() => setPage("rewards")}
                 onDiscover={() => setPage("discover")}
               />
+            : isConsumer
+            ? <ConsumerHome user={user} onDiscover={() => setPage("discover")} onBrowseCategory={() => setPage("discover")} />
+            : isContractor
+            ? <ContractorHome user={user} onFindSuppliers={() => { setPendingBusinessType("Distributor"); setPage("discover"); }} onProfile={() => setPage("profile")} />
+            : isArchitect
+            ? <ArchitectHome user={user} onDiscover={() => setPage("discover")} onProfile={() => setPage("profile")} />
             : <HeroPage onCitySelect={handleCitySelect} selectedCity={selectedCity} onExplore={handleExplore} onAdd={handleAddStore} stores={stores} contributors={contributors} storesLoadFailed={storesLoadFailed} contributorsLoadFailed={contributorsLoadFailed} />
           )}
-          {page === "discover" && <DiscoveryPage stores={stores} selectedCity={selectedCity} user={user} isGuest={!user} onRequireLogin={() => setShowLoginPage(true)} />}
+          {page === "discover" && <DiscoveryPage stores={stores} selectedCity={selectedCity} user={user} isGuest={!user} onRequireLogin={() => setShowLoginPage(true)} initialBusinessType={pendingBusinessType} />}
           {page === "add" && <AddPage user={user} onSubmit={handleSubmitStore} toast={showToast} />}
           {page === "rewards" && <RewardsPage user={user} onMessageAdmin={handleMessageAdmin} />}
           {page === "staff" && <StaffProfilePage user={user} />}

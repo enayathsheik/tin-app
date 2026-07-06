@@ -47,6 +47,8 @@ export function UserManagementSection() {
     if (r === "contributor") return "#e85a2a";
     if (r === "retailer") return "#0891b2";
     if (r === "consumer") return "#16a34a";
+    if (r === "contractor") return "#7c3aed";
+    if (r === "architect") return "#1d4ed8";
     return "#888";
   };
 
@@ -83,6 +85,8 @@ export function UserManagementSection() {
                         <option value="contributor">contributor</option>
                         <option value="retailer">retailer</option>
                         <option value="consumer">consumer</option>
+                        <option value="contractor">contractor</option>
+                        <option value="architect">architect</option>
                       </select>
                     ) : (
                       <span style={{ background: roleBadgeColor(u.role), color: "#fff", borderRadius: 6, padding: "2px 8px", fontSize: 11, fontWeight: 700 }}>{u.role || "—"}</span>
