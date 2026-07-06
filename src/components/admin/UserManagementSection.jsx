@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
 import { db } from "../../firebase/config";
+import { exportToExcel } from "../../utils/exportExcel";
 
 export function UserManagementSection() {
   const [users, setUsers] = useState([]);
@@ -51,9 +52,14 @@ export function UserManagementSection() {
 
   return (
     <div>
-      <div className="admin-hd">
-        <div className="admin-title">User Management</div>
-        <div className="admin-sub">View and manage all registered TIN users</div>
+      <div className="admin-hd" style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <div className="admin-title">User Management</div>
+          <div className="admin-sub">View and manage all registered TIN users</div>
+        </div>
+        <button className="btn-sm btn-out" onClick={() => exportToExcel(filtered, "tin-users-export")} disabled={!filtered.length}>
+          📥 Export to Excel
+        </button>
       </div>
       <div style={{ marginBottom: 14 }}>
         <input className="fi" placeholder="Search by name or email..." value={search} onChange={e => setSearch(e.target.value)} style={{ maxWidth: 360 }} />

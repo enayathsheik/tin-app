@@ -3,6 +3,7 @@ import { updateDoc, doc, serverTimestamp, getDoc, getDocs, query, collection, wh
 import { db } from "../firebase/config";
 import { BulkUploadPanel } from "../components/admin/BulkUploadPanel";
 import { UserManagementSection } from "../components/admin/UserManagementSection";
+import { exportToExcel } from "../utils/exportExcel";
 
 export function AdminDashboard({ stores, contributors }) {
   const handleVerify = async (storeId) => {
@@ -171,9 +172,14 @@ export function AdminDashboard({ stores, contributors }) {
         {section === "users" && <UserManagementSection />}
 
         {section === "records" && <>
-          <div className="admin-hd">
-            <div className="admin-title">All Records</div>
-            <div className="admin-sub">Complete database — stores, individuals, and professionals</div>
+          <div className="admin-hd" style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <div className="admin-title">All Records</div>
+              <div className="admin-sub">Complete database — stores, individuals, and professionals</div>
+            </div>
+            <button className="btn-sm btn-out" onClick={() => exportToExcel(stores, "tin-stores-export")} disabled={!stores.length}>
+              📥 Export to Excel
+            </button>
           </div>
           <div className="table-wrap">
             <table>
