@@ -17,9 +17,9 @@ export function BulkUploadPanel() {
     store: {
       label: "🏪 Stores / Retailers",
       collection: "stores",
-      templateCols: "storeName,phone,whatsapp,address,city,state,pincode,businessType,ownerName,email,gst,brands,instagram,website,categories",
-      templateRows: `Top Tiles World,9886984575,9886984575,"Shop No 2, MG Road, Bengaluru 560001",Bengaluru,Karnataka,560001,Retailer,Rajesh,,29ARAPD8170D1Z0,,,,Flooring
-ABC Hardware,9820012345,,,Mumbai,Maharashtra,400001,Distributor,Suresh,,,Hettich,,,Hardware & Fittings`,
+      templateCols: "storeName,phone,whatsapp,address,city,state,pincode,businessType,ownerName,email,gst,brands,instagram,website,categories,googleRating,googleReviewCount,placeId",
+      templateRows: `Top Tiles World,9886984575,9886984575,"Shop No 2, MG Road, Bengaluru 560001",Bengaluru,Karnataka,560001,Retailer,Rajesh,,29ARAPD8170D1Z0,,,,Flooring,,,
+ABC Hardware,9820012345,,,Mumbai,Maharashtra,400001,Distributor,Suresh,,,Hettich,,,Hardware & Fittings,4.5,120,ChIJoRQI-YzP5zsRUkUUmHE_GUM`,
     },
     contractor: {
       label: "🔧 Contractors",
@@ -35,6 +35,13 @@ Suresh Patel,9876543210,,suresh@gmail.com,Pune,Maharashtra,411001,Interior Contr
       templateRows: `Anita Sharma,9820012345,9820012345,anita@gmail.com,Mumbai,Maharashtra,400001,Residential Design,Sharma Associates,8 years,,www.sharma.com
 Vikram Nair,9876543210,,vikram@gmail.com,Bengaluru,Karnataka,560001,Commercial Design,Nair Design Studio,12 years,linkedin.com/in/vikram,`,
     },
+  };
+
+  // Returns a finite number or undefined (keeps optional numeric fields nullable)
+  const toFiniteNumber = (val) => {
+    if (val === "" || val === null || val === undefined) return undefined;
+    const n = Number(val);
+    return Number.isFinite(n) ? n : undefined;
   };
 
   // Proper CSV parser that handles quoted fields with commas
@@ -105,6 +112,9 @@ Vikram Nair,9876543210,,vikram@gmail.com,Bengaluru,Karnataka,560001,Commercial D
         instagram: row.instagram || row.ig || "",
         website: row.website || row.web || "",
         categories: row.categories || row.category || "",
+        googleRating: row.googlerating || row.rating || "",
+        googleReviewCount: row.googlereviewcount || row.reviewcount || "",
+        placeId: row.placeid || "",
         _pincodeExtracted: !rawPincode && !!pincode,
       };
       if (store.storeName) rows.push(store);
@@ -128,6 +138,8 @@ Vikram Nair,9876543210,,vikram@gmail.com,Bengaluru,Karnataka,560001,Commercial D
 
     for (const row of preview) {
       try {
+        const googleRating = toFiniteNumber(row.googleRating);
+        const googleReviewCount = toFiniteNumber(row.googleReviewCount);
         await addDoc(collection(db, cfg.collection), {
           // Store fields
           ...(uploadType === "store" ? {
@@ -146,6 +158,9 @@ Vikram Nair,9876543210,,vikram@gmail.com,Bengaluru,Karnataka,560001,Commercial D
             instagram: row.instagram || "",
             website: row.website || "",
             categories: row.categories ? [{category: row.categories, subCategory:"", productType:""}] : [],
+            ...(googleRating !== undefined ? { googleRating } : {}),
+            ...(googleReviewCount !== undefined ? { googleReviewCount } : {}),
+            ...(row.placeId ? { placeId: row.placeId } : {}),
             verificationStatus: "community_added",
             pointsAwarded: 0,
             confidence: 60,
