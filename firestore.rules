@@ -112,6 +112,38 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    // ══ NEW: JOB LISTINGS ═══════════════════════════════════
+    // Public read only shows approved listings; the poster can also always
+    // see their own (pending/rejected) listing — needed for "My Job Posts"
+    // on the Profile page. status:"approved" at create time is only allowed
+    // if the poster's own users/{uid}.verificationStatus is really "verified" —
+    // a client can't just claim verified_business for itself.
+    match /jobListings/{jobId} {
+      allow read: if resource.data.status == "approved"
+        || isAdmin()
+        || resource.data.postedByUid == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.postedByUid == request.auth.uid
+        && (
+          request.resource.data.status == "pending"
+          || (request.resource.data.status == "approved"
+              && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.verificationStatus == "verified")
+        );
+      allow update, delete: if isAdmin();
+    }
+
+    // ══ NEW: JOB APPLICATIONS ═══════════════════════════════
+    // Read restricted to the applicant themselves or the poster of the
+    // job being applied to (looked up via the application's jobId).
+    match /jobApplications/{applicationId} {
+      allow create: if request.auth != null
+        && request.resource.data.applicantUid == request.auth.uid;
+      allow read: if request.auth != null
+        && (resource.data.applicantUid == request.auth.uid
+            || get(/databases/$(database)/documents/jobListings/$(resource.data.jobId)).data.postedByUid == request.auth.uid);
+    }
+    // ══ END NEW ═════════════════════════════════════════════
+
     function isAdmin() {
       return request.auth != null &&
         request.auth.token.email == "enayathsheik@gmail.com";

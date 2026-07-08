@@ -4,6 +4,7 @@ import { db, updateUserStats } from "../firebase/config";
 import { BulkUploadPanel } from "../components/admin/BulkUploadPanel";
 import { UserManagementSection } from "../components/admin/UserManagementSection";
 import { InspiReviewSection } from "../components/admin/InspiReviewSection";
+import { JobsReviewSection } from "../components/admin/JobsReviewSection";
 import { exportToExcel } from "../utils/exportExcel";
 import { getLevel } from "../utils/helpers";
 
@@ -74,6 +75,7 @@ export function AdminDashboard({ stores, contributors }) {
     { id: "claims", icon: "🏷", label: "Business Claims" },
     { id: "suggestions", icon: "✏️", label: "Suggest Edits" },
     { id: "inspi", icon: "🖼", label: "Inspi Review" },
+    { id: "jobs", icon: "💼", label: "Jobs Review" },
     { id: "users", icon: "👥", label: "User Management" },
     { id: "records", icon: "🗂", label: "All Records" },
     { id: "bulk", icon: "📤", label: "Bulk Upload" },
@@ -177,6 +179,8 @@ export function AdminDashboard({ stores, contributors }) {
         {section === "users" && <UserManagementSection />}
 
         {section === "inspi" && <InspiReviewSection />}
+
+        {section === "jobs" && <JobsReviewSection />}
 
         {section === "records" && <>
           <div className="admin-hd" style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>

@@ -6,6 +6,8 @@ import { MultiCategorySelector } from "../components/shared/MultiCategorySelecto
 import { DiscoveryPage } from "./DiscoveryPage";
 import { StaffProfilePage } from "./StaffProfilePage";
 import { ProfilePage } from "./ProfilePage";
+import { InspiPage } from "./InspiPage";
+import { JobsPage } from "./JobsPage";
 
 export function RetailerDashboard({ user, stores, onNavigate }) {
   const [activeTab, setActiveTab] = useState("home");
@@ -76,7 +78,7 @@ export function RetailerDashboard({ user, stores, onNavigate }) {
       {/* SIDEBAR NAV */}
       <div className="retailer-sidebar" style={{width:200,flexShrink:0,background:"#fff",borderRight:"1px solid #e0e0e0",padding:"16px 12px",display:"flex",flexDirection:"column",gap:2,overflowY:"auto"}}>
         <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:13,letterSpacing:".12em",color:"#e85a2a",padding:"4px 10px",marginBottom:8}}>BUSINESS PORTAL</div>
-        {[["home","🏠","My Business"],["discover","🔍","Discover"],["staff","👥","Staff"],["deals","🏷","Deals"],["profile","👤","Profile"]].map(([id,icon,label]) => (
+        {[["home","🏠","My Business"],["discover","🔍","Discover"],["inspi","🖼","Inspi"],["jobs","💼","Jobs"],["staff","👥","Staff"],["deals","🏷","Deals"],["profile","👤","Profile"]].map(([id,icon,label]) => (
           <div key={id}
             onClick={() => setActiveTab(id)}
             style={{padding:"9px 12px",borderRadius:8,fontSize:13,fontWeight:600,color:activeTab===id?"#e85a2a":"#080808",background:activeTab===id?"#fff3ef":"transparent",cursor:"pointer",display:"flex",alignItems:"center",gap:8,transition:"all .15s"}}>
@@ -327,6 +329,12 @@ export function RetailerDashboard({ user, stores, onNavigate }) {
 
         {/* ---- DISCOVER TAB ---- */}
         {activeTab === "discover" && <DiscoveryPage stores={stores} selectedCity={null} user={null} />}
+
+        {/* ---- INSPI TAB ---- */}
+        {activeTab === "inspi" && <InspiPage user={user} isGuest={false} onRequireLogin={() => {}} />}
+
+        {/* ---- JOBS TAB ---- */}
+        {activeTab === "jobs" && <JobsPage user={user} isGuest={false} onRequireLogin={() => {}} />}
 
         {/* ---- STAFF TAB ---- */}
         {activeTab === "staff" && <StaffProfilePage user={user} />}

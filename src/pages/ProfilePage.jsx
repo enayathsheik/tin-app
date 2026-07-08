@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { doc, updateDoc } from "firebase/firestore";
+import { useEffect, useState } from "react";
+import { collection, doc, getDocs, query, updateDoc, where } from "firebase/firestore";
 import { db } from "../firebase/config";
 import { CONTRIBUTOR_LEVELS, ROLES } from "../data/constants";
 import { getLevel } from "../utils/helpers";
@@ -10,6 +10,29 @@ export function ProfilePage({ user, onUpdateUser }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [myJobs, setMyJobs] = useState(null); // null = loading
+  const [applicantsByJob, setApplicantsByJob] = useState({});
+
+  useEffect(() => {
+    if (!user?.uid) { setMyJobs([]); return; }
+    const load = async () => {
+      try {
+        const snap = await getDocs(query(collection(db, "jobListings"), where("postedByUid", "==", user.uid)));
+        const listings = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        listings.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+        setMyJobs(listings);
+        const entries = await Promise.all(listings.map(async (j) => {
+          const appSnap = await getDocs(query(collection(db, "jobApplications"), where("jobId", "==", j.id)));
+          return [j.id, appSnap.docs.map(d => ({ id: d.id, ...d.data() }))];
+        }));
+        setApplicantsByJob(Object.fromEntries(entries));
+      } catch (e) {
+        console.error("[profile] Failed to load job posts:", e);
+        setMyJobs([]);
+      }
+    };
+    load();
+  }, [user?.uid]);
   const [profileForm, setProfileForm] = useState({
     linkedin: user.linkedin || "",
     youtube: user.youtube || "",
@@ -145,6 +168,39 @@ export function ProfilePage({ user, onUpdateUser }) {
               <div className="act-pts">{a.pts}</div>
             </div>
           ))}
+        </div>
+
+        <div className="act-sec">
+          <div className="act-title">My Job Posts</div>
+          {myJobs === null ? (
+            <div style={{ fontSize: 13, color: "var(--t3)", padding: "8px 0" }}>Loading…</div>
+          ) : myJobs.length === 0 ? (
+            <div style={{ fontSize: 13, color: "var(--t3)", padding: "8px 0" }}>You haven't posted any jobs yet.</div>
+          ) : (
+            myJobs.map(j => {
+              const applicants = applicantsByJob[j.id] || [];
+              const statusColor = j.status === "approved" ? "#16a34a" : j.status === "rejected" ? "#dc2626" : "#d97706";
+              const statusBg = j.status === "approved" ? "#f0fdf4" : j.status === "rejected" ? "#fff0f0" : "#fffbeb";
+              return (
+                <div key={j.id} style={{ border: "1px solid var(--b2)", borderRadius: "var(--r)", padding: 14, marginBottom: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: "var(--t1)" }}>{j.jobTitle}</div>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: statusColor, background: statusBg, border: `1px solid ${statusColor}30`, borderRadius: 10, padding: "2px 8px", textTransform: "capitalize" }}>{j.status}</span>
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 10 }}>{j.city} · {j.jobType} · {j.category}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--t2)", marginBottom: applicants.length ? 6 : 0 }}>
+                    {applicants.length} applicant{applicants.length === 1 ? "" : "s"}
+                  </div>
+                  {applicants.map(a => (
+                    <div key={a.id} style={{ background: "var(--s2)", borderRadius: 8, padding: "8px 10px", marginTop: 6 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--t1)" }}>{a.applicantName} · {a.applicantPhone}</div>
+                      {a.message && <div style={{ fontSize: 12, color: "var(--t2)", marginTop: 2 }}>{a.message}</div>}
+                    </div>
+                  ))}
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
     </div>

@@ -225,6 +225,19 @@ export const STATES = ["Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chh
 
 export const PINCODE_STATE_MAP = {"11":"Delhi","12":"Haryana","13":"Haryana","14":"Punjab","15":"Punjab","16":"Punjab","17":"Himachal Pradesh","18":"Jammu & Kashmir","19":"Jammu & Kashmir","20":"Uttar Pradesh","21":"Uttar Pradesh","22":"Uttar Pradesh","23":"Uttar Pradesh","24":"Uttar Pradesh","25":"Uttar Pradesh","26":"Uttar Pradesh","27":"Uttar Pradesh","28":"Uttar Pradesh","30":"Rajasthan","31":"Rajasthan","32":"Rajasthan","33":"Rajasthan","34":"Rajasthan","36":"Gujarat","37":"Gujarat","38":"Gujarat","39":"Gujarat","40":"Maharashtra","41":"Maharashtra","42":"Maharashtra","43":"Maharashtra","44":"Maharashtra","45":"Madhya Pradesh","46":"Madhya Pradesh","47":"Madhya Pradesh","48":"Madhya Pradesh","49":"Chhattisgarh","50":"Telangana","51":"Telangana","52":"Andhra Pradesh","53":"Andhra Pradesh","56":"Karnataka","57":"Karnataka","58":"Karnataka","59":"Karnataka","60":"Tamil Nadu","61":"Tamil Nadu","62":"Tamil Nadu","63":"Tamil Nadu","64":"Tamil Nadu","67":"Kerala","68":"Kerala","69":"Kerala","70":"West Bengal","71":"West Bengal","72":"West Bengal","73":"West Bengal","74":"West Bengal","75":"Odisha","76":"Odisha","77":"Odisha","78":"Assam","79":"Assam","80":"Bihar","81":"Bihar","82":"Bihar","83":"Bihar","84":"Bihar","85":"Jharkhand","793":"Meghalaya","795":"Manipur","796":"Mizoram","797":"Nagaland","790":"Arunachal Pradesh","791":"Arunachal Pradesh","737":"Sikkim","799":"Tripura","744":"Andaman & Nicobar"};
 
+export const JOB_CATEGORIES = [
+  "Sales & Business Development",
+  "Site & Skilled Trades",
+  "Design & Architecture",
+  "Site Supervision & Engineering",
+  "Showroom & Retail Staff",
+  "Warehouse & Logistics",
+  "Office & Admin",
+  "Other",
+];
+
+export const JOB_TYPES = ["Full-time", "Part-time", "Contract"];
+
 export const ROLES = [
   { id: "consumer", label: "Consumer", icon: "👤", desc: "Browse and discover" },
   { id: "contributor", label: "Market Champion", icon: "✍️", desc: "Add & verify stores" },
