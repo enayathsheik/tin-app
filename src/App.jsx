@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { collection, getDocs, query, where, orderBy, updateDoc, doc, increment } from "firebase/firestore";
+import { collection, getDocs, getDoc, query, where, orderBy, doc } from "firebase/firestore";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { auth, db, getUserProfile } from "./firebase/config";
+import { auth, db, getUserProfile, updateUserStats } from "./firebase/config";
 import { MOCK_STORES } from "./data/constants";
 import { G } from "./data/globalStyles";
 import { Toast } from "./components/shared/Toast";
@@ -58,7 +58,12 @@ export default function App() {
     const loadContributors = async () => {
       try {
         const snap = await getDocs(query(collection(db, "users"), where("role", "==", "contributor")));
-        const realContributors = snap.docs.map(d => ({ id: d.id, uid: d.id, ...d.data() }));
+        const base = snap.docs.map(d => ({ id: d.id, uid: d.id, ...d.data() }));
+        // Stats (points/storesAdded/citiesCovered) live in a subcollection — merge per contributor
+        const realContributors = await Promise.all(base.map(async (c) => {
+          const statsSnap = await getDoc(doc(db, "users", c.id, "stats", "summary"));
+          return { ...c, ...(statsSnap.exists() ? statsSnap.data() : { points: 0, storesAdded: 0, citiesCovered: 0 }) };
+        }));
         setContributors(realContributors);
       } catch(e) {
         console.error("[hero-stats] Failed to load contributors from Firestore — falling back to baseline stats:", e);
@@ -121,12 +126,13 @@ export default function App() {
         .map(s => s.city)
         .filter(Boolean)
     )];
-    setUser(u => ({ ...u, points: (u.points||0)+10, storesAdded: (u.storesAdded||0)+1, citiesCovered: myCities.length }));
+    // Points/storesAdded are already credited by AddPage.jsx's own stats write — only
+    // citiesCovered is computed here, since it needs the full stores list App.jsx holds.
+    const awardedPoints = data.pointsAwarded || 10;
+    setUser(u => ({ ...u, points: (u.points||0)+awardedPoints, storesAdded: (u.storesAdded||0)+1, citiesCovered: myCities.length }));
     if (user?.uid && user.uid !== "admin") {
       try {
-        await updateDoc(doc(db, "users", user.uid), {
-          points: increment(10), storesAdded: increment(1), citiesCovered: myCities.length,
-        });
+        await updateUserStats(user.uid, { citiesCovered: myCities.length });
       } catch(e) { console.log("Points update:", e.message); }
     }
     setShowThankYou(true);

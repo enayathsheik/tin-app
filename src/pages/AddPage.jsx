@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { addDoc, collection, doc, increment, serverTimestamp, updateDoc } from "firebase/firestore";
-import { db } from "../firebase/config";
+import { addDoc, collection, increment, serverTimestamp } from "firebase/firestore";
+import { db, updateUserStats } from "../firebase/config";
 import { BUSINESS_TYPES, CITIES, STATES, STORE_CHECKLIST, INDIVIDUAL_CHECKLIST } from "../data/constants";
-import { validatePincode } from "../utils/helpers";
+import { validatePincode, getLevel } from "../utils/helpers";
 import { MultiCategorySelector } from "../components/shared/MultiCategorySelector";
 
 export function AddPage({ user, onSubmit, toast }) {
@@ -106,9 +106,12 @@ export function AddPage({ user, onSubmit, toast }) {
 
       // Update contributor points — 20 pts for GST verified, 10 for community
       if (user.uid && user.uid !== "admin") {
-        await updateDoc(doc(db, "users", user.uid), {
-          points: increment(gstStatus === "verified" ? 20 : 10),
+        const awarded = gstStatus === "verified" ? 20 : 10;
+        const newPoints = (user.points || 0) + awarded;
+        await updateUserStats(user.uid, {
+          points: increment(awarded),
           storesAdded: increment(1),
+          level: getLevel(newPoints).name,
         });
       }
 

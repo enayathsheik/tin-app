@@ -3,6 +3,7 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswor
 import { getDocs, query, collection, where, addDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db, saveUserProfile, getUserProfile } from "../firebase/config";
 import { ROLES } from "../data/constants";
+import { getLevel } from "../utils/helpers";
 
 export function LoginPage({ onLogin }) {
   const [mode, setMode] = useState("login");
@@ -52,7 +53,7 @@ export function LoginPage({ onLogin }) {
           const finalProfile = isAdminEmail ? { ...profile, role: "admin" } : profile;
           onLogin({ ...finalProfile, uid: cred.user.uid });
         } else {
-          const basicProfile = { name: emailToUse.split("@")[0], email: emailToUse, workEmail: emailToUse, personalEmail: "", role: isAdminEmail ? "admin" : "contributor", linkedin: "", company: "", points: 0, storesAdded: 0, citiesCovered: 0, validationStatus: "n/a", createdAt: new Date().toISOString(), uid: cred.user.uid };
+          const basicProfile = { name: emailToUse.split("@")[0], email: emailToUse, workEmail: emailToUse, personalEmail: "", role: isAdminEmail ? "admin" : "contributor", linkedin: "", company: "", points: 0, storesAdded: 0, citiesCovered: 0, level: getLevel(0).name, validationStatus: "n/a", createdAt: new Date().toISOString(), uid: cred.user.uid };
           await saveUserProfile(cred.user.uid, basicProfile);
           onLogin(basicProfile);
         }
@@ -70,6 +71,7 @@ export function LoginPage({ onLogin }) {
           points: 0,
           storesAdded: 0,
           citiesCovered: 0,
+          level: getLevel(0).name,
           validationStatus: isContrib ? (linkedin ? "pending" : "unvalidated") : "n/a",
           referralCode: "TIN" + (name||emailToUse).replace(/[^A-Z0-9]/gi,"").substring(0,5).toUpperCase() + Math.floor(Math.random()*900+100),
           referredBy: referralCode.trim().toUpperCase() || null,

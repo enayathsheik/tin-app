@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { updateDoc, doc, serverTimestamp, getDoc, getDocs, query, collection, where, increment, addDoc } from "firebase/firestore";
-import { db } from "../firebase/config";
+import { db, updateUserStats } from "../firebase/config";
 import { BulkUploadPanel } from "../components/admin/BulkUploadPanel";
 import { UserManagementSection } from "../components/admin/UserManagementSection";
 import { exportToExcel } from "../utils/exportExcel";
+import { getLevel } from "../utils/helpers";
 
 export function AdminDashboard({ stores, contributors }) {
   const handleVerify = async (storeId) => {
@@ -20,7 +21,9 @@ export function AdminDashboard({ stores, contributors }) {
             const refSnap = await getDocs(query(collection(db, "users"), where("referralCode", "==", referredBy)));
             if (!refSnap.empty) {
               const referrerUid = refSnap.docs[0].id;
-              await updateDoc(doc(db, "users", referrerUid), { points: increment(50) });
+              const referrerStatsSnap = await getDoc(doc(db, "users", referrerUid, "stats", "summary"));
+              const currentPoints = referrerStatsSnap.exists() ? (referrerStatsSnap.data().points || 0) : 0;
+              await updateUserStats(referrerUid, { points: increment(50), level: getLevel(currentPoints + 50).name });
               await addDoc(collection(db, "notifications", referrerUid, "items"), {
                 type: "referral_credited",
                 message: "You earned 50 points! Your referral was validated as a Market Champion.",
