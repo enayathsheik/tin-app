@@ -1,0 +1,120 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── USERS ──────────────────────────────────────────────
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null &&
+        (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
+
+      // ── STATS ──
+      match /stats/{document} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if request.auth != null &&
+          (request.auth.uid == userId || isAdmin());
+      }
+
+      // ── CONTACTS ──
+      match /contacts/{document} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if request.auth != null &&
+          (request.auth.uid == userId || isAdmin());
+      }
+
+      // ── SCHEDULE ──
+      match /schedule/{document} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if request.auth != null &&
+          (request.auth.uid == userId || isAdmin());
+      }
+
+      // ── VISITS ──
+      match /visits/{document} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if request.auth != null &&
+          (request.auth.uid == userId || isAdmin());
+      }
+
+      // ── LEAVE ──
+      match /leave/{document} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if request.auth != null &&
+          (request.auth.uid == userId || isAdmin());
+      }
+    }
+
+    // ── STORES ─────────────────────────────────────────────
+    match /stores/{storeId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null &&
+        (resource.data.contributorId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // ── REPORTS ────────────────────────────────────────────
+    match /reports/{docId} {
+      allow read: if isAdmin();
+      allow create: if request.auth != null;
+      allow update, delete: if isAdmin();
+    }
+
+    // ── CLAIMS ─────────────────────────────────────────────
+    match /claims/{docId} {
+      allow read: if isAdmin();
+      allow create: if request.auth != null;
+      allow update, delete: if isAdmin();
+    }
+
+    // ── SUGGESTIONS ────────────────────────────────────────
+    match /suggestions/{docId} {
+      allow read: if isAdmin();
+      allow create: if request.auth != null;
+      allow update, delete: if isAdmin();
+    }
+
+    // ── CUSTOM CATEGORIES ──────────────────────────────────
+    match /customCategories/{docId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if isAdmin();
+    }
+
+    // ── ADMIN ONLY ─────────────────────────────────────────
+    match /adminData/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // ── HELPER ─────────────────────────────────────────────
+    // ── STAGED STORES ──────────────────────────────────────
+    match /staged_stores/{docId} {
+      allow read, write: if isAdmin();
+    }
+    // ── PULL JOBS ──────────────────────────────────────────
+    match /pull_jobs/{docId} {
+      allow read, write: if isAdmin();
+    }
+    // ── CONTRIBUTORS ───────────────────────────────────────
+    match /contributors/{docId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // ── INSPI POSTS ──────────────────────────────────────────
+    match /inspiPosts/{postId} {
+      allow read: if resource.data.status == "approved" || isAdmin();
+      allow create: if request.auth != null
+        && request.resource.data.uploaderUid == request.auth.uid
+        && request.resource.data.status == "pending";
+      allow update, delete: if isAdmin();
+    }
+
+    function isAdmin() {
+      return request.auth != null &&
+        request.auth.token.email == "enayathsheik@gmail.com";
+    }
+  }
+}
