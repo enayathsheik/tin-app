@@ -44,9 +44,18 @@ async function validateMedia(file, mediaType) {
   return null;
 }
 
+function IconPlayerPlayFilled({ size = 22 }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="white">
+      <path d="M6 4v16a1 1 0 0 0 1.524 .852l13 -8a1 1 0 0 0 0 -1.704l-13 -8a1 1 0 0 0 -1.524 .852z" />
+    </svg>
+  );
+}
+
 export function InspiPage({ user, isGuest, onRequireLogin, toast }) {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [playingVideos, setPlayingVideos] = useState(() => new Set());
   const [showUpload, setShowUpload] = useState(false);
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -159,16 +168,26 @@ export function InspiPage({ user, isGuest, onRequireLogin, toast }) {
                 </div>
               )}
               {p.mediaType === "video" ? (
-                <video
-                  src={p.mediaUrl}
-                  muted
-                  loop
-                  playsInline
-                  style={{ width: "100%", display: "block" }}
-                  onMouseEnter={e => e.currentTarget.play()}
-                  onMouseLeave={e => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
-                  controls
-                />
+                playingVideos.has(p.id) ? (
+                  <video
+                    src={p.mediaUrl}
+                    autoPlay
+                    controls
+                    playsInline
+                    style={{ width: "100%", display: "block" }}
+                  />
+                ) : (
+                  <div
+                    onClick={() => setPlayingVideos(prev => new Set(prev).add(p.id))}
+                    style={{ width: "100%", aspectRatio: "4 / 3", background: "#1a1a1a", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                    role="button"
+                    aria-label="Play video"
+                  >
+                    <div style={{ width: 48, height: 48, borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <IconPlayerPlayFilled />
+                    </div>
+                  </div>
+                )
               ) : (
                 <img src={p.mediaUrl} alt={p.caption || "Inspiration"} style={{ width: "100%", display: "block" }} loading="lazy" />
               )}
