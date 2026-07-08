@@ -82,6 +82,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [showThankYou, setShowThankYou] = useState(false);
   const [showLoginPage, setShowLoginPage] = useState(false);
+  const [pendingPage, setPendingPage] = useState(null);
 
   // Persistent login — check auth state on mount
   useEffect(() => {
@@ -116,7 +117,7 @@ export default function App() {
 
   const handleCitySelect = (city) => { setSelectedCity(city); };
   const handleExplore = () => setPage("discover");
-  const handleAddStore = () => { if (!user) { setShowLoginPage(true); return; } setPage("add"); };
+  const handleAddStore = () => { if (!user) { setPendingPage("add"); setShowLoginPage(true); return; } setPage("add"); };
   const handleMessageAdmin = () => { if (!user) { setShowLoginPage(true); return; } showToast("Message sent to admin! We will contact you within 24 hours.", "ok"); };
 
   const handleSubmitStore = async (data) => {
@@ -184,7 +185,13 @@ export default function App() {
       <>
         <style>{G}</style>
         <div className="light" style={{ background: "#f4f5f7", minHeight: "100vh" }}>
-          <LoginPage onLogin={(u) => { setUser(u); setShowLoginPage(false); setPage(u.role === "admin" ? "admin" : "home"); }} />
+          <LoginPage onLogin={(u) => {
+            setUser(u);
+            setShowLoginPage(false);
+            if (u.role === "admin") { setPage("admin"); return; }
+            setPage(pendingPage || "home");
+            setPendingPage(null);
+          }} />
         </div>
       </>
     );
@@ -283,8 +290,8 @@ export default function App() {
             : <HeroPage onCitySelect={handleCitySelect} selectedCity={selectedCity} onExplore={handleExplore} onAdd={handleAddStore} stores={stores} contributors={contributors} storesLoadFailed={storesLoadFailed} contributorsLoadFailed={contributorsLoadFailed} />
           )}
           {page === "discover" && <DiscoveryPage stores={stores} selectedCity={selectedCity} user={user} isGuest={!user} onRequireLogin={() => setShowLoginPage(true)} initialBusinessType={pendingBusinessType} />}
-          {page === "inspi" && <InspiPage user={user} isGuest={!user} onRequireLogin={() => setShowLoginPage(true)} toast={showToast} />}
-          {page === "jobs" && <JobsPage user={user} isGuest={!user} onRequireLogin={() => setShowLoginPage(true)} toast={showToast} />}
+          {page === "inspi" && <InspiPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPage("inspi"); setShowLoginPage(true); }} toast={showToast} />}
+          {page === "jobs" && <JobsPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPage("jobs"); setShowLoginPage(true); }} toast={showToast} />}
           {page === "add" && <AddPage user={user} onSubmit={handleSubmitStore} toast={showToast} />}
           {page === "rewards" && <RewardsPage user={user} onMessageAdmin={handleMessageAdmin} />}
           {page === "staff" && <StaffProfilePage user={user} />}

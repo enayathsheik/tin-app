@@ -6,6 +6,7 @@ import { validatePincode, getLevel } from "../utils/helpers";
 import { MultiCategorySelector } from "../components/shared/MultiCategorySelector";
 
 export function AddPage({ user, onSubmit, toast }) {
+  if (!user) return null;
   const isContributor = user.role === "contributor";
   const canContribute = !isContributor || user.validationStatus === "active" || user.validationStatus === "pending";
 
