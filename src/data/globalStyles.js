@@ -476,6 +476,11 @@ tr:hover td{background:var(--s2);color:var(--t1)}
 .light .ntab.on{color:#080808}
 .light .logo{color:#080808}
 
+/* ── INSPI GRID ──────────────────────────────────────── */
+.inspi-grid{column-count:4;column-gap:12px}
+@media(max-width:960px){.inspi-grid{column-count:3}}
+@media(max-width:640px){.inspi-grid{column-count:2}}
+
 /* ── MOBILE RESPONSIVE ───────────────────────────────── */
 @media(max-width:768px){
   /* General */

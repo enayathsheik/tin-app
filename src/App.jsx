@@ -22,6 +22,7 @@ import { DealsPage } from "./pages/DealsPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { MyZonePage } from "./pages/MyZonePage";
 import { AdminDashboard } from "./pages/AdminDashboard";
+import { InspiPage } from "./pages/InspiPage";
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -149,6 +150,7 @@ export default function App() {
     ? [
         ["home","Home"],
         ["discover","Discover"],
+        ["inspi","Inspi"],
         ["login","Login"],
       ]
     : user.role === "admin"
@@ -158,6 +160,7 @@ export default function App() {
     : [
         ["home","Home"],
         ["discover","Discover"],
+        ["inspi","Inspi"],
         ["add","+ Add Store"],
         ...(isContrib ? [["rewards","⭐ Rewards"]] : []),
         ...(isContrib ? [["myzone","🗺 My Zone"]] : []),
@@ -233,6 +236,7 @@ export default function App() {
               ? [
                   ["home","🏠","Home"],
                   ["discover","🔍","Discover"],
+                  ["inspi","🖼","Inspi"],
                   ["add","➕","Add"],
                   ...(isContrib ? [["rewards","⭐","Rewards"]] : []),
                   ...(isContrib ? [["myzone","🗺","My Zone"]] : []),
@@ -241,6 +245,7 @@ export default function App() {
               : [
                   ["home","🏠","Home"],
                   ["discover","🔍","Discover"],
+                  ["inspi","🖼","Inspi"],
                   ["login","👤","Login"],
                 ]
             ).map(([id,icon,label]) => (
@@ -273,6 +278,7 @@ export default function App() {
             : <HeroPage onCitySelect={handleCitySelect} selectedCity={selectedCity} onExplore={handleExplore} onAdd={handleAddStore} stores={stores} contributors={contributors} storesLoadFailed={storesLoadFailed} contributorsLoadFailed={contributorsLoadFailed} />
           )}
           {page === "discover" && <DiscoveryPage stores={stores} selectedCity={selectedCity} user={user} isGuest={!user} onRequireLogin={() => setShowLoginPage(true)} initialBusinessType={pendingBusinessType} />}
+          {page === "inspi" && <InspiPage user={user} isGuest={!user} onRequireLogin={() => setShowLoginPage(true)} toast={showToast} />}
           {page === "add" && <AddPage user={user} onSubmit={handleSubmitStore} toast={showToast} />}
           {page === "rewards" && <RewardsPage user={user} onMessageAdmin={handleMessageAdmin} />}
           {page === "staff" && <StaffProfilePage user={user} />}
