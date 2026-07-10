@@ -1,7 +1,24 @@
 import { useEffect, useState } from "react";
 import { addDoc, collection, getDocs, query, serverTimestamp, where } from "firebase/firestore";
-import { db } from "../firebase/config";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, storage } from "../firebase/config";
 import { JOB_CATEGORIES, JOB_TYPES, CITIES } from "../data/constants";
+
+const RESUME_MIME_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
+const RESUME_MAX_BYTES = 5 * 1024 * 1024;
+
+function validateResumeFile(f) {
+  const name = f.name.toLowerCase();
+  const validExt = name.endsWith(".pdf") || name.endsWith(".doc") || name.endsWith(".docx");
+  const validMime = RESUME_MIME_TYPES.includes(f.type);
+  if (!validExt || !validMime) return "Please upload a PDF or Word document (.pdf, .doc, .docx).";
+  if (f.size > RESUME_MAX_BYTES) return "Resume file must be under 5MB.";
+  return null;
+}
 
 export function JobsPage({ user, isGuest, onRequireLogin, toast }) {
   const [jobs, setJobs] = useState([]);
@@ -15,6 +32,7 @@ export function JobsPage({ user, isGuest, onRequireLogin, toast }) {
   const [applyName, setApplyName] = useState("");
   const [applyPhone, setApplyPhone] = useState("");
   const [applyMessage, setApplyMessage] = useState("");
+  const [applyResumeFile, setApplyResumeFile] = useState(null);
   const [applySubmitting, setApplySubmitting] = useState(false);
   const [applySubmitted, setApplySubmitted] = useState(false);
   const [applyError, setApplyError] = useState("");
@@ -57,23 +75,43 @@ export function JobsPage({ user, isGuest, onRequireLogin, toast }) {
     setApplyName(user?.name || "");
     setApplyPhone(user?.phone || "");
     setApplyMessage("");
+    setApplyResumeFile(null);
     setApplyError("");
     setApplySubmitted(false);
   };
 
-  const closeApply = () => { setApplyingJob(null); setApplySubmitted(false); };
+  const closeApply = () => { setApplyingJob(null); setApplySubmitted(false); setApplyResumeFile(null); };
+
+  const handleResumeChange = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) { setApplyResumeFile(null); return; }
+    const err = validateResumeFile(f);
+    if (err) { setApplyError(err); setApplyResumeFile(null); e.target.value = ""; return; }
+    setApplyError("");
+    setApplyResumeFile(f);
+  };
 
   const submitApplication = async () => {
     if (!applyName.trim() || !applyPhone.trim()) { setApplyError("Please enter your name and phone number."); return; }
+    if (!applyResumeFile) { setApplyError("Please attach your resume (PDF or Word document)."); return; }
+    const resumeErr = validateResumeFile(applyResumeFile);
+    if (resumeErr) { setApplyError(resumeErr); return; }
     setApplySubmitting(true);
     setApplyError("");
     try {
+      const path = `resumes/${user.uid}/${Date.now()}_${applyResumeFile.name}`;
+      const storageRef = ref(storage, path);
+      await uploadBytes(storageRef, applyResumeFile);
+      const resumeUrl = await getDownloadURL(storageRef);
+
       await addDoc(collection(db, "jobApplications"), {
         jobId: applyingJob.id,
         applicantUid: user.uid,
         applicantName: applyName.trim(),
         applicantPhone: applyPhone.trim(),
         message: applyMessage.trim(),
+        resumeUrl,
+        resumeFileName: applyResumeFile.name,
         createdAt: serverTimestamp(),
       });
       setApplySubmitted(true);
@@ -227,9 +265,15 @@ export function JobsPage({ user, isGuest, onRequireLogin, toast }) {
                 <div style={{ fontSize: 10, fontWeight: 700, color: "#555", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 4 }}>Phone Number</div>
                 <input className="fi" placeholder="Your mobile number" value={applyPhone} onChange={e => setApplyPhone(e.target.value)} />
               </div>
-              <div style={{ marginBottom: 14 }}>
+              <div style={{ marginBottom: 10 }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: "#555", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 4 }}>Message (optional)</div>
                 <textarea className="fta" rows={3} placeholder="A short note about why you're a good fit…" value={applyMessage} onChange={e => setApplyMessage(e.target.value)} />
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#555", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 4 }}>Resume <span style={{color:"#e85a2a"}}>*</span></div>
+                <input type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={handleResumeChange} style={{ fontSize: 12, width: "100%" }} />
+                {applyResumeFile && <div style={{ fontSize: 11, color: "#16a34a", marginTop: 4 }}>✓ {applyResumeFile.name}</div>}
+                <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>PDF or Word document, max 5MB.</div>
               </div>
 
               {applyError && (
@@ -241,7 +285,7 @@ export function JobsPage({ user, isGuest, onRequireLogin, toast }) {
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={submitApplication} disabled={applySubmitting}
                   style={{ flex: 1, padding: "9px", borderRadius: 8, background: applySubmitting ? "#f5f5f5" : "#e85a2a", border: "none", color: applySubmitting ? "#888" : "white", fontSize: 13, fontWeight: 700, cursor: applySubmitting ? "default" : "pointer" }}>
-                  {applySubmitting ? "Sending…" : "Send Application"}
+                  {applySubmitting ? "Uploading…" : "Send Application"}
                 </button>
                 <button onClick={closeApply} style={{ padding: "9px 16px", borderRadius: 8, background: "#f5f5f5", border: "1px solid #e0e0e0", color: "#080808", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
                   Cancel

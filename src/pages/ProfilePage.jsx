@@ -195,6 +195,11 @@ export function ProfilePage({ user, onUpdateUser }) {
                     <div key={a.id} style={{ background: "var(--s2)", borderRadius: 8, padding: "8px 10px", marginTop: 6 }}>
                       <div style={{ fontSize: 12, fontWeight: 600, color: "var(--t1)" }}>{a.applicantName} · {a.applicantPhone}</div>
                       {a.message && <div style={{ fontSize: 12, color: "var(--t2)", marginTop: 2 }}>{a.message}</div>}
+                      {a.resumeUrl && (
+                        <a href={a.resumeUrl} target="_blank" rel="noreferrer" style={{ display: "inline-block", fontSize: 12, fontWeight: 700, color: "#1D4ED8", textDecoration: "none", marginTop: 4 }}>
+                          📄 View Resume{a.resumeFileName ? ` (${a.resumeFileName})` : ""}
+                        </a>
+                      )}
                     </div>
                   ))}
                 </div>
