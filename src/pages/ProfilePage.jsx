@@ -4,7 +4,7 @@ import { db } from "../firebase/config";
 import { CONTRIBUTOR_LEVELS, ROLES } from "../data/constants";
 import { getLevel } from "../utils/helpers";
 
-export function ProfilePage({ user, onUpdateUser }) {
+export function ProfilePage({ user, onUpdateUser, showJobPosts = true }) {
   const lv = getLevel(user.points);
   const nextLv = CONTRIBUTOR_LEVELS.find(l => l.min > user.points);
   const [editing, setEditing] = useState(false);
@@ -14,6 +14,7 @@ export function ProfilePage({ user, onUpdateUser }) {
   const [applicantsByJob, setApplicantsByJob] = useState({});
 
   useEffect(() => {
+    if (!showJobPosts) { setMyJobs([]); return; }
     if (!user?.uid) { setMyJobs([]); return; }
     const load = async () => {
       try {
@@ -170,7 +171,7 @@ export function ProfilePage({ user, onUpdateUser }) {
           ))}
         </div>
 
-        <div className="act-sec">
+        {showJobPosts && <div className="act-sec">
           <div className="act-title">My Job Posts</div>
           {myJobs === null ? (
             <div style={{ fontSize: 13, color: "var(--t3)", padding: "8px 0" }}>Loading…</div>
@@ -206,7 +207,7 @@ export function ProfilePage({ user, onUpdateUser }) {
               );
             })
           )}
-        </div>
+        </div>}
       </div>
     </div>
   );

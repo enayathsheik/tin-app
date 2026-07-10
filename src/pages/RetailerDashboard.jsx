@@ -7,7 +7,7 @@ import { DiscoveryPage } from "./DiscoveryPage";
 import { StaffProfilePage } from "./StaffProfilePage";
 import { ProfilePage } from "./ProfilePage";
 import { InspiPage } from "./InspiPage";
-import { JobsPage } from "./JobsPage";
+import { RetailerJobsPage } from "./RetailerJobsPage";
 
 const RETAILER_NAV_ITEMS = [["home","🏠","My Business"],["discover","🔍","Discover"],["inspi","🖼","Inspi"],["jobs","💼","Jobs"],["staff","👥","Staff"],["deals","🏷","Deals"],["profile","👤","Profile"]];
 
@@ -346,7 +346,7 @@ export function RetailerDashboard({ user, stores, onNavigate }) {
         {activeTab === "inspi" && <InspiPage user={user} isGuest={false} onRequireLogin={() => {}} />}
 
         {/* ---- JOBS TAB ---- */}
-        {activeTab === "jobs" && <JobsPage user={user} isGuest={false} onRequireLogin={() => {}} />}
+        {activeTab === "jobs" && <RetailerJobsPage user={user} />}
 
         {/* ---- STAFF TAB ---- */}
         {activeTab === "staff" && <StaffProfilePage user={user} />}
@@ -376,7 +376,7 @@ export function RetailerDashboard({ user, stores, onNavigate }) {
         )}
 
         {/* ---- PROFILE TAB ---- */}
-        {activeTab === "profile" && <ProfilePage user={user} />}
+        {activeTab === "profile" && <ProfilePage user={user} showJobPosts={false} />}
 
       </div>
     </div>

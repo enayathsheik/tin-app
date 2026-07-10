@@ -129,18 +129,34 @@ service cloud.firestore {
           || (request.resource.data.status == "approved"
               && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.verificationStatus == "verified")
         );
-      allow update, delete: if isAdmin();
+      // The poster may flip jobStatus (live/filled/closed) on their own listing —
+      // but nothing else on this doc; moderation status/content stays admin-only.
+      allow update: if isAdmin()
+        || (
+          request.auth != null
+          && resource.data.postedByUid == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["jobStatus"])
+        );
+      allow delete: if isAdmin();
     }
 
     // ══ NEW: JOB APPLICATIONS ═══════════════════════════════
     // Read restricted to the applicant themselves or the poster of the
     // job being applied to (looked up via the application's jobId).
     match /jobApplications/{applicationId} {
+      // Document ID is deterministic (`${jobId}_${applicantUid}`) — !exists() blocks
+      // a second apply attempt at the rules layer, not just the UI.
       allow create: if request.auth != null
-        && request.resource.data.applicantUid == request.auth.uid;
+        && request.resource.data.applicantUid == request.auth.uid
+        && !exists(/databases/$(database)/documents/jobApplications/$(applicationId));
       allow read: if request.auth != null
         && (resource.data.applicantUid == request.auth.uid
             || get(/databases/$(database)/documents/jobListings/$(resource.data.jobId)).data.postedByUid == request.auth.uid);
+      // The job's poster may set applicantStatus (new/shortlisted/rejected/hired) —
+      // and nothing else on this doc; the applicant can't edit their own application after submit.
+      allow update: if request.auth != null
+        && get(/databases/$(database)/documents/jobListings/$(resource.data.jobId)).data.postedByUid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["applicantStatus"]);
     }
     // ══ END NEW ═════════════════════════════════════════════
 

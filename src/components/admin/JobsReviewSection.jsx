@@ -27,9 +27,9 @@ export function JobsReviewSection() {
   const handleApprove = async (job) => {
     setBusyId(job.id);
     try {
-      await updateDoc(doc(db, "jobListings", job.id), { status: "approved" });
+      await updateDoc(doc(db, "jobListings", job.id), { status: "approved", jobStatus: "live" });
       setPending(p => p.filter(x => x.id !== job.id));
-      setApproved(a => [...a, { ...job, status: "approved" }]);
+      setApproved(a => [...a, { ...job, status: "approved", jobStatus: "live" }]);
     } catch (e) { alert("Approve failed: " + e.message); }
     setBusyId(null);
   };
