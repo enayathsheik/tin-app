@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CITIES } from "../data/constants";
+import { Footer } from "../components/shared/Footer";
 
 // Baseline numbers shown when a Firestore fetch fails, so the hero never reads as "0 of everything"
 const BASELINE_STATS = { stores: 2222, contributors: 220, cities: 40, categories: 22 };
@@ -59,6 +60,7 @@ export function HeroPage({ onCitySelect, selectedCity, onExplore, onAdd, stores,
           ))}
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

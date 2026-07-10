@@ -9,8 +9,11 @@ import { ProfilePage } from "./ProfilePage";
 import { InspiPage } from "./InspiPage";
 import { JobsPage } from "./JobsPage";
 
+const RETAILER_NAV_ITEMS = [["home","🏠","My Business"],["discover","🔍","Discover"],["inspi","🖼","Inspi"],["jobs","💼","Jobs"],["staff","👥","Staff"],["deals","🏷","Deals"],["profile","👤","Profile"]];
+
 export function RetailerDashboard({ user, stores, onNavigate }) {
   const [activeTab, setActiveTab] = useState("home");
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [storeProfile, setStoreProfile] = useState({
     storeName: user.storeName || "",
     address: user.address || "",
@@ -75,12 +78,24 @@ export function RetailerDashboard({ user, stores, onNavigate }) {
 
   return (
     <div className="retailer-layout" style={{display:"flex",height:"100%",overflow:"hidden"}}>
-      {/* SIDEBAR NAV */}
-      <div className="retailer-sidebar" style={{width:200,flexShrink:0,background:"#fff",borderRight:"1px solid #e0e0e0",padding:"16px 12px",display:"flex",flexDirection:"column",gap:2,overflowY:"auto"}}>
-        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:13,letterSpacing:".12em",color:"#e85a2a",padding:"4px 10px",marginBottom:8}}>BUSINESS PORTAL</div>
-        {[["home","🏠","My Business"],["discover","🔍","Discover"],["inspi","🖼","Inspi"],["jobs","💼","Jobs"],["staff","👥","Staff"],["deals","🏷","Deals"],["profile","👤","Profile"]].map(([id,icon,label]) => (
+      {/* MOBILE TOPBAR — hamburger trigger, hidden on desktop */}
+      <div className="retailer-mobile-topbar">
+        <button type="button" className="retailer-menu-btn" onClick={() => setMobileNavOpen(true)} aria-label="Open menu">☰</button>
+        <div className="retailer-mobile-title">{RETAILER_NAV_ITEMS.find(([id]) => id === activeTab)?.[2] || "My Business"}</div>
+      </div>
+
+      {/* OVERLAY — closes the drawer on tap, mobile only */}
+      {mobileNavOpen && <div className="retailer-nav-overlay" onClick={() => setMobileNavOpen(false)} />}
+
+      {/* SIDEBAR NAV — static sidebar on desktop, slide-in drawer on mobile */}
+      <div className={`retailer-sidebar ${mobileNavOpen ? "open" : ""}`} style={{width:200,flexShrink:0,background:"#fff",borderRight:"1px solid #e0e0e0",padding:"16px 12px",display:"flex",flexDirection:"column",gap:2,overflowY:"auto"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:13,letterSpacing:".12em",color:"#e85a2a",padding:"4px 10px"}}>BUSINESS PORTAL</div>
+          <button type="button" className="retailer-close-btn" onClick={() => setMobileNavOpen(false)} aria-label="Close menu">✕</button>
+        </div>
+        {RETAILER_NAV_ITEMS.map(([id,icon,label]) => (
           <div key={id}
-            onClick={() => setActiveTab(id)}
+            onClick={() => { setActiveTab(id); setMobileNavOpen(false); }}
             style={{padding:"9px 12px",borderRadius:8,fontSize:13,fontWeight:600,color:activeTab===id?"#e85a2a":"#080808",background:activeTab===id?"#fff3ef":"transparent",cursor:"pointer",display:"flex",alignItems:"center",gap:8,transition:"all .15s"}}>
             <span style={{fontSize:15}}>{icon}</span>{label}
             {id==="deals"&&<span style={{fontSize:9,background:"#e85a2a",color:"white",padding:"1px 5px",borderRadius:10,fontWeight:700,marginLeft:"auto"}}>NEW</span>}
@@ -96,9 +111,6 @@ export function RetailerDashboard({ user, stores, onNavigate }) {
           </div>
         </div>
       </div>
-
-      {/* RETAILER MOBILE NAV */}
-      <div style={{display:"none"}} className="mobile-retailer-nav-placeholder" />
 
       {/* MAIN CONTENT */}
       <div className="retailer-content" style={{flex:1,overflowY:"auto",background:"#f5f5f5"}}>

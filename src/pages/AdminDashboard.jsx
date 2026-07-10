@@ -48,6 +48,7 @@ export function AdminDashboard({ stores, contributors }) {
     } catch(e) { alert("Error: " + e.message); }
   };
   const [section, setSection] = useState("dashboard");
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [uploadType, setUploadType] = useState("stores");
   const [csvText, setCsvText] = useState("");
   const [preview, setPreview] = useState([]);
@@ -84,10 +85,22 @@ export function AdminDashboard({ stores, contributors }) {
 
   return (
     <div className="admin-pg">
-      <div className="admin-nav">
-        <div className="admin-nav-title">Admin Panel</div>
+      {/* MOBILE TOPBAR — hamburger trigger, hidden on desktop */}
+      <div className="admin-mobile-topbar">
+        <button type="button" className="admin-menu-btn" onClick={() => setMobileNavOpen(true)} aria-label="Open menu">☰</button>
+        <div className="admin-mobile-title">{navItems.find(n => n.id === section)?.label || "Admin Panel"}</div>
+      </div>
+
+      {/* OVERLAY — closes the drawer on tap, mobile only */}
+      {mobileNavOpen && <div className="admin-nav-overlay" onClick={() => setMobileNavOpen(false)} />}
+
+      <div className={`admin-nav ${mobileNavOpen ? "open" : ""}`}>
+        <div className="admin-nav-title" style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          Admin Panel
+          <button type="button" className="admin-close-btn" onClick={() => setMobileNavOpen(false)} aria-label="Close menu">✕</button>
+        </div>
         {navItems.map(n => (
-          <div key={n.id} className={`anav ${section === n.id ? "on" : ""}`} onClick={() => setSection(n.id)}>
+          <div key={n.id} className={`anav ${section === n.id ? "on" : ""}`} onClick={() => { setSection(n.id); setMobileNavOpen(false); }}>
             <span className="anav-icon">{n.icon}</span>{n.label}
           </div>
         ))}
