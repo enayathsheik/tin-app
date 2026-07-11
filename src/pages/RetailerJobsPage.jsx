@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { collection, doc, getDocs, query, updateDoc, where } from "firebase/firestore";
+import { collection, doc, getDocs, query, serverTimestamp, updateDoc, where } from "firebase/firestore";
 import { db } from "../firebase/config";
 import { PostJobModal } from "../components/shared/PostJobModal";
 
@@ -36,7 +36,7 @@ export function RetailerJobsPage({ user }) {
     const prev = myJobs;
     setMyJobs(js => js.map(j => j.id === jobId ? { ...j, jobStatus } : j));
     try {
-      await updateDoc(doc(db, "jobListings", jobId), { jobStatus });
+      await updateDoc(doc(db, "jobListings", jobId), { jobStatus, updatedAt: serverTimestamp() });
     } catch (e) {
       console.error("[retailer-jobs] Failed to update job status:", e);
       alert("Could not update job status: " + e.message);

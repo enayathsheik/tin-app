@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "../../firebase/config";
-import { JOB_CATEGORIES, JOB_TYPES, CITIES } from "../../data/constants";
+import { JOB_CATEGORIES, JOB_TYPES, CITIES, STATES } from "../../data/constants";
+import { validatePincode } from "../../utils/helpers";
 
 export function PostJobModal({ user, isGuest = false, onRequireLogin = () => {}, onPosted, toast }) {
   const [showPost, setShowPost] = useState(false);
   const [postForm, setPostForm] = useState({
-    jobTitle: "", category: "", businessName: "", description: "", city: "",
+    jobTitle: "", category: "", businessName: "", description: "", city: "", state: "", pincode: "",
     jobType: "", salaryRange: "", contactPhone: "", notAgencyDeclaration: false,
   });
   const [postSubmitting, setPostSubmitting] = useState(false);
@@ -17,7 +18,7 @@ export function PostJobModal({ user, isGuest = false, onRequireLogin = () => {},
     if (isGuest) { onRequireLogin(); return; }
     setPostForm({
       jobTitle: "", category: "", businessName: user?.company || user?.storeName || "",
-      description: "", city: "", jobType: "", salaryRange: "",
+      description: "", city: "", state: "", pincode: "", jobType: "", salaryRange: "",
       contactPhone: user?.phone || "", notAgencyDeclaration: false,
     });
     setPostError("");
@@ -48,6 +49,8 @@ export function PostJobModal({ user, isGuest = false, onRequireLogin = () => {},
         category: f.category,
         description: f.description.trim(),
         city: f.city.trim(),
+        state: f.state.trim(),
+        pincode: f.pincode.trim(),
         jobType: f.jobType,
         salaryRange: f.salaryRange.trim(),
         contactPhone: f.contactPhone.trim(),
@@ -57,6 +60,7 @@ export function PostJobModal({ user, isGuest = false, onRequireLogin = () => {},
         // and only makes sense once the listing is actually approved/visible.
         ...(status === "approved" ? { jobStatus: "live" } : {}),
         createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
       setPostSubmitted(status);
       setPostSubmitting(false);
@@ -139,6 +143,29 @@ export function PostJobModal({ user, isGuest = false, onRequireLogin = () => {},
                     <option value="">Select</option>
                     {JOB_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#555", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 4 }}>State (optional)</div>
+                  <select className="fi" value={postForm.state} onChange={e => updPost("state", e.target.value)}>
+                    <option value="">Select state</option>
+                    {STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#555", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 4 }}>Pincode (optional)</div>
+                  <input className="fi" placeholder="6-digit pincode" maxLength={6} value={postForm.pincode}
+                    onChange={e => {
+                      const pin = e.target.value.replace(/[^0-9]/g, "").substring(0, 6);
+                      updPost("pincode", pin);
+                      if (pin.length === 6) {
+                        const result = validatePincode(pin);
+                        if (result.valid && result.state && !postForm.state) updPost("state", result.state);
+                      }
+                    }}
+                  />
                 </div>
               </div>
 

@@ -5,6 +5,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase/config";
 import { JobApplyModal } from "../components/shared/JobApplyModal";
 import { useJobApply } from "../hooks/useJobApply";
+import { buildJobPostingJsonLd } from "../utils/jobJsonLd.js";
 
 const SITE_URL = "https://tinit.in";
 const truncate = (str, len) => (str && str.length > len ? str.slice(0, len - 1).trimEnd() + "…" : str || "");
@@ -56,6 +57,10 @@ export function JobDetailPage({ user, isGuest, onRequireLogin }) {
   const pageDescription = truncate(job.description, 160);
   const pageUrl = `${SITE_URL}/jobs/${job.id}`;
   const ogImage = `${SITE_URL}/og-image.png`;
+  const jsonLd = buildJobPostingJsonLd({
+    ...job,
+    createdAtISO: job.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+  });
 
   return (
     <div style={{ maxWidth: 720, margin: "0 auto", padding: "16px 16px 100px" }}>
@@ -71,6 +76,7 @@ export function JobDetailPage({ user, isGuest, onRequireLogin }) {
         <meta name="twitter:title" content={pageTitle} />
         <meta name="twitter:description" content={pageDescription} />
         <meta name="twitter:image" content={ogImage} />
+        <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
       </Helmet>
       <Link to="/jobs" style={{ fontSize: 12, color: "var(--t3)", fontWeight: 700, textDecoration: "none", display: "inline-block", marginBottom: 14 }}>← Back to Jobs</Link>
 
