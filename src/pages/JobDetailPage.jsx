@@ -10,6 +10,22 @@ import { buildJobPostingJsonLd } from "../utils/jobJsonLd.js";
 const SITE_URL = "https://tinit.in";
 const truncate = (str, len) => (str && str.length > len ? str.slice(0, len - 1).trimEnd() + "…" : str || "");
 
+// index.html's static SEO tags aren't managed by react-helmet-async (it only
+// tracks tags it renders itself, marked with data-rh) — left alone, they'd
+// sit in <head> alongside this page's Helmet-rendered tags of the same
+// name/property, and some crawlers/unfurlers take the *first* match rather
+// than the last, which would silently win with the generic homepage content.
+// Strip them once so this page's tags are the only ones present client-side.
+const STALE_STATIC_META_SELECTOR = [
+  'meta[name="description"]:not([data-rh])',
+  'meta[property="og:title"]:not([data-rh])',
+  'meta[property="og:description"]:not([data-rh])',
+  'meta[property="og:image"]:not([data-rh])',
+  'meta[property="og:url"]:not([data-rh])',
+  'meta[property="og:type"]:not([data-rh])',
+  'meta[name="twitter:card"]:not([data-rh])',
+].join(",");
+
 export function JobDetailPage({ user, isGuest, onRequireLogin }) {
   const { jobId } = useParams();
   const [job, setJob] = useState(null);
@@ -18,6 +34,10 @@ export function JobDetailPage({ user, isGuest, onRequireLogin }) {
 
   const applyState = useJobApply(user, isGuest, onRequireLogin);
   const { appliedJobIds, openApply } = applyState;
+
+  useEffect(() => {
+    document.querySelectorAll(STALE_STATIC_META_SELECTOR).forEach(el => el.remove());
+  }, []);
 
   useEffect(() => {
     let cancelled = false;

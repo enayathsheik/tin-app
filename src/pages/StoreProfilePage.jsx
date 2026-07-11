@@ -7,11 +7,28 @@ import { db } from "../firebase/config";
 const SITE_URL = "https://tinit.in";
 const truncate = (str, len) => (str && str.length > len ? str.slice(0, len - 1).trimEnd() + "…" : str || "");
 
+// See JobDetailPage.jsx for why this cleanup is needed — index.html's static
+// SEO tags aren't managed by react-helmet-async and would otherwise coexist
+// with this page's Helmet-rendered tags of the same name/property.
+const STALE_STATIC_META_SELECTOR = [
+  'meta[name="description"]:not([data-rh])',
+  'meta[property="og:title"]:not([data-rh])',
+  'meta[property="og:description"]:not([data-rh])',
+  'meta[property="og:image"]:not([data-rh])',
+  'meta[property="og:url"]:not([data-rh])',
+  'meta[property="og:type"]:not([data-rh])',
+  'meta[name="twitter:card"]:not([data-rh])',
+].join(",");
+
 export function StoreProfilePage() {
   const { storeId } = useParams();
   const [store, setStore] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+
+  useEffect(() => {
+    document.querySelectorAll(STALE_STATIC_META_SELECTOR).forEach(el => el.remove());
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
