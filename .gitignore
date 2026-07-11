@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Firebase Admin SDK service account key — used locally by scripts/prerender.js
+# and scripts/generate-sitemap.js. Never commit this. See scripts/firebaseAdmin.js
+# for the one-time setup step.
+serviceAccountKey.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
