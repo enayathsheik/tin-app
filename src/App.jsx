@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { collection, getDocs, getDoc, query, where, orderBy, doc } from "firebase/firestore";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth, db, getUserProfile, updateUserStats } from "./firebase/config";
@@ -24,8 +25,12 @@ import { MyZonePage } from "./pages/MyZonePage";
 import { AdminDashboard } from "./pages/AdminDashboard";
 import { InspiPage } from "./pages/InspiPage";
 import { JobsPage } from "./pages/JobsPage";
+import { JobDetailPage } from "./pages/JobDetailPage";
+import { StoreProfilePage } from "./pages/StoreProfilePage";
 
 export default function App() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [user, setUser] = useState(null);
   const [page, setPage] = useState("home");
   const [stores, setStores] = useState(MOCK_STORES);
@@ -83,6 +88,7 @@ export default function App() {
   const [showThankYou, setShowThankYou] = useState(false);
   const [showLoginPage, setShowLoginPage] = useState(false);
   const [pendingPage, setPendingPage] = useState(null);
+  const [pendingPath, setPendingPath] = useState(null);
 
   // Persistent login — check auth state on mount
   useEffect(() => {
@@ -107,6 +113,7 @@ export default function App() {
   const handleLogout = async () => {
     await signOut(auth);
     setUser(null);
+    navigate("/");
     setPage("home");
   };
 
@@ -117,7 +124,7 @@ export default function App() {
 
   const handleCitySelect = (city) => { setSelectedCity(city); };
   const handleExplore = () => setPage("discover");
-  const handleAddStore = () => { if (!user) { setPendingPage("add"); setShowLoginPage(true); return; } setPage("add"); };
+  const handleAddStore = () => { if (!user) { setPendingPage("add"); setShowLoginPage(true); return; } navigate("/"); setPage("add"); };
   const handleMessageAdmin = () => { if (!user) { setShowLoginPage(true); return; } showToast("Message sent to admin! We will contact you within 24 hours.", "ok"); };
 
   const handleSubmitStore = async (data) => {
@@ -174,12 +181,16 @@ export default function App() {
         ["profile","Profile"],
       ];
 
+  // /jobs and /jobs/:jobId are now real routes, not `page` state — derive the
+  // highlighted nav tab from the URL for those, falling back to `page` elsewhere.
+  const activePage = location.pathname.startsWith("/jobs") ? "jobs" : page;
+
   // Check if accessing admin panel via URL hash
   const isAdminRoute = typeof window !== "undefined" && window.location.hash === "#admin";
   const [showAdminLogin, setShowAdminLogin] = useState(isAdminRoute);
 
   if (authLoading) return <><style>{G}</style><div style={{height:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#f4f5f7",flexDirection:"column",gap:12}}><div style={{fontFamily:"'Barlow Condensed'",fontWeight:800,fontSize:28,color:"var(--acc)"}}>TIN</div><div style={{fontSize:13,color:"#080808"}}>Loading...</div></div></>;
-  if (!user && showAdminLogin) return <><style>{G}</style><div className={"light"} style={{background:"#f4f5f7",minHeight:"100vh"}}><AdminLoginPage onAdminLogin={(u) => { setUser(u); setPage("admin"); setShowAdminLogin(false); }} /></div></>;
+  if (!user && showAdminLogin) return <><style>{G}</style><div className={"light"} style={{background:"#f4f5f7",minHeight:"100vh"}}><AdminLoginPage onAdminLogin={(u) => { setUser(u); navigate("/"); setPage("admin"); setShowAdminLogin(false); }} /></div></>;
   if (!user && showLoginPage) {
     return (
       <>
@@ -188,7 +199,9 @@ export default function App() {
           <LoginPage onLogin={(u) => {
             setUser(u);
             setShowLoginPage(false);
-            if (u.role === "admin") { setPage("admin"); return; }
+            if (u.role === "admin") { navigate("/"); setPage("admin"); setPendingPath(null); return; }
+            if (pendingPath) { navigate(pendingPath); setPendingPath(null); return; }
+            navigate("/");
             setPage(pendingPage || "home");
             setPendingPage(null);
           }} />
@@ -202,11 +215,15 @@ export default function App() {
       <style>{G}</style>
       <div className="app light" style={{background:"#f4f5f7",color:"#080808",minHeight:"100vh"}}>
         <nav className="topbar">
-          <div className="logo" onClick={() => setPage("home")} style={{cursor:"pointer"}}>T<em>I</em>N</div>
+          <div className="logo" onClick={() => { navigate("/"); setPage("home"); }} style={{cursor:"pointer"}}>T<em>I</em>N</div>
           {!isRetailer && (
             <div className="nav-tabs">
               {TABS.map(([id, label]) => (
-                <button key={id} className={`ntab ${page === id ? "on" : ""}`} onClick={() => id === "login" ? setShowLoginPage(true) : setPage(id)}>{label}</button>
+                <button key={id} className={`ntab ${activePage === id ? "on" : ""}`} onClick={() => {
+                  if (id === "login") setShowLoginPage(true);
+                  else if (id === "jobs") navigate("/jobs");
+                  else { navigate("/"); setPage(id); }
+                }}>{label}</button>
               ))}
             </div>
           )}
@@ -215,7 +232,7 @@ export default function App() {
               <>
                 {selectedCity && <div style={{ fontSize: 11, color: "var(--t3)", fontWeight: 600 }}>📍 {selectedCity}</div>}
                 {user.role !== "admin" && user.role !== "retailer" && <div className="pts-badge">{user.points || 0} pts</div>}
-                <div className="avatar" onClick={() => setPage("profile")}>{user.name.charAt(0).toUpperCase()}</div>
+                <div className="avatar" onClick={() => { navigate("/"); setPage("profile"); }}>{user.name.charAt(0).toUpperCase()}</div>
                 <button onClick={handleLogout} style={{padding:"4px 10px",borderRadius:8,background:"transparent",border:"1px solid var(--b3)",color:"#080808",fontSize:12,cursor:"pointer",fontFamily:"'Barlow',sans-serif"}} title="Logout">↩ Out</button>
               </>
             ) : (
@@ -261,45 +278,57 @@ export default function App() {
                   ["login","👤","Login"],
                 ]
             ).map(([id,icon,label]) => (
-              <div key={id} className={`mobile-nav-item ${page===id?"on":""}`} onClick={() => id === "login" ? setShowLoginPage(true) : id === "add" ? handleAddStore() : setPage(id)}>
+              <div key={id} className={`mobile-nav-item ${activePage===id?"on":""}`} onClick={() => {
+                if (id === "login") setShowLoginPage(true);
+                else if (id === "add") handleAddStore();
+                else if (id === "jobs") navigate("/jobs");
+                else { navigate("/"); setPage(id); }
+              }}>
                 <span className="mobile-nav-icon">{icon}</span>
-                <span className="mobile-nav-label" style={{color:page===id?"#e85a2a":"#888"}}>{label}</span>
+                <span className="mobile-nav-label" style={{color:activePage===id?"#e85a2a":"#888"}}>{label}</span>
               </div>
             ))}
           </div>
         )}
 
         <div className="page">
-          {page === "home" && (isRetailer
-            ? <RetailerDashboard user={user} stores={stores} onNavigate={setPage} />
-            : isContrib
-            ? <MarketChampionHome
-                user={user}
-                contributors={contributors}
-                onAddStore={() => setPage("add")}
-                onLeaderboard={() => setPage("leaderboard")}
-                onRewards={() => setPage("rewards")}
-                onDiscover={() => setPage("discover")}
-              />
-            : isConsumer
-            ? <ConsumerHome user={user} onDiscover={() => setPage("discover")} onBrowseCategory={() => setPage("discover")} />
-            : isContractor
-            ? <ContractorHome user={user} onFindSuppliers={() => { setPendingBusinessType("Distributor"); setPage("discover"); }} onProfile={() => setPage("profile")} />
-            : isArchitect
-            ? <ArchitectHome user={user} onDiscover={() => setPage("discover")} onProfile={() => setPage("profile")} />
-            : <HeroPage onCitySelect={handleCitySelect} selectedCity={selectedCity} onExplore={handleExplore} onAdd={handleAddStore} stores={stores} contributors={contributors} storesLoadFailed={storesLoadFailed} contributorsLoadFailed={contributorsLoadFailed} />
-          )}
-          {page === "discover" && <DiscoveryPage stores={stores} selectedCity={selectedCity} user={user} isGuest={!user} onRequireLogin={() => setShowLoginPage(true)} initialBusinessType={pendingBusinessType} />}
-          {page === "inspi" && <InspiPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPage("inspi"); setShowLoginPage(true); }} toast={showToast} />}
-          {page === "jobs" && <JobsPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPage("jobs"); setShowLoginPage(true); }} toast={showToast} />}
-          {page === "add" && <AddPage user={user} onSubmit={handleSubmitStore} toast={showToast} />}
-          {page === "rewards" && <RewardsPage user={user} onMessageAdmin={handleMessageAdmin} />}
-          {page === "staff" && <StaffProfilePage user={user} />}
-          {page === "leaderboard" && <LeaderboardPage contributors={contributors} />}
-          {page === "deals" && <DealsPage />}
-          {page === "profile" && <ProfilePage user={user} onUpdateUser={(updated) => setUser(updated)} />}
-          {page === "myzone" && <MyZonePage user={user} stores={stores} onNavigate={setPage} />}
-          {page === "admin" && <AdminDashboard stores={stores} contributors={contributors} />}
+          <Routes>
+            <Route path="/" element={<>
+              {page === "home" && (isRetailer
+                ? <RetailerDashboard user={user} stores={stores} onNavigate={setPage} />
+                : isContrib
+                ? <MarketChampionHome
+                    user={user}
+                    contributors={contributors}
+                    onAddStore={() => setPage("add")}
+                    onLeaderboard={() => setPage("leaderboard")}
+                    onRewards={() => setPage("rewards")}
+                    onDiscover={() => setPage("discover")}
+                  />
+                : isConsumer
+                ? <ConsumerHome user={user} onDiscover={() => setPage("discover")} onBrowseCategory={() => setPage("discover")} />
+                : isContractor
+                ? <ContractorHome user={user} onFindSuppliers={() => { setPendingBusinessType("Distributor"); setPage("discover"); }} onProfile={() => setPage("profile")} />
+                : isArchitect
+                ? <ArchitectHome user={user} onDiscover={() => setPage("discover")} onProfile={() => setPage("profile")} />
+                : <HeroPage onCitySelect={handleCitySelect} selectedCity={selectedCity} onExplore={handleExplore} onAdd={handleAddStore} stores={stores} contributors={contributors} storesLoadFailed={storesLoadFailed} contributorsLoadFailed={contributorsLoadFailed} />
+              )}
+              {page === "discover" && <DiscoveryPage stores={stores} selectedCity={selectedCity} user={user} isGuest={!user} onRequireLogin={() => setShowLoginPage(true)} initialBusinessType={pendingBusinessType} />}
+              {page === "inspi" && <InspiPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPage("inspi"); setShowLoginPage(true); }} toast={showToast} />}
+              {page === "add" && <AddPage user={user} onSubmit={handleSubmitStore} toast={showToast} />}
+              {page === "rewards" && <RewardsPage user={user} onMessageAdmin={handleMessageAdmin} />}
+              {page === "staff" && <StaffProfilePage user={user} />}
+              {page === "leaderboard" && <LeaderboardPage contributors={contributors} />}
+              {page === "deals" && <DealsPage />}
+              {page === "profile" && <ProfilePage user={user} onUpdateUser={(updated) => setUser(updated)} />}
+              {page === "myzone" && <MyZonePage user={user} stores={stores} onNavigate={setPage} />}
+              {page === "admin" && <AdminDashboard stores={stores} contributors={contributors} />}
+            </>} />
+            <Route path="/jobs" element={<JobsPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath("/jobs"); setShowLoginPage(true); }} toast={showToast} />} />
+            <Route path="/jobs/:jobId" element={<JobDetailPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath(location.pathname); setShowLoginPage(true); }} />} />
+            <Route path="/store/:storeId" element={<StoreProfilePage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </div>
         <Toast {...toast} />
       </div>
