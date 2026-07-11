@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase/config";
+
+const SITE_URL = "https://tinit.in";
+const truncate = (str, len) => (str && str.length > len ? str.slice(0, len - 1).trimEnd() + "…" : str || "");
 
 export function StoreProfilePage() {
   const { storeId } = useParams();
@@ -39,8 +43,30 @@ export function StoreProfilePage() {
     );
   }
 
+  const pageTitle = `${store.storeName} | TIN`;
+  const pageDescription = truncate(
+    [store.businessType && `${store.businessType} in ${store.city || "India"}`, store.brands && `Brands: ${store.brands}`]
+      .filter(Boolean).join(". ") || `${store.storeName} on TIN — India's building materials & construction network.`,
+    160
+  );
+  const pageUrl = `${SITE_URL}/store/${store.id}`;
+  const ogImage = store.logo || `${SITE_URL}/og-image.png`;
+
   return (
     <div style={{ maxWidth: 720, margin: "0 auto", padding: "16px 16px 100px" }}>
+      <Helmet>
+        <title>{pageTitle}</title>
+        <meta name="description" content={pageDescription} />
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={pageDescription} />
+        <meta property="og:image" content={ogImage} />
+        <meta property="og:url" content={pageUrl} />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={pageTitle} />
+        <meta name="twitter:description" content={pageDescription} />
+        <meta name="twitter:image" content={ogImage} />
+      </Helmet>
       <div style={{ background: "#fff", border: "1px solid #e0e0e0", borderRadius: 16, padding: 24 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16, gap: 12 }}>
           <div style={{ flex: 1 }}>

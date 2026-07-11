@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase/config";
 import { JobApplyModal } from "../components/shared/JobApplyModal";
 import { useJobApply } from "../hooks/useJobApply";
+
+const SITE_URL = "https://tinit.in";
+const truncate = (str, len) => (str && str.length > len ? str.slice(0, len - 1).trimEnd() + "…" : str || "");
 
 export function JobDetailPage({ user, isGuest, onRequireLogin }) {
   const { jobId } = useParams();
@@ -47,8 +51,27 @@ export function JobDetailPage({ user, isGuest, onRequireLogin }) {
   const isOwnListing = !isGuest && job.postedByUid === user?.uid;
   const alreadyApplied = appliedJobIds.has(job.id);
 
+  const orgName = job.businessName || job.postedByName || "TIN";
+  const pageTitle = `${job.jobTitle} at ${orgName} | TIN Jobs`;
+  const pageDescription = truncate(job.description, 160);
+  const pageUrl = `${SITE_URL}/jobs/${job.id}`;
+  const ogImage = `${SITE_URL}/og-image.png`;
+
   return (
     <div style={{ maxWidth: 720, margin: "0 auto", padding: "16px 16px 100px" }}>
+      <Helmet>
+        <title>{pageTitle}</title>
+        <meta name="description" content={pageDescription} />
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={pageDescription} />
+        <meta property="og:image" content={ogImage} />
+        <meta property="og:url" content={pageUrl} />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={pageTitle} />
+        <meta name="twitter:description" content={pageDescription} />
+        <meta name="twitter:image" content={ogImage} />
+      </Helmet>
       <Link to="/jobs" style={{ fontSize: 12, color: "var(--t3)", fontWeight: 700, textDecoration: "none", display: "inline-block", marginBottom: 14 }}>← Back to Jobs</Link>
 
       <div style={{ background: "var(--s1)", border: "1px solid var(--b2)", borderRadius: "var(--r)", padding: 24 }}>
