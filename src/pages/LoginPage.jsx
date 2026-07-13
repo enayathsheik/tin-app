@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { getDocs, query, collection, where, addDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db, saveUserProfile, getUserProfile } from "../firebase/config";
 import { ROLES } from "../data/constants";
 import { getLevel } from "../utils/helpers";
+import { checkHandleAvailable, claimHandle, findAvailableHandle, isReservedHandle, isValidHandleFormat, suggestHandleBase } from "../utils/handles";
 
 export function LoginPage({ onLogin }) {
   const [mode, setMode] = useState("login");
@@ -21,9 +22,52 @@ export function LoginPage({ onLogin }) {
   const [loading, setLoading] = useState(false);
   const [showRoleConfirm, setShowRoleConfirm] = useState(false);
 
+  const [handle, setHandle] = useState("");
+  const [handleEdited, setHandleEdited] = useState(false);
+  const [handleStatus, setHandleStatus] = useState("idle"); // idle|checking|available|taken|invalid|reserved
+
   const isContrib = role === "contributor";
   const comingSoonRoles = [];
   const visibleRoles = ROLES.filter(r => r.id !== "manufacturer" && r.id !== "admin");
+
+  // Auto-suggests a handle from the entered name — findAvailableHandle already
+  // appends digits until it lands on a free one — as long as the user hasn't
+  // started editing the handle field themselves.
+  useEffect(() => {
+    if (mode !== "register" || handleEdited) return;
+    const base = suggestHandleBase(name);
+    if (base.length < 3) { setHandleStatus("idle"); return; }
+    setHandleStatus("checking");
+    const t = setTimeout(async () => {
+      try {
+        const found = await findAvailableHandle(base);
+        setHandle(found);
+        setHandleStatus("available");
+      } catch {
+        setHandleStatus("invalid");
+      }
+    }, 500);
+    return () => clearTimeout(t);
+  }, [name, mode, handleEdited]);
+
+  // Live availability check for manual edits (debounced).
+  useEffect(() => {
+    if (mode !== "register" || !handleEdited) return;
+    const h = handle.trim().toLowerCase();
+    if (!h) { setHandleStatus("idle"); return; }
+    if (!isValidHandleFormat(h)) { setHandleStatus("invalid"); return; }
+    if (isReservedHandle(h)) { setHandleStatus("reserved"); return; }
+    setHandleStatus("checking");
+    const t = setTimeout(async () => {
+      try {
+        const ok = await checkHandleAvailable(h);
+        setHandleStatus(ok ? "available" : "taken");
+      } catch {
+        setHandleStatus("invalid");
+      }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [handle, handleEdited, mode]);
 
   const handleForgotPassword = async () => {
     if (!forgotEmail) return;
@@ -78,6 +122,12 @@ export function LoginPage({ onLogin }) {
           createdAt: new Date().toISOString(),
           uid: cred.user.uid
         };
+        try {
+          await claimHandle(cred.user.uid, handle, { role, displayName: ud.name, city: "", photoUrl: null, points: 0, storesAdded: 0, specialization: "", categories: [] });
+          ud.handle = handle;
+        } catch (handleErr) {
+          console.error("[signup] Handle claim failed:", handleErr);
+        }
         await saveUserProfile(cred.user.uid, ud);
         // If a referral code was entered, find the referrer and credit 50 points (pending validation)
         if (referralCode.trim()) {
@@ -112,6 +162,10 @@ export function LoginPage({ onLogin }) {
   };
 
   const handleSubmit = async () => {
+    if (mode === "register" && handleStatus !== "available") {
+      alert("Please choose an available handle before continuing.");
+      return;
+    }
     if (mode === "register" && role === "retailer") {
       setShowRoleConfirm(true);
       return;
@@ -180,6 +234,30 @@ export function LoginPage({ onLogin }) {
         <div className="login-fields">
           {mode === "register" && (
             <div className="lf"><label>Full Name</label><input className="fi" placeholder="Your full name" value={name} onChange={e => setName(e.target.value)} /></div>
+          )}
+
+          {mode === "register" && (
+            <div className="lf">
+              <label>Your tinit ID <span style={{ fontSize: 10, color: "#555", fontWeight: 400 }}>(your public profile URL — tinit.in/@handle)</span></label>
+              <input
+                className="fi"
+                placeholder="yourhandle"
+                value={handle}
+                onChange={e => { setHandleEdited(true); setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "")); }}
+              />
+              <div style={{ fontSize: 11, fontWeight: 600, marginTop: 4, color:
+                handleStatus === "available" ? "#16a34a" :
+                handleStatus === "checking" ? "#888" :
+                handleStatus === "idle" ? "#888" : "#dc2626"
+              }}>
+                {handleStatus === "available" && `✓ tinit.in/@${handle} is available`}
+                {handleStatus === "taken" && "✗ That handle is already taken"}
+                {handleStatus === "invalid" && "Handle must be 3–20 lowercase letters, numbers, or underscores"}
+                {handleStatus === "reserved" && "✗ That handle is reserved"}
+                {handleStatus === "checking" && "Checking availability…"}
+                {handleStatus === "idle" && "Enter your name above to get a suggestion"}
+              </div>
+            </div>
           )}
 
           {mode === "register" && isContrib ? (

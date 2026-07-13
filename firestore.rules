@@ -160,6 +160,22 @@ service cloud.firestore {
     }
     // ══ END NEW ═════════════════════════════════════════════
 
+    // ── HANDLES (tinit ID) ─────────────────────────────────
+    match /handles/{handle} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid;
+      allow delete: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+      allow update: if false;
+    }
+
+    // ── PUBLIC PROFILES (tinit ID) ─────────────────────────
+    match /profiles/{uid} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == uid;
+    }
+
     function isAdmin() {
       return request.auth != null &&
         request.auth.token.email == "enayathsheik@gmail.com";

@@ -27,6 +27,7 @@ import { InspiPage } from "./pages/InspiPage";
 import { JobsPage } from "./pages/JobsPage";
 import { JobDetailPage } from "./pages/JobDetailPage";
 import { StoreProfilePage } from "./pages/StoreProfilePage";
+import { PublicProfilePage } from "./pages/PublicProfilePage";
 
 export default function App() {
   const navigate = useNavigate();
@@ -327,6 +328,10 @@ export default function App() {
             <Route path="/jobs" element={<JobsPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath("/jobs"); setShowLoginPage(true); }} toast={showToast} />} />
             <Route path="/jobs/:jobId" element={<JobDetailPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath(location.pathname); setShowLoginPage(true); }} />} />
             <Route path="/store/:storeId" element={<StoreProfilePage />} />
+            {/* react-router route segments must be fully static or fully dynamic —
+                "/@:handle" never matches, so this takes the whole segment and
+                PublicProfilePage itself validates/strips the "@" prefix. */}
+            <Route path="/:handleSeg" element={<PublicProfilePage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>

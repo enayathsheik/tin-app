@@ -3,6 +3,7 @@ import { collection, doc, getDocs, query, updateDoc, where } from "firebase/fire
 import { db } from "../firebase/config";
 import { CONTRIBUTOR_LEVELS, ROLES } from "../data/constants";
 import { getLevel } from "../utils/helpers";
+import { canChangeHandle, checkHandleAvailable, claimHandle, isReservedHandle, isValidHandleFormat } from "../utils/handles";
 
 export function ProfilePage({ user, onUpdateUser, showJobPosts = true }) {
   const lv = getLevel(user.points);
@@ -46,6 +47,52 @@ export function ProfilePage({ user, onUpdateUser, showJobPosts = true }) {
   });
 
   const upd = (k, v) => setProfileForm(f => ({ ...f, [k]: v }));
+
+  const [showHandleEdit, setShowHandleEdit] = useState(false);
+  const [newHandle, setNewHandle] = useState(user.handle || "");
+  const [newHandleStatus, setNewHandleStatus] = useState("idle"); // idle|checking|available|taken|invalid|reserved
+  const [handleSaving, setHandleSaving] = useState(false);
+  const [handleSaved, setHandleSaved] = useState(false);
+
+  useEffect(() => {
+    if (!showHandleEdit) return;
+    const h = newHandle.trim().toLowerCase();
+    if (!h || h === user.handle) { setNewHandleStatus("idle"); return; }
+    if (!isValidHandleFormat(h)) { setNewHandleStatus("invalid"); return; }
+    if (isReservedHandle(h)) { setNewHandleStatus("reserved"); return; }
+    setNewHandleStatus("checking");
+    const t = setTimeout(async () => {
+      try {
+        const ok = await checkHandleAvailable(h);
+        setNewHandleStatus(ok ? "available" : "taken");
+      } catch {
+        setNewHandleStatus("invalid");
+      }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [newHandle, showHandleEdit]);
+
+  const handleChangeGate = canChangeHandle(user);
+
+  const handleSaveHandle = async () => {
+    if (newHandleStatus !== "available") return;
+    setHandleSaving(true);
+    try {
+      await claimHandle(user.uid, newHandle, {
+        role: user.role, displayName: user.name, city: user.city || "", photoUrl: user.photoUrl || null,
+        points: user.points, storesAdded: user.storesAdded, specialization: profileForm.specialization, categories: user.categories,
+      }, user.handle);
+      const changedAt = new Date().toISOString();
+      await updateDoc(doc(db, "users", user.uid), { handle: newHandle, handleChangedAt: changedAt });
+      if (onUpdateUser) onUpdateUser({ ...user, handle: newHandle, handleChangedAt: changedAt });
+      setHandleSaved(true);
+      setShowHandleEdit(false);
+      setTimeout(() => setHandleSaved(false), 3000);
+    } catch (e) {
+      alert(e.message || "Could not change handle. Please try again.");
+    }
+    setHandleSaving(false);
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -141,6 +188,52 @@ export function ProfilePage({ user, onUpdateUser, showJobPosts = true }) {
             <div className="prof-stat"><div className="prof-sv" style={{ color: "var(--acc)" }}>{user.points}</div><div className="prof-sl">Points</div></div>
             <div className="prof-stat"><div className="prof-sv">{user.storesAdded}</div><div className="prof-sl">Stores Added</div></div>
             <div className="prof-stat"><div className="prof-sv">{user.citiesCovered}</div><div className="prof-sl">Cities</div></div>
+          </div>
+
+          {/* TINIT ID / PUBLIC HANDLE */}
+          <div style={{ background: "#f8f8f8", borderRadius: 12, padding: 14, marginTop: 16, border: "1px solid #e0e0e0" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#555", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 3 }}>Your tinit ID</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#080808" }}>{user.handle ? `tinit.in/@${user.handle}` : "Not set"}</div>
+              </div>
+              {!showHandleEdit && (
+                <button onClick={() => { setShowHandleEdit(true); setNewHandle(user.handle || ""); setNewHandleStatus("idle"); }} style={{ padding: "6px 12px", borderRadius: 8, background: "#fff", border: "1px solid #e0e0e0", color: "#080808", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                  Change
+                </button>
+              )}
+            </div>
+            {showHandleEdit && (
+              <div style={{ marginTop: 10 }}>
+                {!handleChangeGate.ok ? (
+                  <div style={{ fontSize: 12, color: "#dc2626" }}>
+                    You can change your handle again in {handleChangeGate.daysRemaining} day{handleChangeGate.daysRemaining === 1 ? "" : "s"}.
+                    <div style={{ marginTop: 8 }}><span onClick={() => setShowHandleEdit(false)} style={{ fontSize: 12, color: "#e85a2a", fontWeight: 700, cursor: "pointer" }}>Cancel</span></div>
+                  </div>
+                ) : (
+                  <>
+                    <input className="fi" style={{ fontSize: 13 }} placeholder="newhandle" value={newHandle} onChange={e => setNewHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))} />
+                    <div style={{ fontSize: 11, fontWeight: 600, marginTop: 4, color:
+                      newHandleStatus === "available" ? "#16a34a" :
+                      newHandleStatus === "checking" || newHandleStatus === "idle" ? "#888" : "#dc2626"
+                    }}>
+                      {newHandleStatus === "available" && `✓ tinit.in/@${newHandle} is available`}
+                      {newHandleStatus === "taken" && "✗ That handle is already taken"}
+                      {newHandleStatus === "invalid" && "Handle must be 3–20 lowercase letters, numbers, or underscores"}
+                      {newHandleStatus === "reserved" && "✗ That handle is reserved"}
+                      {newHandleStatus === "checking" && "Checking availability…"}
+                    </div>
+                    <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                      <button onClick={handleSaveHandle} disabled={newHandleStatus !== "available" || handleSaving} style={{ padding: "7px 16px", borderRadius: 8, background: "#e85a2a", border: "none", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: newHandleStatus !== "available" || handleSaving ? 0.6 : 1 }}>
+                        {handleSaving ? "Saving..." : "Save Handle"}
+                      </button>
+                      <span onClick={() => setShowHandleEdit(false)} style={{ fontSize: 12, color: "#555", fontWeight: 700, cursor: "pointer", alignSelf: "center" }}>Cancel</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            {handleSaved && <span style={{ marginTop: 8, display: "inline-block", color: "#16a34a", fontSize: 13, fontWeight: 600 }}>✓ Handle updated!</span>}
           </div>
         </div>
         <div className="prog-sec">
