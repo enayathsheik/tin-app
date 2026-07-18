@@ -5,6 +5,7 @@ import { BulkUploadPanel } from "../components/admin/BulkUploadPanel";
 import { UserManagementSection } from "../components/admin/UserManagementSection";
 import { InspiReviewSection } from "../components/admin/InspiReviewSection";
 import { JobsReviewSection } from "../components/admin/JobsReviewSection";
+import { AiTestSection } from "../components/admin/AiTestSection";
 import { exportToExcel } from "../utils/exportExcel";
 import { getLevel } from "../utils/helpers";
 
@@ -190,6 +191,8 @@ export function AdminDashboard({ stores, contributors }) {
         </>}
 
         {section === "users" && <UserManagementSection />}
+
+        {section === "suggestions" && <AiTestSection />}
 
         {section === "inspi" && <InspiReviewSection />}
 
