@@ -1,0 +1,16 @@
+{
+  "name": "ai-foundation",
+  "private": true,
+  "version": "0.1.0",
+  "main": "orchestrator/index.js",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "openai": "^4.77.0"
+  },
+  "devDependencies": {
+    "vitest": "^3.0.5"
+  }
+}
