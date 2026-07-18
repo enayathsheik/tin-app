@@ -15,6 +15,18 @@ const db = getFirestore();
 // Set region to asia-south1 (Mumbai) for lowest latency from India
 setGlobalOptions({ region: "asia-south1", timeoutSeconds: 540, memory: "512MiB" });
 
+// AI Foundation Layer functions (onMessageCreate, confirmSuggestedAction,
+// dismissSuggestedAction) — see ai.js. Required after initializeApp() above
+// so its Firestore/Admin SDK usage shares this same default app. Wrapped so
+// a bug in ai.js (e.g. a missing dependency) can't crash every function in
+// this codebase — it did once already, taking down pullPlacesData and
+// friends too, since they all load through this same entrypoint.
+try {
+  Object.assign(exports, require("./ai"));
+} catch (err) {
+  console.error("Failed to load ai.js — AI Foundation functions unavailable:", err);
+}
+
 // ── YOUR PLACES API KEY (store in Firebase env config) ───────
 // Set via: firebase functions:secrets:set PLACES_API_KEY
 // Then access via: process.env.PLACES_API_KEY
