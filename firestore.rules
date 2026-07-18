@@ -176,9 +176,69 @@ service cloud.firestore {
       allow write: if request.auth != null && request.auth.uid == uid;
     }
 
+    // ══ AI FOUNDATION LAYER — PHASE 1 ═══════════════════════
+    // Minimal messaging/org data model, just enough for the
+    // message -> classify -> suggestedAction -> confirm loop.
+    // No roles/teams — a conversation denormalizes its own
+    // participantUids, which stands in for org-membership checks.
+
+    // ── ORGANIZATIONS ──
+    match /organizations/{orgId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ── ORGANIZATION MEMBERSHIPS ──
+    match /organizationMemberships/{membershipId} {
+      allow read: if request.auth != null &&
+        (resource.data.uid == request.auth.uid || isAdmin());
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ── CONVERSATIONS ── (dev-test scaffolding, admin-only for now)
+    match /conversations/{conversationId} {
+      allow read, create: if isAdmin();
+      allow update, delete: if isAdmin();
+    }
+
+    // ── MESSAGES ──
+    match /messages/{messageId} {
+      allow read: if request.auth != null && isConversationParticipant(resource.data.conversationId);
+      allow create: if request.auth != null &&
+        request.resource.data.senderUid == request.auth.uid &&
+        isConversationParticipant(request.resource.data.conversationId);
+      allow update, delete: if false;
+    }
+
+    // ── SUGGESTED ACTIONS ── (Cloud Functions/Admin SDK only write)
+    match /suggestedActions/{actionId} {
+      allow read: if request.auth != null && isConversationParticipant(resource.data.conversationId);
+      allow write: if false;
+    }
+
+    // ── LEDGER ENTRIES / MILESTONES / SNAGS ── (Cloud Functions/Admin SDK only write)
+    match /ledgerEntries/{entryId} {
+      allow read: if request.auth != null && isConversationParticipant(resource.data.conversationId);
+      allow write: if false;
+    }
+    match /milestones/{milestoneId} {
+      allow read: if request.auth != null && isConversationParticipant(resource.data.conversationId);
+      allow write: if false;
+    }
+    match /snags/{snagId} {
+      allow read: if request.auth != null && isConversationParticipant(resource.data.conversationId);
+      allow write: if false;
+    }
+    // ══ END AI FOUNDATION LAYER ═════════════════════════════
+
     function isAdmin() {
       return request.auth != null &&
         request.auth.token.email == "enayathsheik@gmail.com";
+    }
+
+    function isConversationParticipant(conversationId) {
+      return request.auth.uid in
+        get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantUids;
     }
   }
 }
