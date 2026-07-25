@@ -12,10 +12,18 @@
 
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { defineSecret } = require("firebase-functions/params");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 const aiFoundation = require("./vendor/ai-foundation");
 
 const db = getFirestore();
+
+// Bound below on onMessageCreate — the only function here that calls into
+// the OpenAI-backed orchestrator (aiFoundation.classifyMessage). Firebase
+// Functions v2 injects the resolved value into process.env.OPENAI_API_KEY
+// at invocation time, which is what providers/openai/adapter.js already
+// reads (see packages/ai-foundation) — no change needed there.
+const openaiApiKey = defineSecret("OPENAI_API_KEY");
 
 // Maps a suggestedAction's actionType to the collection it's allowed to
 // write to on confirm. Types with no collection in scope (tag_project,
@@ -35,31 +43,34 @@ async function isConversationParticipant(conversationId, uid) {
 }
 
 // ── CLOUD FUNCTION: onMessageCreate ──────────────────────────
-exports.onMessageCreate = onDocumentCreated("messages/{messageId}", async (event) => {
-  const messageId = event.params.messageId;
-  const message = event.data.data();
+exports.onMessageCreate = onDocumentCreated(
+  { document: "messages/{messageId}", secrets: [openaiApiKey] },
+  async (event) => {
+    const messageId = event.params.messageId;
+    const message = event.data.data();
 
-  let proposal;
-  try {
-    proposal = await aiFoundation.classifyMessage(messageId);
-  } catch (err) {
-    console.error(`[onMessageCreate] classifyMessage failed for ${messageId}:`, err.message);
-    return;
+    let proposal;
+    try {
+      proposal = await aiFoundation.classifyMessage(messageId);
+    } catch (err) {
+      console.error(`[onMessageCreate] classifyMessage failed for ${messageId}:`, err.message);
+      return;
+    }
+
+    if (!proposal) return; // no suggestion warranted, or below confidence threshold
+
+    await db.collection("suggestedActions").add({
+      conversationId: message.conversationId,
+      messageId,
+      orgId: message.senderOrgId || null,
+      actionType: proposal.suggestedActionType,
+      payload: proposal.suggestedActionPayload,
+      explanation: proposal.explanation,
+      status: "pending",
+      createdAt: FieldValue.serverTimestamp(),
+    });
   }
-
-  if (!proposal) return; // no suggestion warranted, or below confidence threshold
-
-  await db.collection("suggestedActions").add({
-    conversationId: message.conversationId,
-    messageId,
-    orgId: message.senderOrgId || null,
-    actionType: proposal.suggestedActionType,
-    payload: proposal.suggestedActionPayload,
-    explanation: proposal.explanation,
-    status: "pending",
-    createdAt: FieldValue.serverTimestamp(),
-  });
-});
+);
 
 // ── CLOUD FUNCTION: confirmSuggestedAction ───────────────────
 // This is explicitly OUTSIDE the ai-foundation package — the application
