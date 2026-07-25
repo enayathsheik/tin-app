@@ -75,7 +75,7 @@ exports.onMessageCreate = onDocumentCreated(
 // ── CLOUD FUNCTION: confirmSuggestedAction ───────────────────
 // This is explicitly OUTSIDE the ai-foundation package — the application
 // boundary where a user's confirmation turns a proposal into real data.
-exports.confirmSuggestedAction = onCall({ cors: true }, async (request) => {
+exports.confirmSuggestedAction = onCall({ cors: true, invoker: "public" }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
 
   const { actionId, editedPayload } = request.data;
@@ -125,7 +125,7 @@ exports.confirmSuggestedAction = onCall({ cors: true }, async (request) => {
 });
 
 // ── CLOUD FUNCTION: dismissSuggestedAction ───────────────────
-exports.dismissSuggestedAction = onCall({ cors: true }, async (request) => {
+exports.dismissSuggestedAction = onCall({ cors: true, invoker: "public" }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
 
   const { actionId } = request.data;
