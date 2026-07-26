@@ -1,12 +1,18 @@
 // Generates dist/sitemap.xml and dist/robots.txt from live Firestore data.
 // Run after `vite build` (writes directly into dist/). See
 // scripts/firebaseAdmin.js for one-time credential setup.
-import { writeFileSync } from "fs";
+import { existsSync, writeFileSync } from "fs";
 import path from "path";
 import { initAdmin } from "./firebaseAdmin.js";
 
 const SITE_URL = "https://tinit.in";
 const DIST_DIR = "dist";
+
+const SERVICE_ACCOUNT_PATH = process.env.SERVICE_ACCOUNT_PATH || "./serviceAccountKey.json";
+if (!existsSync(SERVICE_ACCOUNT_PATH)) {
+  console.warn(`[sitemap] Missing service account key at "${SERVICE_ACCOUNT_PATH}" — skipping sitemap generation.`);
+  process.exit(0);
+}
 
 const xmlEscape = (str) => String(str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 

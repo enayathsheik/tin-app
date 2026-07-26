@@ -21,6 +21,12 @@ const SITE_URL = "https://tinit.in";
 const DIST_DIR = "dist";
 const META_REGION = /<!--SEO-META-START-->[\s\S]*?<!--SEO-META-END-->/;
 
+const SERVICE_ACCOUNT_PATH = process.env.SERVICE_ACCOUNT_PATH || "./serviceAccountKey.json";
+if (!existsSync(SERVICE_ACCOUNT_PATH)) {
+  console.warn(`[prerender] Missing service account key at "${SERVICE_ACCOUNT_PATH}" — skipping prerender.`);
+  process.exit(0);
+}
+
 const truncate = (str, len) => (str && str.length > len ? str.slice(0, len - 1).trimEnd() + "…" : str || "");
 const escapeHtml = (str) => String(str || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
