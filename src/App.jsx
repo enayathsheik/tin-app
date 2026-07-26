@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-
 import { collection, getDocs, getDoc, query, where, orderBy, doc } from "firebase/firestore";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth, db, getUserProfile, updateUserStats } from "./firebase/config";
+import { bootstrapOwnerOrg } from "./lib/tenancy";
 import { MOCK_STORES } from "./data/constants";
 import { G } from "./data/globalStyles";
 import { Toast } from "./components/shared/Toast";
@@ -103,6 +104,13 @@ export default function App() {
             const finalProfile = isAdminEmail ? { ...profile, role: "admin" } : profile;
             setUser({ ...finalProfile, uid: firebaseUser.uid });
             setPage(isAdminEmail ? "admin" : (profile.role === "admin" ? "admin" : "home"));
+            // Bootstrap the admin's personal org so there is a live tenant to
+            // build the conversation/permission model against. Idempotent —
+            // safe to call on every admin login.
+            if (isAdminEmail) {
+              bootstrapOwnerOrg({ name: "HOM Systems", type: "org" })
+                .catch(e => console.error("[tenancy] bootstrapOwnerOrg failed:", e.message));
+            }
           }
         } catch(e) { console.log("Profile load error:", e); }
       }
