@@ -37,28 +37,6 @@ export function AiTestSection() {
     setSuggestions(sugSnap.docs.map(d => ({ id: d.id, ...d.data() })));
   };
 
-  const seedDemoOrgs = async () => {
-    if (!uid) return alert("Not logged in.");
-    setLoading(true);
-    try {
-      const org1 = await addDoc(collection(db, "organizations"), { name: "Demo Buyer Co.", type: "buyer", createdAt: serverTimestamp() });
-      const org2 = await addDoc(collection(db, "organizations"), { name: "Demo Supplier Co.", type: "supplier", createdAt: serverTimestamp() });
-      await Promise.all([
-        addDoc(collection(db, "organizationMemberships"), { uid, orgId: org1.id, createdAt: serverTimestamp() }),
-        addDoc(collection(db, "organizationMemberships"), { uid, orgId: org2.id, createdAt: serverTimestamp() }),
-      ]);
-      const conv = await addDoc(collection(db, "conversations"), {
-        participantOrgIds: [org1.id, org2.id],
-        participantUids: [uid],
-        createdAt: serverTimestamp(),
-        lastMessageAt: serverTimestamp(),
-      });
-      await loadConversations();
-      await loadThread(conv.id);
-    } catch (e) { alert("Seed failed: " + e.message); }
-    setLoading(false);
-  };
-
   const sendMessage = async () => {
     if (!messageText.trim() || !activeConvId) return;
     setLoading(true);
@@ -101,10 +79,6 @@ export function AiTestSection() {
         <div className="admin-title">AI Foundation — Test Loop</div>
         <div className="admin-sub">Dev-only: create a conversation, post a message, review suggested actions</div>
       </div>
-
-      <button className="btn-sm btn-ok" disabled={loading} onClick={seedDemoOrgs} style={{ marginBottom: 16 }}>
-        + Seed Demo Orgs &amp; Conversation
-      </button>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
         {conversations.map(c => (
