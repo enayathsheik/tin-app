@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../firebase/config";
-import { subscribeToConversation } from "../../lib/conversations";
+import { subscribeToConversation, linkEntity } from "../../lib/conversations";
 
 // Renderers only for entity types with a real collection + page in TIN
 // today. Anything else (e.g. "project") falls through to a neutral labelled
@@ -18,6 +18,7 @@ export function ContextRail({ conversationId }) {
   const navigate = useNavigate();
   const [conversation, setConversation] = useState(null);
   const [resolved, setResolved] = useState({});
+  const [showLinkForm, setShowLinkForm] = useState(false);
 
   useEffect(() => {
     setConversation(null);
@@ -52,7 +53,17 @@ export function ContextRail({ conversationId }) {
 
   return (
     <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 8, height: "100%", overflowY: "auto" }}>
-      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 800, fontSize: 13, color: "#080808", textTransform: "uppercase", letterSpacing: ".06em" }}>Linked Context</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 800, fontSize: 13, color: "#080808", textTransform: "uppercase", letterSpacing: ".06em" }}>Linked Context</div>
+        <button
+          onClick={() => setShowLinkForm(s => !s)}
+          style={{ padding: "4px 10px", borderRadius: 8, background: "#f5f5f5", border: "1px solid #e0e0e0", color: "#080808", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
+        >
+          {showLinkForm ? "Cancel" : "+ Link"}
+        </button>
+      </div>
+
+      {showLinkForm && <LinkEntityForm conversationId={conversationId} onLinked={() => setShowLinkForm(false)} />}
 
       {linkedEntities.length === 0 && (
         <div style={{ color: "#888", fontSize: 12, textAlign: "center", padding: "24px 0" }}>No linked context yet.</div>
@@ -83,6 +94,51 @@ export function ContextRail({ conversationId }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// Only offers entityTypes that exist in ENTITY_RENDERERS above — lib/conversations.js's
+// linkEntity() enforces the same allowlist against the real collections, so
+// this can't drift into linking a type with no renderer.
+function LinkEntityForm({ conversationId, onLinked }) {
+  const [entityType, setEntityType] = useState("store");
+  const [entityId, setEntityId] = useState("");
+  const [relationship, setRelationship] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleSubmit = async () => {
+    if (!entityId.trim() || saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await linkEntity({ conversationId, entityType, entityId, relationship });
+      setEntityId("");
+      setRelationship("");
+      onLinked?.();
+    } catch (e) {
+      setError(e.message || "Failed to link.");
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div style={{ padding: 10, borderRadius: 10, background: "#f8f8f8", border: "1px solid #e0e0e0", display: "flex", flexDirection: "column", gap: 6 }}>
+      <select value={entityType} onChange={e => setEntityType(e.target.value)} style={{ fontSize: 12, borderRadius: 6, border: "1px solid #e0e0e0", padding: "5px 6px" }}>
+        <option value="store">Store</option>
+        <option value="job">Job</option>
+      </select>
+      <input className="fi" value={entityId} onChange={e => setEntityId(e.target.value)} placeholder={`${entityType === "store" ? "Store" : "Job"} ID (from its page URL)`} style={{ fontSize: 12 }} />
+      <input className="fi" value={relationship} onChange={e => setRelationship(e.target.value)} placeholder="Relationship (optional)" style={{ fontSize: 12 }} />
+      {error && <div style={{ color: "#dc2626", fontSize: 11 }}>{error}</div>}
+      <button
+        onClick={handleSubmit}
+        disabled={saving || !entityId.trim()}
+        style={{ padding: "6px 0", borderRadius: 8, background: "#e85a2a", border: "none", color: "#fff", fontSize: 12, fontWeight: 700, cursor: saving ? "default" : "pointer", opacity: saving || !entityId.trim() ? 0.6 : 1 }}
+      >
+        {saving ? "Linking…" : "Link"}
+      </button>
     </div>
   );
 }

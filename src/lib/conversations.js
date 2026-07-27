@@ -11,7 +11,7 @@
 // See firestore.rules for the matching tenant-isolation + scope rules
 // (canAccessConversation, isActiveMember) these shapes are designed against.
 import {
-  collection, doc, getDoc, getDocs, setDoc,
+  collection, doc, getDoc, getDocs, setDoc, updateDoc, arrayUnion,
   query, where, orderBy, limit, startAfter, onSnapshot,
   serverTimestamp, writeBatch,
 } from "firebase/firestore";
@@ -21,6 +21,11 @@ const CONVERSATIONS = "conversations";
 const SUGGESTED_ACTIONS = "suggestedActions";
 const MESSAGES = "messages";
 const CONVERSATION_META = "conversationMeta";
+
+// Entity types with a real collection + page in TIN today — matches
+// ContextRail's ENTITY_RENDERERS allowlist. Anything else can't be linked
+// yet (no collection to verify against).
+const LINKABLE_ENTITY_COLLECTIONS = { store: "stores", job: "jobListings" };
 
 const MESSAGE_TYPES = ["text", "image", "file", "reference"];
 
@@ -262,4 +267,24 @@ export function subscribeToConversation({ conversationId, onChange, onError }) {
     (snap) => onChange(snap.exists() ? { id: snap.id, ...snap.data() } : null),
     onError
   );
+}
+
+// Links an existing store/job to the conversation by appending to
+// linkedEntities (additive array update). Verifies the target doc actually
+// exists first, so the rail never has to render a linked entity that was
+// never real. The conversations update rule already allows any participant
+// to update the doc as long as scope is untouched (it is here) — no rules
+// change needed.
+export async function linkEntity({ conversationId, entityType, entityId, relationship = "" }) {
+  const targetCollection = LINKABLE_ENTITY_COLLECTIONS[entityType];
+  if (!targetCollection) throw new Error(`linkEntity: entityType "${entityType}" is not linkable yet`);
+  const trimmedId = (entityId || "").trim();
+  if (!trimmedId) throw new Error("linkEntity: entityId required");
+
+  const targetSnap = await getDoc(doc(db, targetCollection, trimmedId));
+  if (!targetSnap.exists()) throw new Error(`No ${entityType} found with id "${trimmedId}"`);
+
+  await updateDoc(doc(db, CONVERSATIONS, conversationId), {
+    linkedEntities: arrayUnion({ entityType, entityId: trimmedId, relationship: (relationship || "").trim() }),
+  });
 }
