@@ -9,7 +9,7 @@
 // hasRole, isActiveMember) that these shapes are designed against.
 import {
   collection, doc, getDoc, getDocs, query, where,
-  writeBatch, serverTimestamp, updateDoc,
+  writeBatch, serverTimestamp, updateDoc, setDoc,
 } from "firebase/firestore";
 import { db, auth } from "../firebase/config";
 
@@ -119,4 +119,26 @@ export async function recomputeCapabilities(orgId) {
 // Idempotent via createOrganization — safe to call on every login.
 export async function bootstrapOwnerOrg({ name, type }) {
   return createOrganization({ name, type });
+}
+
+// Minimal member provisioning — an owner/admin adds a known uid to their org
+// with a role. Matches firestore.rules' memberships create rule exactly
+// (hasRole(orgId, ['owner','admin'])); no rule change needed.
+//
+// displayName is admin-supplied rather than looked up, because users/{uid}
+// is self-read-only in firestore.rules (no admin exception) — the admin
+// can't resolve a stranger's uid to a name via the client SDK. Denormalizing
+// it here is what lets the conversations UI show a human label for this
+// member without ever reading their user doc.
+export async function createMembership({ orgId, uid, role, displayName = "" }) {
+  if (!orgId || !uid || !role) throw new Error("createMembership: orgId, uid, role required");
+  await setDoc(doc(db, MEMBERSHIPS, membershipId(orgId, uid)), {
+    orgId,
+    uid,
+    role,
+    displayName,
+    teamIds: [],
+    status: "active",
+    createdAt: serverTimestamp(),
+  });
 }
