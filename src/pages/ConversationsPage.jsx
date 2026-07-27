@@ -2,6 +2,9 @@ import { useState, useEffect } from "react";
 import { Routes, Route, useParams, useNavigate } from "react-router-dom";
 import { resolveActiveOrg } from "../lib/tenancy";
 import { useIsDesktop } from "../hooks/useIsDesktop";
+import { ConversationList } from "../components/conversations/ConversationList";
+
+const CONVERSATION_STARTER_ROLES = ["owner", "admin", "manager"];
 
 // Mobile-first conversation surface. Mobile: routed single pane — list and
 // thread are separate routes (/conversations, /conversations/:conversationId).
@@ -43,17 +46,21 @@ function ConversationsShell({ user, orgCtx, conversationId = null }) {
   const navigate = useNavigate();
   const openConversation = (id) => navigate(`/conversations/${id}`);
   const backToList = () => navigate("/conversations");
+  const canStartConversation = CONVERSATION_STARTER_ROLES.includes(orgCtx.membership?.role);
+
+  // New Conversation flow lands in commit 7 — wired here once NewConversationModal exists.
+  const onNewConversation = () => {};
 
   if (!isDesktop) {
     return conversationId
       ? <ThreadPane user={user} orgCtx={orgCtx} conversationId={conversationId} onBack={backToList} />
-      : <ListPane user={user} orgCtx={orgCtx} onOpen={openConversation} />;
+      : <ConversationList user={user} orgCtx={orgCtx} onOpen={openConversation} canStartConversation={canStartConversation} onNewConversation={onNewConversation} />;
   }
 
   return (
     <div className="conv-desktop">
       <div className="conv-pane conv-pane-list">
-        <ListPane user={user} orgCtx={orgCtx} onOpen={openConversation} activeId={conversationId} />
+        <ConversationList user={user} orgCtx={orgCtx} onOpen={openConversation} activeId={conversationId} canStartConversation={canStartConversation} onNewConversation={onNewConversation} />
       </div>
       <div className="conv-pane conv-pane-thread">
         {conversationId
@@ -67,10 +74,7 @@ function ConversationsShell({ user, orgCtx, conversationId = null }) {
   );
 }
 
-// Placeholders — replaced by ConversationList (commit 3) and MessageThread (commit 4).
-function ListPane() {
-  return <CenteredNote text="Conversation list coming up next." />;
-}
+// Placeholder — replaced by MessageThread (commit 4).
 function ThreadPane() {
   return <CenteredNote text="Message thread coming up next." />;
 }
