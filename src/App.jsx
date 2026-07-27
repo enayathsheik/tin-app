@@ -29,6 +29,7 @@ import { JobsPage } from "./pages/JobsPage";
 import { JobDetailPage } from "./pages/JobDetailPage";
 import { StoreProfilePage } from "./pages/StoreProfilePage";
 import { PublicProfilePage } from "./pages/PublicProfilePage";
+import { ConversationsPage } from "./pages/ConversationsPage";
 
 export default function App() {
   const navigate = useNavigate();
@@ -187,12 +188,15 @@ export default function App() {
         ["staff","Staff"],
         ...(showLeaderboard ? [["leaderboard","Leaderboard"]] : []),
         ["deals","Deals"],
+        ["messages","Messages"],
         ["profile","Profile"],
       ];
 
   // /jobs and /jobs/:jobId are now real routes, not `page` state — derive the
   // highlighted nav tab from the URL for those, falling back to `page` elsewhere.
-  const activePage = location.pathname.startsWith("/jobs") ? "jobs" : page;
+  const activePage = location.pathname.startsWith("/jobs") ? "jobs"
+    : location.pathname.startsWith("/conversations") ? "messages"
+    : page;
 
   // Check if accessing admin panel via URL hash
   const isAdminRoute = typeof window !== "undefined" && window.location.hash === "#admin";
@@ -231,6 +235,7 @@ export default function App() {
                 <button key={id} className={`ntab ${activePage === id ? "on" : ""}`} onClick={() => {
                   if (id === "login") setShowLoginPage(true);
                   else if (id === "jobs") navigate("/jobs");
+                  else if (id === "messages") navigate("/conversations");
                   else { navigate("/"); setPage(id); }
                 }}>{label}</button>
               ))}
@@ -277,6 +282,7 @@ export default function App() {
                   ["add","➕","Add"],
                   ...(isContrib ? [["rewards","⭐","Rewards"]] : []),
                   ...(isContrib ? [["myzone","🗺","My Zone"]] : []),
+                  ["messages","💬","Messages"],
                   ["profile","👤","Profile"],
                 ]
               : [
@@ -291,6 +297,7 @@ export default function App() {
                 if (id === "login") setShowLoginPage(true);
                 else if (id === "add") handleAddStore();
                 else if (id === "jobs") navigate("/jobs");
+                else if (id === "messages") navigate("/conversations");
                 else { navigate("/"); setPage(id); }
               }}>
                 <span className="mobile-nav-icon">{icon}</span>
@@ -336,6 +343,7 @@ export default function App() {
             <Route path="/jobs" element={<JobsPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath("/jobs"); setShowLoginPage(true); }} toast={showToast} />} />
             <Route path="/jobs/:jobId" element={<JobDetailPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath(location.pathname); setShowLoginPage(true); }} />} />
             <Route path="/store/:storeId" element={<StoreProfilePage />} />
+            <Route path="/conversations/*" element={<ConversationsPage user={user} />} />
             {/* react-router route segments must be fully static or fully dynamic —
                 "/@:handle" never matches, so this takes the whole segment and
                 PublicProfilePage itself validates/strips the "@" prefix. */}

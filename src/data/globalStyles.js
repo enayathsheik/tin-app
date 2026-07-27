@@ -495,6 +495,13 @@ tr:hover td{background:var(--s2);color:var(--t1)}
 .light .ntab.on{color:#080808}
 .light .logo{color:#080808}
 
+/* ── CONVERSATIONS ────────────────────────────────────── */
+.conv-desktop{display:flex;height:100%;overflow:hidden}
+.conv-pane{overflow-y:auto}
+.conv-pane-list{width:300px;flex-shrink:0;border-right:1px solid #e0e0e0;background:#fff}
+.conv-pane-thread{flex:1;min-width:0;background:#f5f5f5;display:flex;flex-direction:column}
+.conv-pane-rail{width:280px;flex-shrink:0;border-left:1px solid #e0e0e0;background:#fff}
+
 /* ── INSPI GRID ──────────────────────────────────────── */
 .inspi-grid{column-count:4;column-gap:12px}
 @media(max-width:960px){.inspi-grid{column-count:3}}

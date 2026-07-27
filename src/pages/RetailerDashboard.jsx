@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "../firebase/config";
 import { EXHIBITIONS } from "../data/constants";
@@ -9,9 +10,10 @@ import { ProfilePage } from "./ProfilePage";
 import { InspiPage } from "./InspiPage";
 import { RetailerJobsPage } from "./RetailerJobsPage";
 
-const RETAILER_NAV_ITEMS = [["home","🏠","My Business"],["discover","🔍","Discover"],["inspi","🖼","Inspi"],["jobs","💼","Jobs"],["staff","👥","Staff"],["deals","🏷","Deals"],["profile","👤","Profile"]];
+const RETAILER_NAV_ITEMS = [["home","🏠","My Business"],["discover","🔍","Discover"],["inspi","🖼","Inspi"],["jobs","💼","Jobs"],["staff","👥","Staff"],["deals","🏷","Deals"],["messages","💬","Messages"],["profile","👤","Profile"]];
 
 export function RetailerDashboard({ user, stores, onNavigate }) {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("home");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [storeProfile, setStoreProfile] = useState({
@@ -95,7 +97,11 @@ export function RetailerDashboard({ user, stores, onNavigate }) {
         </div>
         {RETAILER_NAV_ITEMS.map(([id,icon,label]) => (
           <div key={id}
-            onClick={() => { setActiveTab(id); setMobileNavOpen(false); }}
+            onClick={() => {
+              setMobileNavOpen(false);
+              if (id === "messages") navigate("/conversations");
+              else setActiveTab(id);
+            }}
             style={{padding:"9px 12px",borderRadius:8,fontSize:13,fontWeight:600,color:activeTab===id?"#e85a2a":"#080808",background:activeTab===id?"#fff3ef":"transparent",cursor:"pointer",display:"flex",alignItems:"center",gap:8,transition:"all .15s"}}>
             <span style={{fontSize:15}}>{icon}</span>{label}
             {id==="deals"&&<span style={{fontSize:9,background:"#e85a2a",color:"white",padding:"1px 5px",borderRadius:10,fontWeight:700,marginLeft:"auto"}}>NEW</span>}
