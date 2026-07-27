@@ -250,3 +250,16 @@ export function subscribeToSuggestedActions({ conversationId, onChange, onError 
     onError
   );
 }
+
+// ── CONTEXT RAIL (linkedEntities) ────────────────────────────
+
+// Single-doc, bounded, realtime — used by ContextRail so a fresh link (or
+// any other conversation doc change) reflects immediately with no manual
+// refresh. Caller detaches on unmount / conversationId change like the rest.
+export function subscribeToConversation({ conversationId, onChange, onError }) {
+  return onSnapshot(
+    doc(db, CONVERSATIONS, conversationId),
+    (snap) => onChange(snap.exists() ? { id: snap.id, ...snap.data() } : null),
+    onError
+  );
+}

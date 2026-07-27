@@ -11,7 +11,7 @@ const LIVE_PAGE_SIZE = 50;
 // Realtime, scoped to exactly the open conversation — subscribeToThread is
 // re-subscribed (and the previous listener detached) whenever conversationId
 // changes, and detached on unmount. Never left open against a closed thread.
-export function MessageThread({ user, orgCtx, conversationId, onBack }) {
+export function MessageThread({ user, orgCtx, conversationId, onBack, onOpenContext }) {
   const [conversation, setConversation] = useState(null);
   const [liveMessages, setLiveMessages] = useState([]);
   const [liveDocs, setLiveDocs] = useState([]);
@@ -111,9 +111,12 @@ export function MessageThread({ user, orgCtx, conversationId, onBack }) {
         {onBack && (
           <button onClick={onBack} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "#080808" }} aria-label="Back to conversations">←</button>
         )}
-        <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 800, fontSize: 16, color: "#080808" }}>
+        <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 800, fontSize: 16, color: "#080808", flex: 1 }}>
           {conversation ? conversationTitle(conversation, user.uid) : "Conversation"}
         </div>
+        {onOpenContext && (
+          <button onClick={onOpenContext} style={{ background: "none", border: "none", fontSize: 16, cursor: "pointer", color: "#080808" }} aria-label="View linked context">ℹ️</button>
+        )}
       </div>
 
       <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "14px 16px" }}>

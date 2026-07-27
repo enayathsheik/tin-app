@@ -5,6 +5,7 @@ import { useIsDesktop } from "../hooks/useIsDesktop";
 import { ConversationList } from "../components/conversations/ConversationList";
 import { MessageThread } from "../components/conversations/MessageThread";
 import { NewConversationModal } from "../components/conversations/NewConversationModal";
+import { ContextRail } from "../components/conversations/ContextRail";
 
 const CONVERSATION_STARTER_ROLES = ["owner", "admin", "manager"];
 
@@ -47,6 +48,7 @@ function ConversationsShell({ user, orgCtx, conversationId = null }) {
   const isDesktop = useIsDesktop();
   const navigate = useNavigate();
   const [showNewConversation, setShowNewConversation] = useState(false);
+  const [showRailSheet, setShowRailSheet] = useState(false);
   const openConversation = (id) => navigate(`/conversations/${id}`);
   const backToList = () => navigate("/conversations");
   const canStartConversation = CONVERSATION_STARTER_ROLES.includes(orgCtx.membership?.role);
@@ -64,9 +66,20 @@ function ConversationsShell({ user, orgCtx, conversationId = null }) {
     return (
       <>
         {conversationId
-          ? <MessageThread user={user} orgCtx={orgCtx} conversationId={conversationId} onBack={backToList} />
+          ? <MessageThread user={user} orgCtx={orgCtx} conversationId={conversationId} onBack={backToList} onOpenContext={() => setShowRailSheet(true)} />
           : <ConversationList user={user} orgCtx={orgCtx} onOpen={openConversation} canStartConversation={canStartConversation} onNewConversation={() => setShowNewConversation(true)} />}
         {modal}
+        {showRailSheet && conversationId && (
+          <div style={{ position: "fixed", inset: 0, background: "#00000060", zIndex: 480, display: "flex", alignItems: "flex-end" }} onClick={() => setShowRailSheet(false)}>
+            <div style={{ background: "#fff", borderRadius: "16px 16px 0 0", width: "100%", maxHeight: "70vh", display: "flex", flexDirection: "column" }} onClick={e => e.stopPropagation()}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid #e0e0e0", flexShrink: 0 }}>
+                <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 800, fontSize: 15, color: "#080808" }}>Linked Context</div>
+                <button onClick={() => setShowRailSheet(false)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "#888" }}>✕</button>
+              </div>
+              <ContextRail conversationId={conversationId} />
+            </div>
+          </div>
+        )}
       </>
     );
   }
@@ -82,7 +95,9 @@ function ConversationsShell({ user, orgCtx, conversationId = null }) {
           : <CenteredNote text="Select a conversation to start reading." />}
       </div>
       <div className="conv-pane conv-pane-rail">
-        {/* Phase C: context rail (linked entities, AI suggestion chip) lands here. */}
+        {conversationId
+          ? <ContextRail conversationId={conversationId} />
+          : <CenteredNote text="Select a conversation to see linked context." />}
       </div>
       {modal}
     </div>
