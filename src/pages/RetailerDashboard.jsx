@@ -10,10 +10,17 @@ import { ProfilePage } from "./ProfilePage";
 import { InspiPage } from "./InspiPage";
 import { RetailerJobsPage } from "./RetailerJobsPage";
 
-const RETAILER_NAV_ITEMS = [["home","🏠","My Business"],["discover","🔍","Discover"],["inspi","🖼","Inspi"],["jobs","💼","Jobs"],["staff","👥","Staff"],["deals","🏷","Deals"],["messages","💬","Messages"],["profile","👤","Profile"]];
+const BASE_RETAILER_NAV_ITEMS = [["home","🏠","My Business"],["discover","🔍","Discover"],["inspi","🖼","Inspi"],["jobs","💼","Jobs"],["staff","👥","Staff"],["deals","🏷","Deals"]];
+const MESSAGES_NAV_ITEM = ["messages","💬","Messages"];
+const PROFILE_NAV_ITEM = ["profile","👤","Profile"];
 
-export function RetailerDashboard({ user, stores, onNavigate }) {
+export function RetailerDashboard({ user, stores, onNavigate, hasActiveMembership = false }) {
   const navigate = useNavigate();
+  const RETAILER_NAV_ITEMS = [
+    ...BASE_RETAILER_NAV_ITEMS,
+    ...(hasActiveMembership ? [MESSAGES_NAV_ITEM] : []),
+    PROFILE_NAV_ITEM,
+  ];
   const [activeTab, setActiveTab] = useState("home");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [storeProfile, setStoreProfile] = useState({

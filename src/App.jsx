@@ -3,7 +3,7 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-
 import { collection, getDocs, getDoc, query, where, orderBy, doc } from "firebase/firestore";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth, db, getUserProfile, updateUserStats } from "./firebase/config";
-import { bootstrapOwnerOrg } from "./lib/tenancy";
+import { bootstrapOwnerOrg, getMemberships } from "./lib/tenancy";
 import { MOCK_STORES } from "./data/constants";
 import { G } from "./data/globalStyles";
 import { Toast } from "./components/shared/Toast";
@@ -92,6 +92,10 @@ export default function App() {
   const [showLoginPage, setShowLoginPage] = useState(false);
   const [pendingPage, setPendingPage] = useState(null);
   const [pendingPath, setPendingPath] = useState(null);
+  // Gates the Conversations nav entries + route — "has at least one active
+  // membership somewhere," not hard-coded to admin. Grows automatically as
+  // members are provisioned (see MemberProvisioningSection).
+  const [hasActiveMembership, setHasActiveMembership] = useState(false);
 
   // Persistent login — check auth state on mount
   useEffect(() => {
@@ -107,10 +111,17 @@ export default function App() {
             setPage(isAdminEmail ? "admin" : (profile.role === "admin" ? "admin" : "home"));
             // Bootstrap the admin's personal org so there is a live tenant to
             // build the conversation/permission model against. Idempotent —
-            // safe to call on every admin login.
+            // safe to call on every admin login. bootstrapOwnerOrg always
+            // resolves with an owner membership, so it can set the gate
+            // directly instead of racing a separate getMemberships lookup.
             if (isAdminEmail) {
               bootstrapOwnerOrg({ name: "HOM Systems", type: "org" })
+                .then(() => setHasActiveMembership(true))
                 .catch(e => console.error("[tenancy] bootstrapOwnerOrg failed:", e.message));
+            } else {
+              getMemberships(firebaseUser.uid)
+                .then(memberships => setHasActiveMembership(memberships.length > 0))
+                .catch(e => console.error("[tenancy] getMemberships failed:", e.message));
             }
           }
         } catch(e) { console.log("Profile load error:", e); }
@@ -123,6 +134,7 @@ export default function App() {
   const handleLogout = async () => {
     await signOut(auth);
     setUser(null);
+    setHasActiveMembership(false);
     navigate("/");
     setPage("home");
   };
@@ -174,7 +186,7 @@ export default function App() {
         ["login","Login"],
       ]
     : user.role === "admin"
-    ? [["admin","Admin Panel"],["inspi","Browse Inspi"],["jobs","Browse Jobs"]]
+    ? [["admin","Admin Panel"],["inspi","Browse Inspi"],["jobs","Browse Jobs"], ...(hasActiveMembership ? [["messages","Messages"]] : [])]
     : isRetailer
     ? [] // Retailer uses internal sidebar nav
     : [
@@ -188,7 +200,7 @@ export default function App() {
         ["staff","Staff"],
         ...(showLeaderboard ? [["leaderboard","Leaderboard"]] : []),
         ["deals","Deals"],
-        ["messages","Messages"],
+        ...(hasActiveMembership ? [["messages","Messages"]] : []),
         ["profile","Profile"],
       ];
 
@@ -282,7 +294,7 @@ export default function App() {
                   ["add","➕","Add"],
                   ...(isContrib ? [["rewards","⭐","Rewards"]] : []),
                   ...(isContrib ? [["myzone","🗺","My Zone"]] : []),
-                  ["messages","💬","Messages"],
+                  ...(hasActiveMembership ? [["messages","💬","Messages"]] : []),
                   ["profile","👤","Profile"],
                 ]
               : [
@@ -311,7 +323,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<>
               {page === "home" && (isRetailer
-                ? <RetailerDashboard user={user} stores={stores} onNavigate={setPage} />
+                ? <RetailerDashboard user={user} stores={stores} onNavigate={setPage} hasActiveMembership={hasActiveMembership} />
                 : isContrib
                 ? <MarketChampionHome
                     user={user}
