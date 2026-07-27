@@ -338,7 +338,7 @@ export default function App() {
               {page === "deals" && <DealsPage />}
               {page === "profile" && <ProfilePage user={user} onUpdateUser={(updated) => setUser(updated)} />}
               {page === "myzone" && <MyZonePage user={user} stores={stores} onNavigate={setPage} />}
-              {page === "admin" && <AdminDashboard stores={stores} contributors={contributors} />}
+              {page === "admin" && <AdminDashboard stores={stores} contributors={contributors} user={user} />}
             </>} />
             <Route path="/jobs" element={<JobsPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath("/jobs"); setShowLoginPage(true); }} toast={showToast} />} />
             <Route path="/jobs/:jobId" element={<JobDetailPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath(location.pathname); setShowLoginPage(true); }} />} />

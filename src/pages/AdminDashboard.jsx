@@ -6,10 +6,11 @@ import { UserManagementSection } from "../components/admin/UserManagementSection
 import { InspiReviewSection } from "../components/admin/InspiReviewSection";
 import { JobsReviewSection } from "../components/admin/JobsReviewSection";
 import { AiTestSection } from "../components/admin/AiTestSection";
+import { MemberProvisioningSection } from "../components/admin/MemberProvisioningSection";
 import { exportToExcel } from "../utils/exportExcel";
 import { getLevel } from "../utils/helpers";
 
-export function AdminDashboard({ stores, contributors }) {
+export function AdminDashboard({ stores, contributors, user }) {
   const handleVerify = async (storeId) => {
     try {
       await updateDoc(doc(db, "stores", storeId), { verificationStatus: "verified", verifiedAt: serverTimestamp(), verifiedBy: "admin" });
@@ -79,6 +80,7 @@ export function AdminDashboard({ stores, contributors }) {
     { id: "inspi", icon: "🖼", label: "Inspi Review" },
     { id: "jobs", icon: "💼", label: "Jobs Review" },
     { id: "users", icon: "👥", label: "User Management" },
+    { id: "members", icon: "🤝", label: "Member Provisioning" },
     { id: "records", icon: "🗂", label: "All Records" },
     { id: "bulk", icon: "📤", label: "Bulk Upload" },
   ];
@@ -191,6 +193,8 @@ export function AdminDashboard({ stores, contributors }) {
         </>}
 
         {section === "users" && <UserManagementSection />}
+
+        {section === "members" && <MemberProvisioningSection user={user} />}
 
         {section === "suggestions" && <AiTestSection />}
 
