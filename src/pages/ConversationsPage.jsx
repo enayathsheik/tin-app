@@ -54,7 +54,7 @@ function ConversationsShell({ user, orgCtx, conversationId = null }) {
 
   if (!isDesktop) {
     return conversationId
-      ? <MessageThread user={user} conversationId={conversationId} onBack={backToList} />
+      ? <MessageThread user={user} orgCtx={orgCtx} conversationId={conversationId} onBack={backToList} />
       : <ConversationList user={user} orgCtx={orgCtx} onOpen={openConversation} canStartConversation={canStartConversation} onNewConversation={onNewConversation} />;
   }
 
@@ -65,7 +65,7 @@ function ConversationsShell({ user, orgCtx, conversationId = null }) {
       </div>
       <div className="conv-pane conv-pane-thread">
         {conversationId
-          ? <MessageThread user={user} conversationId={conversationId} />
+          ? <MessageThread user={user} orgCtx={orgCtx} conversationId={conversationId} />
           : <CenteredNote text="Select a conversation to start reading." />}
       </div>
       <div className="conv-pane conv-pane-rail">

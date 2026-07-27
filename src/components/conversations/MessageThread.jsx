@@ -3,13 +3,14 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../firebase/config";
 import { subscribeToThread, fetchOlderMessages, conversationTitle } from "../../lib/conversations";
 import { MessageItem } from "./MessageItem";
+import { MessageComposer } from "./MessageComposer";
 
 const LIVE_PAGE_SIZE = 50;
 
 // Realtime, scoped to exactly the open conversation — subscribeToThread is
 // re-subscribed (and the previous listener detached) whenever conversationId
 // changes, and detached on unmount. Never left open against a closed thread.
-export function MessageThread({ user, conversationId, onBack }) {
+export function MessageThread({ user, orgCtx, conversationId, onBack }) {
   const [conversation, setConversation] = useState(null);
   const [liveMessages, setLiveMessages] = useState([]);
   const [liveDocs, setLiveDocs] = useState([]);
@@ -111,6 +112,13 @@ export function MessageThread({ user, conversationId, onBack }) {
           <MessageItem key={m.id} message={m} isOwn={m.senderUid === user.uid} />
         ))}
       </div>
+
+      <MessageComposer
+        conversationId={conversationId}
+        orgId={orgCtx.orgId}
+        senderUid={user.uid}
+        senderOrgId={orgCtx.orgId}
+      />
     </div>
   );
 }
