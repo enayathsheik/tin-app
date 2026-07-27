@@ -4,6 +4,7 @@ import { resolveActiveOrg } from "../lib/tenancy";
 import { useIsDesktop } from "../hooks/useIsDesktop";
 import { ConversationList } from "../components/conversations/ConversationList";
 import { MessageThread } from "../components/conversations/MessageThread";
+import { NewConversationModal } from "../components/conversations/NewConversationModal";
 
 const CONVERSATION_STARTER_ROLES = ["owner", "admin", "manager"];
 
@@ -45,23 +46,35 @@ function ConversationsShellRouted({ user, orgCtx }) {
 function ConversationsShell({ user, orgCtx, conversationId = null }) {
   const isDesktop = useIsDesktop();
   const navigate = useNavigate();
+  const [showNewConversation, setShowNewConversation] = useState(false);
   const openConversation = (id) => navigate(`/conversations/${id}`);
   const backToList = () => navigate("/conversations");
   const canStartConversation = CONVERSATION_STARTER_ROLES.includes(orgCtx.membership?.role);
 
-  // New Conversation flow lands in commit 7 — wired here once NewConversationModal exists.
-  const onNewConversation = () => {};
+  const modal = showNewConversation && (
+    <NewConversationModal
+      user={user}
+      orgCtx={orgCtx}
+      onClose={() => setShowNewConversation(false)}
+      onCreated={(id) => { setShowNewConversation(false); openConversation(id); }}
+    />
+  );
 
   if (!isDesktop) {
-    return conversationId
-      ? <MessageThread user={user} orgCtx={orgCtx} conversationId={conversationId} onBack={backToList} />
-      : <ConversationList user={user} orgCtx={orgCtx} onOpen={openConversation} canStartConversation={canStartConversation} onNewConversation={onNewConversation} />;
+    return (
+      <>
+        {conversationId
+          ? <MessageThread user={user} orgCtx={orgCtx} conversationId={conversationId} onBack={backToList} />
+          : <ConversationList user={user} orgCtx={orgCtx} onOpen={openConversation} canStartConversation={canStartConversation} onNewConversation={() => setShowNewConversation(true)} />}
+        {modal}
+      </>
+    );
   }
 
   return (
     <div className="conv-desktop">
       <div className="conv-pane conv-pane-list">
-        <ConversationList user={user} orgCtx={orgCtx} onOpen={openConversation} activeId={conversationId} canStartConversation={canStartConversation} onNewConversation={onNewConversation} />
+        <ConversationList user={user} orgCtx={orgCtx} onOpen={openConversation} activeId={conversationId} canStartConversation={canStartConversation} onNewConversation={() => setShowNewConversation(true)} />
       </div>
       <div className="conv-pane conv-pane-thread">
         {conversationId
@@ -71,6 +84,7 @@ function ConversationsShell({ user, orgCtx, conversationId = null }) {
       <div className="conv-pane conv-pane-rail">
         {/* Phase C: context rail (linked entities, AI suggestion chip) lands here. */}
       </div>
+      {modal}
     </div>
   );
 }
