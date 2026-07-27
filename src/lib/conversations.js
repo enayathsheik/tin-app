@@ -26,6 +26,21 @@ const MESSAGE_TYPES = ["text", "image", "file", "reference"];
 const directConversationId = (orgId, uidA, uidB) =>
   `${orgId}_${[uidA, uidB].sort().join("_")}`;
 
+// Human-readable label for a conversation, derived from the participantNames
+// map denormalized onto the doc at creation time (see getOrCreateDirectConversation
+// / createGroupConversation — users/{uid} is self-read-only, so this is the
+// only place a name for another participant is ever available).
+export function conversationTitle(conv, currentUid) {
+  const names = conv.participantNames || {};
+  const otherUids = (conv.participantUids || []).filter(uid => uid !== currentUid);
+  if (conv.type === "direct") {
+    const otherUid = otherUids[0];
+    return names[otherUid] || otherUid || "Direct message";
+  }
+  const otherNames = otherUids.map(uid => names[uid] || uid);
+  return otherNames.length ? otherNames.join(", ") : "Group conversation";
+}
+
 // ── CONVERSATION CREATE ──────────────────────────────────────
 
 // Deterministic id prevents duplicate DMs between the same two people in the
@@ -120,6 +135,8 @@ export async function setConversationMeta(uid, conversationId, data) {
 
 // Bounded to the most recent `pageSize` messages — never an unbounded
 // listener. Caller must detach `unsubscribe` on unmount / conversation change.
+// onChange receives (messages, docs) oldest-first, both index-aligned — docs
+// are the raw QueryDocumentSnapshots, needed as the cursor for fetchOlderMessages.
 export function subscribeToThread({ conversationId, pageSize = 50, onChange, onError }) {
   const q = query(
     collection(db, MESSAGES),
@@ -129,7 +146,10 @@ export function subscribeToThread({ conversationId, pageSize = 50, onChange, onE
   );
   return onSnapshot(
     q,
-    (snap) => onChange(snap.docs.map(d => ({ id: d.id, ...d.data() })).reverse()),
+    (snap) => {
+      const docs = [...snap.docs].reverse();
+      onChange(docs.map(d => ({ id: d.id, ...d.data() })), docs);
+    },
     onError
   );
 }
@@ -137,7 +157,7 @@ export function subscribeToThread({ conversationId, pageSize = 50, onChange, onE
 // One-shot upward pagination: messages older than `beforeDoc` (a QueryDocumentSnapshot
 // from the oldest currently-loaded message), oldest-first for prepending.
 export async function fetchOlderMessages({ conversationId, beforeDoc, pageSize = 30 }) {
-  if (!beforeDoc) return { messages: [], hasMore: false };
+  if (!beforeDoc) return { messages: [], docs: [], hasMore: false };
   const q = query(
     collection(db, MESSAGES),
     where("conversationId", "==", conversationId),
@@ -146,8 +166,10 @@ export async function fetchOlderMessages({ conversationId, beforeDoc, pageSize =
     limit(pageSize)
   );
   const snap = await getDocs(q);
+  const docs = [...snap.docs].reverse();
   return {
-    messages: snap.docs.map(d => ({ id: d.id, ...d.data() })).reverse(),
+    messages: docs.map(d => ({ id: d.id, ...d.data() })),
+    docs,
     hasMore: snap.docs.length === pageSize,
   };
 }

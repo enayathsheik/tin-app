@@ -3,6 +3,7 @@ import { Routes, Route, useParams, useNavigate } from "react-router-dom";
 import { resolveActiveOrg } from "../lib/tenancy";
 import { useIsDesktop } from "../hooks/useIsDesktop";
 import { ConversationList } from "../components/conversations/ConversationList";
+import { MessageThread } from "../components/conversations/MessageThread";
 
 const CONVERSATION_STARTER_ROLES = ["owner", "admin", "manager"];
 
@@ -53,7 +54,7 @@ function ConversationsShell({ user, orgCtx, conversationId = null }) {
 
   if (!isDesktop) {
     return conversationId
-      ? <ThreadPane user={user} orgCtx={orgCtx} conversationId={conversationId} onBack={backToList} />
+      ? <MessageThread user={user} conversationId={conversationId} onBack={backToList} />
       : <ConversationList user={user} orgCtx={orgCtx} onOpen={openConversation} canStartConversation={canStartConversation} onNewConversation={onNewConversation} />;
   }
 
@@ -64,7 +65,7 @@ function ConversationsShell({ user, orgCtx, conversationId = null }) {
       </div>
       <div className="conv-pane conv-pane-thread">
         {conversationId
-          ? <ThreadPane user={user} orgCtx={orgCtx} conversationId={conversationId} />
+          ? <MessageThread user={user} conversationId={conversationId} />
           : <CenteredNote text="Select a conversation to start reading." />}
       </div>
       <div className="conv-pane conv-pane-rail">
@@ -72,11 +73,6 @@ function ConversationsShell({ user, orgCtx, conversationId = null }) {
       </div>
     </div>
   );
-}
-
-// Placeholder — replaced by MessageThread (commit 4).
-function ThreadPane() {
-  return <CenteredNote text="Message thread coming up next." />;
 }
 
 function CenteredNote({ text }) {

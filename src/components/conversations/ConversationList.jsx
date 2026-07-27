@@ -1,21 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-  fetchConversationPage, getConversationMeta,
+  fetchConversationPage, getConversationMeta, conversationTitle,
 } from "../../lib/conversations";
 
 const PAGE_SIZE = 20;
-
-function conversationTitle(conv, currentUid) {
-  const names = conv.participantNames || {};
-  if (conv.type === "direct") {
-    const otherUid = (conv.participantUids || []).find(uid => uid !== currentUid);
-    return names[otherUid] || otherUid || "Direct message";
-  }
-  const otherNames = (conv.participantUids || [])
-    .filter(uid => uid !== currentUid)
-    .map(uid => names[uid] || uid);
-  return otherNames.length ? otherNames.join(", ") : "Group conversation";
-}
 
 function formatWhen(ts) {
   const date = ts?.toDate?.();
