@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../firebase/config";
-import { subscribeToThread, fetchOlderMessages, conversationTitle } from "../../lib/conversations";
+import { subscribeToThread, fetchOlderMessages, subscribeToSuggestedActions, conversationTitle } from "../../lib/conversations";
 import { MessageItem } from "./MessageItem";
 import { MessageComposer } from "./MessageComposer";
+import { SuggestedActionChip } from "./SuggestedActionChip";
 
 const LIVE_PAGE_SIZE = 50;
 
@@ -18,6 +19,7 @@ export function MessageThread({ user, orgCtx, conversationId, onBack }) {
   const [noMoreOlder, setNoMoreOlder] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [error, setError] = useState(null);
+  const [suggestedActions, setSuggestedActions] = useState([]);
   const scrollRef = useRef(null);
   const didInitialScroll = useRef(false);
   const pendingScrollAdjust = useRef(null);
@@ -46,6 +48,24 @@ export function MessageThread({ user, orgCtx, conversationId, onBack }) {
     });
     return () => unsubscribe();
   }, [conversationId]);
+
+  useEffect(() => {
+    setSuggestedActions([]);
+    const unsubscribe = subscribeToSuggestedActions({
+      conversationId,
+      onChange: setSuggestedActions,
+      onError: (e) => console.error("[thread] suggestedActions load failed:", e.message),
+    });
+    return () => unsubscribe();
+  }, [conversationId]);
+
+  const actionsByMessageId = useMemo(() => {
+    const map = {};
+    for (const action of suggestedActions) {
+      (map[action.messageId] ||= []).push(action);
+    }
+    return map;
+  }, [suggestedActions]);
 
   const allMessages = [...history.messages, ...liveMessages];
 
@@ -108,9 +128,17 @@ export function MessageThread({ user, orgCtx, conversationId, onBack }) {
         {allMessages.length === 0 && !error && (
           <div style={{ color: "#888", fontSize: 13, textAlign: "center", marginTop: 30 }}>No messages yet — say hello.</div>
         )}
-        {allMessages.map(m => (
-          <MessageItem key={m.id} message={m} isOwn={m.senderUid === user.uid} />
-        ))}
+        {allMessages.map(m => {
+          const isOwn = m.senderUid === user.uid;
+          return (
+            <div key={m.id}>
+              <MessageItem message={m} isOwn={isOwn} />
+              {(actionsByMessageId[m.id] || []).map(action => (
+                <SuggestedActionChip key={action.id} action={action} isOwn={isOwn} />
+              ))}
+            </div>
+          );
+        })}
       </div>
 
       <MessageComposer

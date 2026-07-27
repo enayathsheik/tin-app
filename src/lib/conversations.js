@@ -18,6 +18,7 @@ import {
 import { db } from "../firebase/config";
 
 const CONVERSATIONS = "conversations";
+const SUGGESTED_ACTIONS = "suggestedActions";
 const MESSAGES = "messages";
 const CONVERSATION_META = "conversationMeta";
 
@@ -224,4 +225,28 @@ export async function sendAttachmentMessage({ conversationId, orgId, senderUid, 
   batch.update(doc(db, CONVERSATIONS, conversationId), { lastMessageAt: serverTimestamp() });
   await batch.commit();
   return messageRef.id;
+}
+
+// ── SUGGESTED ACTIONS (read-only; client never writes this collection) ──
+
+// suggestedActions is a TOP-LEVEL collection written only by the deployed
+// onMessageCreate function (functions/ai.js) — never a message.suggestedActions
+// field. firestore.rules has `allow write: if false` on it entirely; the only
+// way a doc's status changes is via the deployed confirmSuggestedAction /
+// dismissSuggestedAction callables (Admin SDK, bypasses client rules).
+//
+// One listener per open conversation (not one per message) — bounded to the
+// most recent 100 proposals — caller groups by messageId to attach to rows.
+export function subscribeToSuggestedActions({ conversationId, onChange, onError }) {
+  const q = query(
+    collection(db, SUGGESTED_ACTIONS),
+    where("conversationId", "==", conversationId),
+    orderBy("createdAt", "desc"),
+    limit(100)
+  );
+  return onSnapshot(
+    q,
+    (snap) => onChange(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+    onError
+  );
 }
