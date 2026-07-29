@@ -27,6 +27,14 @@ try {
   console.error("Failed to load ai.js — AI Foundation functions unavailable:", err);
 }
 
+// Cross-company conversation functions (createExternalConversation) — see
+// conversations.js. Same isolation rationale as ai.js above.
+try {
+  Object.assign(exports, require("./conversations"));
+} catch (err) {
+  console.error("Failed to load conversations.js — external-conversation functions unavailable:", err);
+}
+
 // ── YOUR PLACES API KEY (store in Firebase env config) ───────
 // Set via: firebase functions:secrets:set PLACES_API_KEY
 // Then access via: process.env.PLACES_API_KEY
