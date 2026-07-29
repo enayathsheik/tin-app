@@ -359,7 +359,7 @@ export default function App() {
             {/* react-router route segments must be fully static or fully dynamic —
                 "/@:handle" never matches, so this takes the whole segment and
                 PublicProfilePage itself validates/strips the "@" prefix. */}
-            <Route path="/:handleSeg" element={<PublicProfilePage />} />
+            <Route path="/:handleSeg" element={<PublicProfilePage user={user} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>

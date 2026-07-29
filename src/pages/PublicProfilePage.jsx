@@ -1,8 +1,16 @@
 import { useEffect, useState } from "react";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { doc, getDoc } from "firebase/firestore";
-import { db } from "../firebase/config";
+import { httpsCallable } from "firebase/functions";
+import { db, functions } from "../firebase/config";
+
+const createExternalConversationFn = httpsCallable(functions, "createExternalConversation");
+
+// failed-precondition messages from functions/conversations.js are already
+// plain-language — surfaced as-is rather than mapped, so the two sides of
+// the check (client copy vs. server copy) can't drift out of sync.
+const DEFAULT_MESSAGE_ERROR = "Couldn't start a conversation with this person. Please try again.";
 
 const SITE_URL = "https://tinit.in";
 
@@ -36,8 +44,9 @@ function Stat({ label, value }) {
   );
 }
 
-export function PublicProfilePage() {
+export function PublicProfilePage({ user } = {}) {
   const { handleSeg } = useParams();
+  const navigate = useNavigate();
   // Route path is a single dynamic segment (see App.jsx) — only "@handle" URLs
   // belong to this page; anything else falls back to the old catch-all behavior.
   const isHandleUrl = (handleSeg || "").startsWith("@");
@@ -45,6 +54,8 @@ export function PublicProfilePage() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [messaging, setMessaging] = useState(false);
+  const [messageError, setMessageError] = useState(null);
 
   useEffect(() => {
     document.querySelectorAll(STALE_STATIC_META_SELECTOR).forEach(el => el.remove());
@@ -77,6 +88,19 @@ export function PublicProfilePage() {
     load();
     return () => { cancelled = true; };
   }, [handle, isHandleUrl]);
+
+  const handleMessage = async () => {
+    if (!profile?.uid) return;
+    setMessaging(true);
+    setMessageError(null);
+    try {
+      const { data } = await createExternalConversationFn({ counterpartyUid: profile.uid });
+      navigate(`/conversations/${data.conversationId}`);
+    } catch (e) {
+      setMessageError(e.message || DEFAULT_MESSAGE_ERROR);
+    }
+    setMessaging(false);
+  };
 
   if (!isHandleUrl) {
     return <Navigate to="/" replace />;
@@ -139,6 +163,19 @@ export function PublicProfilePage() {
             </span>
           )}
         </div>
+
+        {user?.uid && user.uid !== profile.uid && (
+          <div style={{ marginBottom: 18 }}>
+            <button
+              onClick={handleMessage}
+              disabled={messaging}
+              style={{ padding: "8px 16px", borderRadius: 8, background: "#e85a2a", border: "none", color: "#fff", fontSize: 13, fontWeight: 700, cursor: messaging ? "default" : "pointer", opacity: messaging ? 0.6 : 1 }}
+            >
+              {messaging ? "…" : "Message"}
+            </button>
+            {messageError && <div style={{ color: "#dc2626", fontSize: 12, marginTop: 8 }}>{messageError}</div>}
+          </div>
+        )}
 
         {/* ROLE-SPECIFIC STATS */}
         <div style={{ display: "flex", gap: 24, flexWrap: "wrap", marginBottom: 16 }}>
