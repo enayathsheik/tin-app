@@ -5,6 +5,7 @@ import { useIsDesktop } from "../hooks/useIsDesktop";
 import { ConversationList } from "../components/conversations/ConversationList";
 import { MessageThread } from "../components/conversations/MessageThread";
 import { NewConversationModal } from "../components/conversations/NewConversationModal";
+import { UserSearchModal } from "../components/conversations/UserSearchModal";
 import { ContextRail } from "../components/conversations/ContextRail";
 
 const CONVERSATION_STARTER_ROLES = ["owner", "admin", "manager"];
@@ -48,18 +49,30 @@ function ConversationsShell({ user, orgCtx, conversationId = null }) {
   const isDesktop = useIsDesktop();
   const navigate = useNavigate();
   const [showNewConversation, setShowNewConversation] = useState(false);
+  const [showUserSearch, setShowUserSearch] = useState(false);
   const [showRailSheet, setShowRailSheet] = useState(false);
   const openConversation = (id) => navigate(`/conversations/${id}`);
   const backToList = () => navigate("/conversations");
   const canStartConversation = CONVERSATION_STARTER_ROLES.includes(orgCtx.membership?.role);
 
-  const modal = showNewConversation && (
-    <NewConversationModal
-      user={user}
-      orgCtx={orgCtx}
-      onClose={() => setShowNewConversation(false)}
-      onCreated={(id) => { setShowNewConversation(false); openConversation(id); }}
-    />
+  const modal = (
+    <>
+      {showUserSearch && (
+        <UserSearchModal
+          user={user}
+          onClose={() => setShowUserSearch(false)}
+          onCreated={(id) => { setShowUserSearch(false); openConversation(id); }}
+        />
+      )}
+      {showNewConversation && (
+        <NewConversationModal
+          user={user}
+          orgCtx={orgCtx}
+          onClose={() => setShowNewConversation(false)}
+          onCreated={(id) => { setShowNewConversation(false); openConversation(id); }}
+        />
+      )}
+    </>
   );
 
   if (!isDesktop) {
@@ -67,7 +80,7 @@ function ConversationsShell({ user, orgCtx, conversationId = null }) {
       <>
         {conversationId
           ? <MessageThread user={user} orgCtx={orgCtx} conversationId={conversationId} onBack={backToList} onOpenContext={() => setShowRailSheet(true)} />
-          : <ConversationList user={user} orgCtx={orgCtx} onOpen={openConversation} canStartConversation={canStartConversation} onNewConversation={() => setShowNewConversation(true)} />}
+          : <ConversationList user={user} orgCtx={orgCtx} onOpen={openConversation} onNewChat={() => setShowUserSearch(true)} canStartConversation={canStartConversation} onNewOrgConversation={() => setShowNewConversation(true)} />}
         {modal}
         {showRailSheet && conversationId && (
           <div style={{ position: "fixed", inset: 0, background: "#00000060", zIndex: 480, display: "flex", alignItems: "flex-end" }} onClick={() => setShowRailSheet(false)}>
@@ -87,7 +100,7 @@ function ConversationsShell({ user, orgCtx, conversationId = null }) {
   return (
     <div className="conv-desktop">
       <div className="conv-pane conv-pane-list">
-        <ConversationList user={user} orgCtx={orgCtx} onOpen={openConversation} activeId={conversationId} canStartConversation={canStartConversation} onNewConversation={() => setShowNewConversation(true)} />
+        <ConversationList user={user} orgCtx={orgCtx} onOpen={openConversation} activeId={conversationId} onNewChat={() => setShowUserSearch(true)} canStartConversation={canStartConversation} onNewOrgConversation={() => setShowNewConversation(true)} />
       </div>
       <div className="conv-pane conv-pane-thread">
         {conversationId

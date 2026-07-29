@@ -90,10 +90,16 @@ export async function claimHandle(uid, handle, user, oldHandle = null) {
     if (handleSnap.exists()) throw new Error("That handle is already taken.");
     if (oldHandleRef) tx.delete(oldHandleRef);
     tx.set(handleRef, { uid, createdAt: serverTimestamp() });
+    const displayName = user.displayName || user.name || "";
     tx.set(profileRef, {
       handle: h,
       role: publicRoleFromInternalRole(user.role),
-      displayName: user.displayName || user.name || "",
+      displayName,
+      // Lowercase mirror for case-insensitive prefix search (global user
+      // search) — `handle` above is already always-lowercase so it needs no
+      // twin. Written additively here; older profiles backfill it the next
+      // time this user saves their profile, no migration needed.
+      displayNameLower: displayName.toLowerCase(),
       city: user.city || "",
       photoUrl: user.photoUrl || null,
       ...buildPublicFields(user),

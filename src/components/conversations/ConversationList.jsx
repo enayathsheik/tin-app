@@ -18,7 +18,7 @@ function formatWhen(ts) {
 // Tenant + participant scoped, paginated conversation list. Joins the
 // per-user conversationMeta doc (label/pin/mute) for each row shown —
 // bounded to the page size, never an unbounded read.
-export function ConversationList({ user, orgCtx, onOpen, activeId = null, onNewConversation, canStartConversation = false }) {
+export function ConversationList({ user, orgCtx, onOpen, activeId = null, onNewChat, onNewOrgConversation, canStartConversation = false }) {
   const [conversations, setConversations] = useState([]);
   const [metaByCid, setMetaByCid] = useState({});
   const [loading, setLoading] = useState(true);
@@ -72,9 +72,12 @@ export function ConversationList({ user, orgCtx, onOpen, activeId = null, onNewC
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid #e0e0e0", flexShrink: 0 }}>
         <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 800, fontSize: 18, color: "#080808" }}>Messages</div>
-        {canStartConversation && (
-          <button onClick={onNewConversation} style={{ padding: "6px 12px", borderRadius: 8, background: "#e85a2a", border: "none", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ New</button>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {canStartConversation && (
+            <button onClick={onNewOrgConversation} style={{ padding: 0, background: "none", border: "none", color: "#888", fontSize: 11, fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}>Org group</button>
+          )}
+          <button onClick={onNewChat} style={{ padding: "6px 12px", borderRadius: 8, background: "#e85a2a", border: "none", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ New chat</button>
+        </div>
       </div>
 
       <div style={{ flex: 1, overflowY: "auto" }}>
@@ -82,7 +85,7 @@ export function ConversationList({ user, orgCtx, onOpen, activeId = null, onNewC
         {error && <div style={{ padding: 20, color: "#dc2626", fontSize: 13, textAlign: "center" }}>{error}</div>}
         {!loading && !error && conversations.length === 0 && (
           <div style={{ padding: "40px 20px", color: "#888", fontSize: 13, textAlign: "center" }}>
-            No conversations yet.{canStartConversation ? " Start one to get going." : ""}
+            No conversations yet. Search for someone to start chatting.
           </div>
         )}
         {conversations.map(conv => {
