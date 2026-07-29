@@ -214,11 +214,25 @@ service cloud.firestore {
 
     // ── CONVERSATIONS ──
     match /conversations/{conversationId} {
-      allow read: if isActiveMember(resource.data.orgId) && canAccessConversation(resource.data);
-      allow create: if isActiveMember(request.resource.data.orgId)
+      // Phase D: external-scope threads (cross-company) are authorized by
+      // thread participation, not org membership — an external participant
+      // is never a member of the other side's org. Every other scope's
+      // behavior is unchanged.
+      allow read: if resource.data.scope == 'external'
+        ? (signedIn() && request.auth.uid in resource.data.participantUids)
+        : (isActiveMember(resource.data.orgId) && canAccessConversation(resource.data));
+      // scope == 'external' docs are born only via the createExternalConversation
+      // Admin-SDK callable (functions/conversations.js), which bypasses rules
+      // entirely — a client-side create attempt is always rejected here.
+      allow create: if request.resource.data.scope != 'external'
+        && isActiveMember(request.resource.data.orgId)
         && request.resource.data.createdBy == request.auth.uid
         && request.auth.uid in request.resource.data.participantUids
         && (request.resource.data.scope != 'org' || hasRole(request.resource.data.orgId, ['owner', 'admin', 'manager']));
+      // A non-participant can never add themselves to participantUids: the
+      // first clause already requires the caller to already be a participant
+      // (pre-update, via resource.data) or an owner/admin of the conversation's
+      // home org — an external counterparty is neither, so this holds as-is.
       allow update: if
         (request.auth.uid in resource.data.participantUids || hasRole(resource.data.orgId, ['owner', 'admin']))
         && (request.resource.data.scope == resource.data.scope || hasRole(resource.data.orgId, ['owner', 'admin', 'manager']));
@@ -234,13 +248,19 @@ service cloud.firestore {
     // vendor/ai-foundation, which key off conversationId + senderUid/senderOrgId
     // only) — tenant isolation is enforced entirely via the parent conversation.
     match /messages/{messageId} {
+      // Branches on the PARENT conversation's scope (see canReadMessage /
+      // canCreateMessage below) — external threads read/send instead unlocks
+      // on thread participation, exactly mirroring the conversations rule
+      // above. Every non-external scope keeps the original isActiveMember +
+      // canAccessConversation check unchanged.
       allow read: if signedIn()
-        && isActiveMember(get(/databases/$(database)/documents/conversations/$(resource.data.conversationId)).data.orgId)
-        && canAccessConversation(get(/databases/$(database)/documents/conversations/$(resource.data.conversationId)).data);
+        && canReadMessage(get(/databases/$(database)/documents/conversations/$(resource.data.conversationId)).data);
       allow create: if signedIn()
         && request.resource.data.senderUid == request.auth.uid
-        && isActiveMember(get(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId)).data.orgId)
-        && canAccessConversation(get(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId)).data);
+        && canCreateMessage(
+             get(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId)).data,
+             request.resource.data.senderOrgId
+           );
       allow update, delete: if false;
     }
     // ══ END TENANCY ═════════════════════════════════════════
@@ -251,22 +271,39 @@ service cloud.firestore {
     // conversation participancy via isConversationParticipant().
 
     // ── SUGGESTED ACTIONS ── (Cloud Functions/Admin SDK only write)
+    // Tightened (Phase D): conversation participancy alone is no longer
+    // enough. In a shared external thread, a counterparty who is not a
+    // member of the doc's own org (orgId == the source message's
+    // senderOrgId) must not see that side's suggestion chips — each side
+    // only sees its own org's proposals. Pure tightening for every other
+    // (internal) thread: all participants there already belong to that org.
     match /suggestedActions/{actionId} {
-      allow read: if request.auth != null && isConversationParticipant(resource.data.conversationId);
+      allow read: if request.auth != null
+        && isConversationParticipant(resource.data.conversationId)
+        && isActiveMember(resource.data.orgId);
       allow write: if false;
     }
 
     // ── LEDGER ENTRIES / MILESTONES / SNAGS ── (Cloud Functions/Admin SDK only write)
+    // Tightened (Phase D): same per-org privacy as suggestedActions above —
+    // confirmed business records stay private to the org they belong to
+    // even inside a shared external thread.
     match /ledgerEntries/{entryId} {
-      allow read: if request.auth != null && isConversationParticipant(resource.data.conversationId);
+      allow read: if request.auth != null
+        && isConversationParticipant(resource.data.conversationId)
+        && isActiveMember(resource.data.orgId);
       allow write: if false;
     }
     match /milestones/{milestoneId} {
-      allow read: if request.auth != null && isConversationParticipant(resource.data.conversationId);
+      allow read: if request.auth != null
+        && isConversationParticipant(resource.data.conversationId)
+        && isActiveMember(resource.data.orgId);
       allow write: if false;
     }
     match /snags/{snagId} {
-      allow read: if request.auth != null && isConversationParticipant(resource.data.conversationId);
+      allow read: if request.auth != null
+        && isConversationParticipant(resource.data.conversationId)
+        && isActiveMember(resource.data.orgId);
       allow write: if false;
     }
     // ══ END AI FOUNDATION LAYER ═════════════════════════════
@@ -279,6 +316,27 @@ service cloud.firestore {
     function isConversationParticipant(conversationId) {
       return request.auth.uid in
         get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantUids;
+    }
+
+    // ── PHASE D: EXTERNAL-SCOPE MESSAGE ACCESS ──
+    // convData is an already-fetched conversation doc's .data (callers pass
+    // the result of a single get(), never re-fetched here). scope == 'external'
+    // unlocks on thread participation instead of isActiveMember(orgId); every
+    // other scope keeps the original isActiveMember + canAccessConversation
+    // check, unchanged.
+    function canReadMessage(convData) {
+      return convData.scope == 'external'
+        ? request.auth.uid in convData.participantUids
+        : (isActiveMember(convData.orgId) && canAccessConversation(convData));
+    }
+
+    // senderOrgId must be one of the parent's participantOrgIds — a sender in
+    // an external thread can only stamp their own side's org onto a message,
+    // never the counterparty's.
+    function canCreateMessage(convData, senderOrgId) {
+      return convData.scope == 'external'
+        ? (request.auth.uid in convData.participantUids && senderOrgId in convData.participantOrgIds)
+        : (isActiveMember(convData.orgId) && canAccessConversation(convData));
     }
 
     // ── TENANCY HELPERS ──
