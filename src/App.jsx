@@ -3,7 +3,7 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-
 import { collection, getDocs, getDoc, query, where, orderBy, doc } from "firebase/firestore";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth, db, getUserProfile, updateUserStats } from "./firebase/config";
-import { bootstrapOwnerOrg, getMemberships } from "./lib/tenancy";
+import { bootstrapOwnerOrg } from "./lib/tenancy";
 import { MOCK_STORES } from "./data/constants";
 import { G } from "./data/globalStyles";
 import { Toast } from "./components/shared/Toast";
@@ -109,20 +109,19 @@ export default function App() {
             const finalProfile = isAdminEmail ? { ...profile, role: "admin" } : profile;
             setUser({ ...finalProfile, uid: firebaseUser.uid });
             setPage(isAdminEmail ? "admin" : (profile.role === "admin" ? "admin" : "home"));
-            // Bootstrap the admin's personal org so there is a live tenant to
-            // build the conversation/permission model against. Idempotent —
-            // safe to call on every admin login. bootstrapOwnerOrg always
-            // resolves with an owner membership, so it can set the gate
-            // directly instead of racing a separate getMemberships lookup.
-            if (isAdminEmail) {
-              bootstrapOwnerOrg({ name: "HOM Systems", type: "org" })
-                .then(() => setHasActiveMembership(true))
-                .catch(e => console.error("[tenancy] bootstrapOwnerOrg failed:", e.message));
-            } else {
-              getMemberships(firebaseUser.uid)
-                .then(memberships => setHasActiveMembership(memberships.length > 0))
-                .catch(e => console.error("[tenancy] getMemberships failed:", e.message));
-            }
+            // Bootstrap a solo org for EVERY user on login, not just admin —
+            // a chat between two solo users is an external thread between
+            // their two orgs (see functions/conversations.js), so every user
+            // needs one live tenant to be reachable at all. Idempotent —
+            // safe to call on every login. bootstrapOwnerOrg always resolves
+            // with an owner membership, so it can set the gate directly
+            // instead of a separate getMemberships lookup.
+            const orgName = isAdminEmail
+              ? "HOM Systems"
+              : (finalProfile.displayName || finalProfile.handle || firebaseUser.email || "My Organization");
+            bootstrapOwnerOrg({ name: orgName, type: "org" })
+              .then(() => setHasActiveMembership(true))
+              .catch(e => console.error("[tenancy] bootstrapOwnerOrg failed:", e.message));
           }
         } catch(e) { console.log("Profile load error:", e); }
       }
