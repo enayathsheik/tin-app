@@ -31,6 +31,13 @@ function actionFields(action) {
   return Object.entries(action.payload || {}).filter(([, v]) => v != null && v !== "");
 }
 
+// Mirrors functions/ai.js's ACTION_TYPE_COLLECTIONS — only these 3 of the 6
+// taxonomy values have a target collection to confirm into. The other 3
+// (tag_project, share_reference, log_approval) schema-validate fine out of
+// the classifier but hard-fail confirmSuggestedAction with failed-precondition,
+// so Confirm is hidden for them here rather than shown-then-erroring.
+const CONFIRMABLE_ACTION_TYPES = new Set(["log_ledger_entry", "set_milestone", "flag_snag"]);
+
 // Read-only proposal surfaced by the deployed onMessageCreate function. This
 // component never writes structured business data itself — Confirm/Dismiss
 // only invoke the deployed confirmSuggestedAction/dismissSuggestedAction
@@ -72,6 +79,7 @@ export function SuggestedActionChip({ action, isOwn = false }) {
   };
 
   const fields = actionFields(action);
+  const canConfirm = CONFIRMABLE_ACTION_TYPES.has(action.actionType);
 
   return (
     <div style={{ display: "flex", justifyContent: isOwn ? "flex-end" : "flex-start", marginBottom: 8 }}>
@@ -86,13 +94,15 @@ export function SuggestedActionChip({ action, isOwn = false }) {
         )}
         {error && <div style={{ color: "#dc2626", fontSize: 11, marginBottom: 6 }}>{error}</div>}
         <div style={{ display: "flex", gap: 8 }}>
-          <button
-            onClick={handleConfirm}
-            disabled={busy}
-            style={{ padding: "5px 12px", borderRadius: 8, background: "#e85a2a", border: "none", color: "#fff", fontSize: 11, fontWeight: 700, cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}
-          >
-            {busy ? "…" : "Confirm"}
-          </button>
+          {canConfirm && (
+            <button
+              onClick={handleConfirm}
+              disabled={busy}
+              style={{ padding: "5px 12px", borderRadius: 8, background: "#e85a2a", border: "none", color: "#fff", fontSize: 11, fontWeight: 700, cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}
+            >
+              {busy ? "…" : "Confirm"}
+            </button>
+          )}
           <button
             onClick={handleDismiss}
             disabled={busy}
