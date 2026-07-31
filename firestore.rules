@@ -240,7 +240,19 @@ service cloud.firestore {
     // read-only insurance, removed only once a verified count of
     // context==null docs hits zero.
     match /conversations/{conversationId} {
-      allow read: if signedIn() && canReadConversation(resource.data);
+      // resource == null (the doc doesn't exist) must be checked before
+      // dereferencing resource.data — Firestore evaluates security rules on
+      // get() reads of NON-existent documents too, and resource.data on a
+      // null resource throws a rules evaluation error (surfaces to the
+      // client as "Missing or insufficient permissions"), not a clean
+      // "not found". This is exactly the get-before-create pattern
+      // getOrCreatePersonalConversation uses (checks whether a
+      // personal_{sorted uid pair} doc already exists before creating it)
+      // — the most common trigger is literally the FIRST-EVER contact
+      // between any two users. Allowing resource==null leaks nothing (no
+      // data exists on a nonexistent doc) beyond confirming a deterministic
+      // doc id's existence, which is unavoidable in any get-then-create flow.
+      allow read: if signedIn() && (resource == null || canReadConversation(resource.data));
       allow create: if signedIn() && canCreateConversation(request.resource.data);
       allow update: if signedIn() && canUpdateConversation(resource.data, request.resource.data);
     }

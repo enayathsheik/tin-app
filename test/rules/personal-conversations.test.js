@@ -141,4 +141,17 @@ describe("Phase 1 identity-first personal conversations", () => {
       createdAt: new Date(), lastMessageAt: new Date(),
     }));
   });
+
+  // Regression: getOrCreatePersonalConversation's existence check (getDoc on
+  // a not-yet-created personal_{sorted uid pair} doc) — the most common
+  // real-world trigger, literally the first-ever contact between any two
+  // users. Firestore evaluates security rules on reads of NON-existent
+  // documents too; a rule that dereferences resource.data unconditionally
+  // throws (resource is null), which surfaced to real users as "Missing or
+  // insufficient permissions" starting any brand-new chat.
+  it("7. getDoc on a personal conversation that has never been created succeeds (returns not-found, doesn't crash the rule)", async () => {
+    const xDb = testEnv.authenticatedContext("userX").firestore();
+    const snap = await assertSucceeds(getDoc(doc(xDb, "conversations", "personal_neverExisted")));
+    if (snap.exists()) throw new Error("expected the doc to not exist");
+  });
 });
