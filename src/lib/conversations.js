@@ -58,12 +58,36 @@ export function conversationTitle(conv, currentUid) {
 // First contact between two people is born status:'requested' — one-way,
 // only `currentUid` (createdBy) may send until the counterparty accepts via
 // acceptPersonalConversation below (firestore.rules enforces this, not just
-// this helper). Idempotent: if the pair already has a conversation (any
-// status, including a prior 'accepted'), that existing doc is returned as-is
-// — a repeat "connect" attempt never resets an already-accepted thread back
-// to 'requested'. `names` is an optional { [uid]: displayName } map,
-// denormalized here because users/{uid} is self-read-only in firestore.rules.
-export async function getOrCreatePersonalConversation({ currentUid, counterpartyUid, names = {} }) {
+// this helper) — UNLESS `sharedOrgId` is passed: an org both participants
+// are already known (by the caller) to be active members of, in which case
+// the conversation opens directly 'accepted' — two colleagues don't need a
+// connection-request step. firestore.rules independently re-verifies this
+// claim via real membership lookups (bothActiveMembersOf), so a caller can't
+// just assert a shared org that isn't real. Only pass sharedOrgId when the
+// caller has actually proven it (e.g. the counterparty came from an
+// org-scoped membership roster) — general discovery flows (global search,
+// public profile) have no cheap way to check this under current rules (a
+// plain member can't query another user's memberships) and should omit it,
+// always going through the request/accept path.
+//
+// Deterministic id ("personal_{sorted uid pair}") prevents both a duplicate
+// thread AND a second request forking around the accept state — a repeat
+// call always lands on the same doc, whatever status it's already in.
+// Org-agnostic beyond that one opt-in exemption: no orgId is resolved or
+// required (replaces both the old intra-org getOrCreateDirectConversation
+// and the Admin-SDK createExternalConversation callable, which existed only
+// to resolve each side's single active org — irrelevant now that
+// personal-context auth is participantUids-only, see firestore.rules
+// canReadConversation).
+//
+// Idempotent: if the pair already has a conversation (any status, including
+// a prior 'accepted'), that existing doc is returned as-is — a repeat
+// "connect" attempt never resets an already-accepted thread back to
+// 'requested', and sharedOrgId is not retroactively applied to an existing
+// 'requested' thread from an earlier, less-informed call site. `names` is an
+// optional { [uid]: displayName } map, denormalized here because users/{uid}
+// is self-read-only in firestore.rules.
+export async function getOrCreatePersonalConversation({ currentUid, counterpartyUid, names = {}, sharedOrgId = null }) {
   if (!currentUid || !counterpartyUid) throw new Error("getOrCreatePersonalConversation: currentUid, counterpartyUid required");
   if (currentUid === counterpartyUid) throw new Error("getOrCreatePersonalConversation: cannot start a conversation with yourself");
 
@@ -76,8 +100,9 @@ export async function getOrCreatePersonalConversation({ currentUid, counterparty
     context: "personal",
     type: "direct",
     scope: "personal", // denormalized/historical only — not consulted for personal-context auth
-    status: "requested",
+    status: sharedOrgId ? "accepted" : "requested",
     orgId: null,
+    sharedOrgId: sharedOrgId || null, // exemption proof only — firestore.rules re-verifies it independently
     participantUids: [currentUid, counterpartyUid].sort(),
     participantNames: names,
     linkedEntities: [],

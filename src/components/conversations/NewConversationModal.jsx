@@ -49,12 +49,15 @@ export function NewConversationModal({ user, orgCtx, onClose, onCreated }) {
     setCreating(true);
     setError(null);
     try {
-      // "Direct" here now goes through the same org-agnostic personal-
-      // conversation path as global search (Phase 1) — including the
-      // accept-gate: a first message to a colleague never messaged before
-      // opens one-way until they accept, same as a stranger via discovery.
+      // "Direct" here goes through the same org-agnostic personal-
+      // conversation path as global search (Phase 1), but with sharedOrgId
+      // set: the roster this modal is built from (memberships where
+      // orgId==orgCtx.orgId) already proves both people are active members
+      // of orgCtx.orgId, so this opens directly 'accepted' — no
+      // connection-request step for a colleague you already share an org
+      // with. firestore.rules re-verifies the claim independently.
       const conv = mode === "direct"
-        ? await getOrCreatePersonalConversation({ currentUid: user.uid, counterpartyUid: selected[0], names: buildNames(selected) })
+        ? await getOrCreatePersonalConversation({ currentUid: user.uid, counterpartyUid: selected[0], names: buildNames(selected), sharedOrgId: orgCtx.orgId })
         : await createGroupConversation({ orgId: orgCtx.orgId, currentUid: user.uid, participantUids: selected, names: buildNames(selected) });
       onCreated(conv.id);
     } catch (e) {

@@ -336,22 +336,42 @@ service cloud.firestore {
     }
 
     // ── CONVERSATION ACCESS — CONTEXT-BASED (Phase 1) ──
+    // `.get('context', null)` — NOT bare `.context` — everywhere below: a
+    // real un-backfilled doc has no `context` KEY at all (absent, not
+    // explicitly null), and bare dot-access on a genuinely absent map key
+    // throws a rules evaluation error ("Property context is undefined on
+    // object") instead of returning null, which would break every read of
+    // every pre-Phase-1 doc until the backfill runs. .get(key, default) is
+    // the safe accessor for a key that may not exist at all.
     function canReadConversation(data) {
-      return data.context == 'personal'
+      return data.get('context', null) == 'personal'
         ? request.auth.uid in data.participantUids
-        : data.context == 'organization'
+        : data.get('context', null) == 'organization'
           ? (isActiveMember(data.orgId) && canAccessOrgConversation(data))
-          : (isActiveMember(data.orgId) && canAccessConversation(data)); // legacy context==null
+          : legacyCanReadConversation(data); // context==null
+    }
+
+    // Byte-identical to the pre-Phase-1 top-level read predicate, which gave
+    // scope=='external' its OWN branch — signedIn() + participancy only, no
+    // isActiveMember(orgId) at all (that bypass was the entire point of
+    // Phase D). A uniform `isActiveMember(orgId) && canAccessConversation()`
+    // fallback would silently re-impose the org-membership requirement Phase
+    // D removed for every un-backfilled external-scope doc — this exists
+    // specifically to not do that.
+    function legacyCanReadConversation(data) {
+      return data.scope == 'external'
+        ? request.auth.uid in data.participantUids
+        : (isActiveMember(data.orgId) && canAccessConversation(data));
     }
 
     function canCreateConversation(data) {
-      return data.context == 'personal'
+      return data.get('context', null) == 'personal'
         ? canCreatePersonalConversation(data)
-        : (data.context == 'organization' && canCreateOrgConversation(data));
+        : (data.get('context', null) == 'organization' && canCreateOrgConversation(data));
     }
 
     function canUpdateConversation(before, after) {
-      return before.context == 'personal'
+      return before.get('context', null) == 'personal'
         ? canUpdatePersonalConversation(before, after)
         // organization AND legacy (context==null) both use the identical,
         // unchanged update predicate that applied unconditionally before
@@ -371,8 +391,12 @@ service cloud.firestore {
     }
 
     // 1:1 personal create: exactly the creator + one named counterparty (no
-    // third-party uid injection), always born status:'requested' — the
-    // one-way pre-accept gate. Group personal create: no accept-gate in
+    // third-party uid injection). Cross-org / no-shared-org: born
+    // status:'requested' — the one-way pre-accept gate. Same-org exemption:
+    // may be born status:'accepted' directly IF `sharedOrgId` names an org
+    // both participants are genuinely, currently active members of — proven
+    // here via real get() lookups, never taken on the client's word (see
+    // bothActiveMembersOf). Group personal create: no accept-gate in
     // Phase 1, always born status:'accepted'.
     function canCreatePersonalConversation(data) {
       return data.createdBy == request.auth.uid
@@ -380,9 +404,30 @@ service cloud.firestore {
         && (
           (data.type == 'direct'
             && data.participantUids.size() == 2
-            && data.status == 'requested')
+            && (
+              data.status == 'requested'
+              || (data.status == 'accepted'
+                  && data.sharedOrgId != null
+                  && bothActiveMembersOf(data.sharedOrgId, data.participantUids))
+            ))
           || (data.type == 'group' && data.status == 'accepted')
         );
+    }
+
+    // Parameterized sibling of isActiveMember(orgId) (which is always
+    // implicitly for request.auth.uid) — used only by the same-org
+    // accept-gate exemption above, to check an arbitrary OTHER participant's
+    // membership. get()/exists() in rules read the real document regardless
+    // of whether the caller could independently read it via a client query,
+    // so this can't be spoofed by a client claiming a shared org that isn't
+    // real.
+    function isActiveMemberOf(orgId, uid) {
+      return exists(/databases/$(database)/documents/memberships/$(orgId + '_' + uid))
+        && get(/databases/$(database)/documents/memberships/$(orgId + '_' + uid)).data.status == 'active';
+    }
+
+    function bothActiveMembersOf(orgId, uids) {
+      return isActiveMemberOf(orgId, uids[0]) && isActiveMemberOf(orgId, uids[1]);
     }
 
     // Identical to the pre-Phase-1 conversation create rule (minus the
@@ -426,24 +471,41 @@ service cloud.firestore {
 
     // ── MESSAGE ACCESS — CONTEXT-BASED (Phase 1) ──
     // convData is an already-fetched parent conversation's .data (callers
-    // pass the result of a single get(), never re-fetched here).
+    // pass the result of a single get(), never re-fetched here). Same
+    // `.get('context', null)` safety as canReadConversation above — a real
+    // un-backfilled conversation doc has no `context` key at all.
     function canReadMessage(convData) {
-      return convData.context == 'personal'
+      return convData.get('context', null) == 'personal'
         ? request.auth.uid in convData.participantUids
-        : convData.context == 'organization'
+        : convData.get('context', null) == 'organization'
           ? (isActiveMember(convData.orgId) && canAccessOrgConversation(convData))
-          : (isActiveMember(convData.orgId) && canAccessConversation(convData)); // legacy
+          : legacyCanReadConversation(convData); // context==null — same external-scope bypass as canReadConversation
     }
 
     // Pre-accept one-way gate: only the conversation's createdBy may write
     // while status == 'requested'; once accepted, either participant may.
     function canCreateMessage(convData) {
-      return convData.context == 'personal'
+      return convData.get('context', null) == 'personal'
         ? (request.auth.uid in convData.participantUids
             && (convData.status == 'accepted' || request.auth.uid == convData.createdBy))
-        : convData.context == 'organization'
+        : convData.get('context', null) == 'organization'
           ? (isActiveMember(convData.orgId) && canAccessOrgConversation(convData))
-          : (isActiveMember(convData.orgId) && canAccessConversation(convData)); // legacy
+          : legacyCanCreateMessage(convData); // context==null
+    }
+
+    // Byte-identical to the pre-Phase-1 canCreateMessage: scope=='external'
+    // bypasses isActiveMember(orgId) (same rationale as
+    // legacyCanReadConversation) AND additionally requires the message's
+    // own senderOrgId be one of the parent's participantOrgIds — a sender in
+    // a legacy external thread can only stamp their own side's org onto a
+    // message, never the counterparty's. request.resource.data is available
+    // directly here (it's the document actually being created), same as
+    // every other function in this ruleset reaches request.auth directly.
+    function legacyCanCreateMessage(convData) {
+      return convData.scope == 'external'
+        ? (request.auth.uid in convData.participantUids
+            && request.resource.data.senderOrgId in convData.participantOrgIds)
+        : (isActiveMember(convData.orgId) && canAccessConversation(convData));
     }
 
     // ── TENANCY HELPERS ──
