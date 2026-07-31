@@ -29,11 +29,8 @@ const LINKABLE_ENTITY_COLLECTIONS = { store: "stores", job: "jobListings" };
 
 const MESSAGE_TYPES = ["text", "image", "file", "reference"];
 
-const directConversationId = (orgId, uidA, uidB) =>
-  `${orgId}_${[uidA, uidB].sort().join("_")}`;
-
 // Human-readable label for a conversation, derived from the participantNames
-// map denormalized onto the doc at creation time (see getOrCreateDirectConversation
+// map denormalized onto the doc at creation time (see getOrCreatePersonalConversation
 // / createGroupConversation — users/{uid} is self-read-only, so this is the
 // only place a name for another participant is ever available).
 export function conversationTitle(conv, currentUid) {
@@ -49,28 +46,40 @@ export function conversationTitle(conv, currentUid) {
 
 // ── CONVERSATION CREATE ──────────────────────────────────────
 
-// Deterministic id prevents duplicate DMs between the same two people in the
-// same org. `names` is an optional { [uid]: displayName } map — conversations
-// don't carry a readable label of their own, and users/{uid} is only
-// self-readable per firestore.rules, so any human-readable name shown in the
-// list/thread header has to be denormalized onto the conversation doc by
-// whoever creates it (the only party who reliably has both names in hand).
-export async function getOrCreateDirectConversation({ orgId, currentUid, otherUid, scope = "personal", names = {} }) {
-  if (!orgId || !currentUid || !otherUid) throw new Error("getOrCreateDirectConversation: orgId, currentUid, otherUid required");
+// Deterministic id ("personal_{sorted uid pair}") prevents both a duplicate
+// thread AND a second request forking around the accept state — a repeat
+// call always lands on the same doc, whatever status it's already in.
+// Org-agnostic: no orgId is resolved or required on either side (replaces
+// both the old intra-org getOrCreateDirectConversation and the Admin-SDK
+// createExternalConversation callable, which existed only to resolve each
+// side's single active org — irrelevant now that personal-context auth is
+// participantUids-only, see firestore.rules canReadConversation).
+//
+// First contact between two people is born status:'requested' — one-way,
+// only `currentUid` (createdBy) may send until the counterparty accepts via
+// acceptPersonalConversation below (firestore.rules enforces this, not just
+// this helper). Idempotent: if the pair already has a conversation (any
+// status, including a prior 'accepted'), that existing doc is returned as-is
+// — a repeat "connect" attempt never resets an already-accepted thread back
+// to 'requested'. `names` is an optional { [uid]: displayName } map,
+// denormalized here because users/{uid} is self-read-only in firestore.rules.
+export async function getOrCreatePersonalConversation({ currentUid, counterpartyUid, names = {} }) {
+  if (!currentUid || !counterpartyUid) throw new Error("getOrCreatePersonalConversation: currentUid, counterpartyUid required");
+  if (currentUid === counterpartyUid) throw new Error("getOrCreatePersonalConversation: cannot start a conversation with yourself");
 
-  const id = directConversationId(orgId, currentUid, otherUid);
+  const id = `personal_${[currentUid, counterpartyUid].sort().join("_")}`;
   const ref = doc(db, CONVERSATIONS, id);
   const existing = await getDoc(ref);
   if (existing.exists()) return { id, ...existing.data() };
 
   const data = {
-    orgId,
+    context: "personal",
     type: "direct",
-    scope,
-    participantUids: [currentUid, otherUid].sort(),
-    participantOrgIds: [orgId],
+    scope: "personal", // denormalized/historical only — not consulted for personal-context auth
+    status: "requested",
+    orgId: null,
+    participantUids: [currentUid, counterpartyUid].sort(),
     participantNames: names,
-    teamId: null,
     linkedEntities: [],
     createdBy: currentUid,
     createdAt: serverTimestamp(),
@@ -80,6 +89,17 @@ export async function getOrCreateDirectConversation({ orgId, currentUid, otherUi
   return { id, ...data };
 }
 
+// Recipient-only accept: flips a first-contact personal conversation from
+// one-way 'requested' to two-way 'accepted'. firestore.rules'
+// canUpdatePersonalConversation enforces that only a participant OTHER than
+// createdBy (the initiator) can do this — the initiator can't self-accept.
+export async function acceptPersonalConversation({ conversationId }) {
+  if (!conversationId) throw new Error("acceptPersonalConversation: conversationId required");
+  await updateDoc(doc(db, CONVERSATIONS, conversationId), { status: "accepted" });
+}
+
+// Group personal conversations (venture/friend groups, not org teams) have
+// no accept-gate in Phase 1 — born directly 'accepted', same as before.
 export async function createGroupConversation({ orgId, currentUid, participantUids, scope = "personal", teamId = null, names = {} }) {
   if (!orgId || !currentUid || !participantUids?.length) {
     throw new Error("createGroupConversation: orgId, currentUid, participantUids required");
@@ -88,9 +108,11 @@ export async function createGroupConversation({ orgId, currentUid, participantUi
   const uniqueParticipants = Array.from(new Set([currentUid, ...participantUids]));
   const ref = doc(collection(db, CONVERSATIONS));
   const data = {
+    context: "personal",
     orgId,
     type: "group",
     scope,
+    status: "accepted",
     participantUids: uniqueParticipants,
     participantOrgIds: [orgId],
     participantNames: names,
@@ -104,11 +126,28 @@ export async function createGroupConversation({ orgId, currentUid, participantUi
   return { id: ref.id, ...data };
 }
 
-// ── CONVERSATION LIST (paginated, tenant+participant scoped) ────
+// ── CONVERSATION LIST (paginated, participant/tenant scoped) ────
+//
+// Firestore evaluates list-query security rules statically against the
+// query's own `where` filters, not per fetched document — every field the
+// read rule branches or depends on must be pinned by a filter, or the
+// entire list request is denied even though each individual doc would pass
+// a plain get(). firestore.rules' canReadConversation branches on `context`:
+//   - context == 'personal': auth.uid in participantUids alone. No orgId
+//     dependency at all — org-agnostic by design (see
+//     getOrCreatePersonalConversation) — so this is the ONE query that
+//     covers what were two separate provable queries (scope 'external' and
+//     'personal') before the context collapse. It also needs no `orgId`
+//     filter, so it works identically for a zero-org user.
+//   - context == 'organization': isActiveMember(orgId) required, plus
+//     scope == 'org' | 'team' sub-rules. The "Org group" toggle below is
+//     this query, separately provable, unchanged from before.
+//
+// Personal inbox = one query, no cursor merge needed anymore.
 
-export function conversationListQuery({ orgId, uid, pageSize = 20, cursor = null }) {
+function personalInboxQuery({ uid, pageSize, cursor }) {
   const constraints = [
-    where("orgId", "==", orgId),
+    where("context", "==", "personal"),
     where("participantUids", "array-contains", uid),
     orderBy("lastMessageAt", "desc"),
   ];
@@ -117,12 +156,32 @@ export function conversationListQuery({ orgId, uid, pageSize = 20, cursor = null
   return query(collection(db, CONVERSATIONS), ...constraints);
 }
 
-export async function fetchConversationPage(params) {
-  const snap = await getDocs(conversationListQuery(params));
+export function orgConversationListQuery({ orgId, pageSize = 20, cursor = null }) {
+  const constraints = [
+    where("orgId", "==", orgId),
+    where("scope", "==", "org"),
+    orderBy("lastMessageAt", "desc"),
+  ];
+  if (cursor) constraints.push(startAfter(cursor));
+  constraints.push(limit(pageSize));
+  return query(collection(db, CONVERSATIONS), ...constraints);
+}
+
+export async function fetchInboxPage({ uid, pageSize = 20, cursor = null }) {
+  const snap = await getDocs(personalInboxQuery({ uid, pageSize, cursor }));
   return {
     conversations: snap.docs.map(d => ({ id: d.id, ...d.data() })),
     lastDoc: snap.docs[snap.docs.length - 1] || null,
-    hasMore: snap.docs.length === (params.pageSize || 20),
+    hasMore: snap.docs.length === pageSize,
+  };
+}
+
+export async function fetchOrgConversationPage({ orgId, pageSize = 20, cursor = null }) {
+  const snap = await getDocs(orgConversationListQuery({ orgId, pageSize, cursor }));
+  return {
+    conversations: snap.docs.map(d => ({ id: d.id, ...d.data() })),
+    lastDoc: snap.docs[snap.docs.length - 1] || null,
+    hasMore: snap.docs.length === pageSize,
   };
 }
 
