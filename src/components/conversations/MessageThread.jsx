@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "../../firebase/config";
-import { subscribeToThread, fetchOlderMessages, subscribeToSuggestedActions, conversationTitle } from "../../lib/conversations";
+import {
+  subscribeToThread, fetchOlderMessages, subscribeToSuggestedActions, subscribeToConversation,
+  conversationTitle, acceptPersonalConversation,
+} from "../../lib/conversations";
 import { MessageItem } from "./MessageItem";
 import { MessageComposer } from "./MessageComposer";
 import { SuggestedActionChip } from "./SuggestedActionChip";
@@ -20,17 +21,41 @@ export function MessageThread({ user, orgCtx, conversationId, onBack, onOpenCont
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [error, setError] = useState(null);
   const [suggestedActions, setSuggestedActions] = useState([]);
+  const [accepting, setAccepting] = useState(false);
   const scrollRef = useRef(null);
   const didInitialScroll = useRef(false);
   const pendingScrollAdjust = useRef(null);
 
+  // Live (not one-time) so an accept from the other tab/party is reflected
+  // immediately — the accept banner and composer lock both depend on it.
   useEffect(() => {
-    let cancelled = false;
-    getDoc(doc(db, "conversations", conversationId))
-      .then(snap => { if (!cancelled && snap.exists()) setConversation({ id: snap.id, ...snap.data() }); })
-      .catch(e => console.error("[thread] conversation load failed:", e.message));
-    return () => { cancelled = true; };
+    const unsubscribe = subscribeToConversation({
+      conversationId,
+      onChange: setConversation,
+      onError: (e) => console.error("[thread] conversation load failed:", e.message),
+    });
+    return () => unsubscribe();
   }, [conversationId]);
+
+  // Pre-accept one-way gate (firestore.rules canCreateMessage/canUpdatePersonalConversation
+  // enforce this too — these are the matching client-side affordances, not
+  // the source of truth).
+  const isPendingRequest = conversation?.context === "personal"
+    && conversation?.type === "direct"
+    && conversation?.status === "requested";
+  const isRecipient = isPendingRequest && conversation.createdBy !== user.uid;
+  const isInitiatorWaiting = isPendingRequest && conversation.createdBy === user.uid;
+
+  const handleAccept = async () => {
+    if (accepting) return;
+    setAccepting(true);
+    try {
+      await acceptPersonalConversation({ conversationId });
+    } catch (e) {
+      console.error("[thread] accept failed:", e.message);
+    }
+    setAccepting(false);
+  };
 
   useEffect(() => {
     setLiveMessages([]);
@@ -144,12 +169,32 @@ export function MessageThread({ user, orgCtx, conversationId, onBack, onOpenCont
         })}
       </div>
 
-      <MessageComposer
-        conversationId={conversationId}
-        orgId={orgCtx.orgId}
-        senderUid={user.uid}
-        senderOrgId={orgCtx.orgId}
-      />
+      {isRecipient && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "10px 16px", borderTop: "1px solid #e0e0e0", background: "#fff3ef", flexShrink: 0 }}>
+          <div style={{ fontSize: 12, color: "#080808" }}>
+            {conversationTitle(conversation, user.uid)} wants to message you.
+          </div>
+          <button onClick={handleAccept} disabled={accepting} style={{ padding: "6px 14px", borderRadius: 8, background: "#e85a2a", border: "none", color: "#fff", fontSize: 12, fontWeight: 700, cursor: accepting ? "default" : "pointer", opacity: accepting ? 0.6 : 1, flexShrink: 0 }}>
+            {accepting ? "…" : "Accept"}
+          </button>
+        </div>
+      )}
+      {isInitiatorWaiting && (
+        <div style={{ padding: "8px 16px", borderTop: "1px solid #e0e0e0", background: "#f5f5f5", color: "#888", fontSize: 11, textAlign: "center", flexShrink: 0 }}>
+          Waiting for them to accept before they can reply.
+        </div>
+      )}
+
+      {isRecipient
+        ? <div style={{ borderTop: "1px solid #e0e0e0", background: "#fff", padding: 14, textAlign: "center", color: "#888", fontSize: 12, flexShrink: 0 }}>Accept the request to reply.</div>
+        : (
+          <MessageComposer
+            conversationId={conversationId}
+            orgId={orgCtx?.orgId ?? null}
+            senderUid={user.uid}
+            senderOrgId={orgCtx?.orgId ?? null}
+          />
+        )}
     </div>
   );
 }

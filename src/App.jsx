@@ -3,7 +3,6 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-
 import { collection, getDocs, getDoc, query, where, orderBy, doc } from "firebase/firestore";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth, db, getUserProfile, updateUserStats } from "./firebase/config";
-import { bootstrapOwnerOrg } from "./lib/tenancy";
 import { MOCK_STORES } from "./data/constants";
 import { G } from "./data/globalStyles";
 import { Toast } from "./components/shared/Toast";
@@ -92,10 +91,6 @@ export default function App() {
   const [showLoginPage, setShowLoginPage] = useState(false);
   const [pendingPage, setPendingPage] = useState(null);
   const [pendingPath, setPendingPath] = useState(null);
-  // Gates the Conversations nav entries + route — "has at least one active
-  // membership somewhere," not hard-coded to admin. Grows automatically as
-  // members are provisioned (see MemberProvisioningSection).
-  const [hasActiveMembership, setHasActiveMembership] = useState(false);
 
   // Persistent login — check auth state on mount
   useEffect(() => {
@@ -109,19 +104,13 @@ export default function App() {
             const finalProfile = isAdminEmail ? { ...profile, role: "admin" } : profile;
             setUser({ ...finalProfile, uid: firebaseUser.uid });
             setPage(isAdminEmail ? "admin" : (profile.role === "admin" ? "admin" : "home"));
-            // Bootstrap a solo org for EVERY user on login, not just admin —
-            // a chat between two solo users is an external thread between
-            // their two orgs (see functions/conversations.js), so every user
-            // needs one live tenant to be reachable at all. Idempotent —
-            // safe to call on every login. bootstrapOwnerOrg always resolves
-            // with an owner membership, so it can set the gate directly
-            // instead of a separate getMemberships lookup.
-            const orgName = isAdminEmail
-              ? "HOM Systems"
-              : (finalProfile.displayName || finalProfile.handle || firebaseUser.email || "My Organization");
-            bootstrapOwnerOrg({ name: orgName, type: "org" })
-              .then(() => setHasActiveMembership(true))
-              .catch(e => console.error("[tenancy] bootstrapOwnerOrg failed:", e.message));
+            // Identity-first (Phase 1): solo-org bootstrap is no longer
+            // automatic on login — a personal inbox needs no org membership
+            // at all (see firestore.rules canReadConversation, context ==
+            // 'personal'). Org creation is now an explicit user action; as of
+            // this pass there is no UI entry point for it yet (flagged
+            // separately — createOrganization/bootstrapOwnerOrg in
+            // lib/tenancy.js are unchanged and ready to be wired to one).
           }
         } catch(e) { console.log("Profile load error:", e); }
       }
@@ -133,7 +122,6 @@ export default function App() {
   const handleLogout = async () => {
     await signOut(auth);
     setUser(null);
-    setHasActiveMembership(false);
     navigate("/");
     setPage("home");
   };
@@ -185,7 +173,7 @@ export default function App() {
         ["login","Login"],
       ]
     : user.role === "admin"
-    ? [["admin","Admin Panel"],["inspi","Browse Inspi"],["jobs","Browse Jobs"], ...(hasActiveMembership ? [["messages","Messages"]] : [])]
+    ? [["admin","Admin Panel"],["inspi","Browse Inspi"],["jobs","Browse Jobs"],["messages","Messages"]]
     : isRetailer
     ? [] // Retailer uses internal sidebar nav
     : [
@@ -199,7 +187,7 @@ export default function App() {
         ["staff","Staff"],
         ...(showLeaderboard ? [["leaderboard","Leaderboard"]] : []),
         ["deals","Deals"],
-        ...(hasActiveMembership ? [["messages","Messages"]] : []),
+        ["messages","Messages"],
         ["profile","Profile"],
       ];
 
@@ -293,7 +281,7 @@ export default function App() {
                   ["add","➕","Add"],
                   ...(isContrib ? [["rewards","⭐","Rewards"]] : []),
                   ...(isContrib ? [["myzone","🗺","My Zone"]] : []),
-                  ...(hasActiveMembership ? [["messages","💬","Messages"]] : []),
+                  ["messages","💬","Messages"],
                   ["profile","👤","Profile"],
                 ]
               : [
@@ -322,7 +310,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<>
               {page === "home" && (isRetailer
-                ? <RetailerDashboard user={user} stores={stores} onNavigate={setPage} hasActiveMembership={hasActiveMembership} />
+                ? <RetailerDashboard user={user} stores={stores} onNavigate={setPage} />
                 : isContrib
                 ? <MarketChampionHome
                     user={user}

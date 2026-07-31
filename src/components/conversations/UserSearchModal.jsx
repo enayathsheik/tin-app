@@ -1,9 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { httpsCallable } from "firebase/functions";
-import { functions } from "../../firebase/config";
 import { searchUsers } from "../../lib/userSearch";
-
-const createExternalConversationFn = httpsCallable(functions, "createExternalConversation");
+import { getOrCreatePersonalConversation } from "../../lib/conversations";
 
 // Matches PublicProfilePage's ROLE_LABELS — profile.role is already the
 // public role (see src/utils/handles.js publicRoleFromInternalRole).
@@ -20,8 +17,10 @@ const SEARCH_DEBOUNCE_MS = 300;
 // Global "start a chat with anyone on TIN" search — the WhatsApp-style
 // primary entry point into Conversations. Searches only the sanitized
 // public profiles/{uid} shape (src/lib/userSearch.js); starting the chat
-// goes through the already-deployed createExternalConversation callable,
-// which enforces its own org/participant checks on the Admin SDK side.
+// goes through the org-agnostic getOrCreatePersonalConversation (client-side,
+// no org resolution) — a first-contact thread opens one-way, status
+// 'requested', until the recipient accepts (see firestore.rules
+// canCreatePersonalConversation / canUpdatePersonalConversation).
 export function UserSearchModal({ user, onClose, onCreated }) {
   const [term, setTerm] = useState("");
   const [results, setResults] = useState([]);
@@ -53,8 +52,16 @@ export function UserSearchModal({ user, onClose, onCreated }) {
     setStartingUid(profile.uid);
     setError(null);
     try {
-      const { data } = await createExternalConversationFn({ counterpartyUid: profile.uid });
-      onCreated(data.conversationId);
+      // Free improvement over the old createExternalConversation path, which
+      // never denormalized participantNames at all (conversationTitle fell
+      // back to raw uids) — this call site already has both names in hand
+      // from the search result, so use them.
+      const names = {
+        [user.uid]: user.name || user.email || "Me",
+        [profile.uid]: profile.displayName || profile.handle || profile.uid,
+      };
+      const conv = await getOrCreatePersonalConversation({ currentUid: user.uid, counterpartyUid: profile.uid, names });
+      onCreated(conv.id);
     } catch (e) {
       setError(e.message || "Couldn't start a conversation with this person.");
       setStartingUid(null);

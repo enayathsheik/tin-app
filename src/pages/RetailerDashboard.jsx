@@ -14,11 +14,13 @@ const BASE_RETAILER_NAV_ITEMS = [["home","🏠","My Business"],["discover","🔍
 const MESSAGES_NAV_ITEM = ["messages","💬","Messages"];
 const PROFILE_NAV_ITEM = ["profile","👤","Profile"];
 
-export function RetailerDashboard({ user, stores, onNavigate, hasActiveMembership = false }) {
+// Messages is always available (Phase 1, identity-first) — a personal inbox
+// needs no org membership, so this no longer gates on one.
+export function RetailerDashboard({ user, stores, onNavigate }) {
   const navigate = useNavigate();
   const RETAILER_NAV_ITEMS = [
     ...BASE_RETAILER_NAV_ITEMS,
-    ...(hasActiveMembership ? [MESSAGES_NAV_ITEM] : []),
+    MESSAGES_NAV_ITEM,
     PROFILE_NAV_ITEM,
   ];
   const [activeTab, setActiveTab] = useState("home");

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-  fetchConversationPage, getConversationMeta, conversationTitle,
+  fetchInboxPage, fetchOrgConversationPage, getConversationMeta, conversationTitle,
 } from "../../lib/conversations";
 
 const PAGE_SIZE = 20;
@@ -15,10 +15,17 @@ function formatWhen(ts) {
     : date.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
-// Tenant + participant scoped, paginated conversation list. Joins the
-// per-user conversationMeta doc (label/pin/mute) for each row shown —
-// bounded to the page size, never an unbounded read.
+// Participant scoped, paginated conversation list. Joins the per-user
+// conversationMeta doc (label/pin/mute) for each row shown — bounded to the
+// page size, never an unbounded read.
+//
+// "inbox" (default) is the collapsed context=='personal' query — works with
+// or without an org membership (see lib/conversations.js fetchInboxPage).
+// "org" is org-scope conversations any active member can see; it and its
+// entry point only exist when orgCtx is present, since it's meaningless
+// without one.
 export function ConversationList({ user, orgCtx, onOpen, activeId = null, onNewChat, onNewOrgConversation, canStartConversation = false }) {
+  const [mode, setMode] = useState("inbox");
   const [conversations, setConversations] = useState([]);
   const [metaByCid, setMetaByCid] = useState({});
   const [loading, setLoading] = useState(true);
@@ -34,11 +41,22 @@ export function ConversationList({ user, orgCtx, onOpen, activeId = null, onNewC
     setMetaByCid(prev => ({ ...prev, ...Object.fromEntries(entries) }));
   }, [user.uid]);
 
+  // Derived, not stored: if orgCtx disappears (e.g. membership revoked)
+  // while "org" was selected, fall back to "inbox" without a setState-in-effect
+  // — the tab UI itself reads `mode`, everything data-related reads this.
+  const effectiveMode = mode === "org" && !orgCtx ? "inbox" : mode;
+
+  const fetchPage = useCallback((cursorArg) => {
+    return effectiveMode === "org"
+      ? fetchOrgConversationPage({ orgId: orgCtx.orgId, pageSize: PAGE_SIZE, cursor: cursorArg || null })
+      : fetchInboxPage({ uid: user.uid, pageSize: PAGE_SIZE, cursor: cursorArg || null });
+  }, [effectiveMode, orgCtx, user.uid]);
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    fetchConversationPage({ orgId: orgCtx.orgId, uid: user.uid, pageSize: PAGE_SIZE })
+    fetchPage(null)
       .then(({ conversations: page, lastDoc, hasMore: more }) => {
         if (cancelled) return;
         setConversations(page);
@@ -49,15 +67,13 @@ export function ConversationList({ user, orgCtx, onOpen, activeId = null, onNewC
       .catch(e => { if (!cancelled) setError(e.message); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [orgCtx.orgId, user.uid, loadMetaFor]);
+  }, [fetchPage, loadMetaFor]);
 
   const loadMore = async () => {
-    if (!cursor || loadingMore) return;
+    if (!hasMore || loadingMore) return;
     setLoadingMore(true);
     try {
-      const { conversations: page, lastDoc, hasMore: more } = await fetchConversationPage({
-        orgId: orgCtx.orgId, uid: user.uid, pageSize: PAGE_SIZE, cursor,
-      });
+      const { conversations: page, lastDoc, hasMore: more } = await fetchPage(cursor);
       setConversations(prev => [...prev, ...page]);
       setCursor(lastDoc);
       setHasMore(more);
@@ -68,15 +84,28 @@ export function ConversationList({ user, orgCtx, onOpen, activeId = null, onNewC
     setLoadingMore(false);
   };
 
+  const tabStyle = (active) => ({
+    padding: "4px 10px", borderRadius: 999, border: "none", cursor: "pointer",
+    fontSize: 11, fontWeight: 700, background: active ? "#080808" : "#f0f0f0",
+    color: active ? "#fff" : "#888",
+  });
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid #e0e0e0", flexShrink: 0 }}>
-        <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 800, fontSize: 18, color: "#080808" }}>Messages</div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {canStartConversation && (
-            <button onClick={onNewOrgConversation} style={{ padding: 0, background: "none", border: "none", color: "#888", fontSize: 11, fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}>Org group</button>
-          )}
-          <button onClick={onNewChat} style={{ padding: "6px 12px", borderRadius: 8, background: "#e85a2a", border: "none", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ New chat</button>
+          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 800, fontSize: 18, color: "#080808" }}>Messages</div>
+          <button onClick={() => setMode("inbox")} style={tabStyle(mode === "inbox")}>Inbox</button>
+          {orgCtx && <button onClick={() => setMode("org")} style={tabStyle(mode === "org")}>Org group</button>}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {mode === "org"
+            ? (canStartConversation && (
+                <button onClick={onNewOrgConversation} style={{ padding: "6px 12px", borderRadius: 8, background: "#e85a2a", border: "none", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ Org group</button>
+              ))
+            : (
+                <button onClick={onNewChat} style={{ padding: "6px 12px", borderRadius: 8, background: "#e85a2a", border: "none", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ New chat</button>
+              )}
         </div>
       </div>
 
@@ -114,6 +143,9 @@ export function ConversationList({ user, orgCtx, onOpen, activeId = null, onNewC
                 </div>
                 <div style={{ fontSize: 11, color: "#888", textTransform: "capitalize" }}>{conv.type} · {conv.scope}</div>
               </div>
+              {conv.status === "requested" && conv.createdBy !== user.uid && (
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#e85a2a", background: "#fff3ef", border: "1px solid #fde0d0", borderRadius: 10, padding: "3px 8px", flexShrink: 0 }}>Request</div>
+              )}
               <div style={{ fontSize: 11, color: "#888", flexShrink: 0 }}>{formatWhen(conv.lastMessageAt)}</div>
             </div>
           );

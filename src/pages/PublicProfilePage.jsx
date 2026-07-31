@@ -2,14 +2,9 @@ import { useEffect, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { doc, getDoc } from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
-import { db, functions } from "../firebase/config";
+import { db } from "../firebase/config";
+import { getOrCreatePersonalConversation } from "../lib/conversations";
 
-const createExternalConversationFn = httpsCallable(functions, "createExternalConversation");
-
-// failed-precondition messages from functions/conversations.js are already
-// plain-language — surfaced as-is rather than mapped, so the two sides of
-// the check (client copy vs. server copy) can't drift out of sync.
 const DEFAULT_MESSAGE_ERROR = "Couldn't start a conversation with this person. Please try again.";
 
 const SITE_URL = "https://tinit.in";
@@ -90,12 +85,16 @@ export function PublicProfilePage({ user } = {}) {
   }, [handle, isHandleUrl]);
 
   const handleMessage = async () => {
-    if (!profile?.uid) return;
+    if (!profile?.uid || !user?.uid) return;
     setMessaging(true);
     setMessageError(null);
     try {
-      const { data } = await createExternalConversationFn({ counterpartyUid: profile.uid });
-      navigate(`/conversations/${data.conversationId}`);
+      const names = {
+        [user.uid]: user.name || user.email || "Me",
+        [profile.uid]: profile.displayName || profile.handle || profile.uid,
+      };
+      const conv = await getOrCreatePersonalConversation({ currentUid: user.uid, counterpartyUid: profile.uid, names });
+      navigate(`/conversations/${conv.id}`);
     } catch (e) {
       setMessageError(e.message || DEFAULT_MESSAGE_ERROR);
     }

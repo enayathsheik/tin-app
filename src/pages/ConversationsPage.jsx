@@ -28,9 +28,12 @@ export function ConversationsPage({ user }) {
     return () => { cancelled = true; };
   }, [user?.uid]);
 
+  // Identity-first (Phase 1): orgCtx is optional — a user with zero org
+  // memberships still gets a personal inbox. orgCtx == null only hides the
+  // org-scoped affordances (Org group tab, + Org group) further down the
+  // tree; it is never a reason to block the whole surface.
   if (!user) return <CenteredNote text="Sign in to view your conversations." />;
   if (loading) return <CenteredNote text="Loading conversations…" />;
-  if (!orgCtx) return <CenteredNote text="You need to be an active member of an organization to use messaging." />;
 
   return (
     <Routes>
@@ -53,7 +56,7 @@ function ConversationsShell({ user, orgCtx, conversationId = null }) {
   const [showRailSheet, setShowRailSheet] = useState(false);
   const openConversation = (id) => navigate(`/conversations/${id}`);
   const backToList = () => navigate("/conversations");
-  const canStartConversation = CONVERSATION_STARTER_ROLES.includes(orgCtx.membership?.role);
+  const canStartConversation = CONVERSATION_STARTER_ROLES.includes(orgCtx?.membership?.role);
 
   const modal = (
     <>

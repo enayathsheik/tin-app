@@ -42,8 +42,13 @@ export function MessageComposer({ conversationId, orgId, senderUid, senderOrgId 
     setUploading(true);
     setError(null);
     try {
-      // {orgId}/conversations/{conversationId}/{timestamp}_{filename}
-      const path = `${orgId}/conversations/${conversationId}/${Date.now()}_${file.name}`;
+      // {orgId}/conversations/{conversationId}/{timestamp}_{filename} — orgId
+      // falls back to senderUid for a personal conversation with no org
+      // (storage.rules' /{orgId}/conversations/... match treats this segment
+      // as an opaque path component, never checked against real org
+      // membership — see storage.rules comment — so this is a naming
+      // convention only, not a security decision).
+      const path = `${orgId || senderUid}/conversations/${conversationId}/${Date.now()}_${file.name}`;
       const fileRef = ref(storage, path);
       await uploadBytes(fileRef, file, { contentType: file.type || "application/octet-stream" });
       const url = await getDownloadURL(fileRef);

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "../../firebase/config";
-import { getOrCreateDirectConversation, createGroupConversation } from "../../lib/conversations";
+import { getOrCreatePersonalConversation, createGroupConversation } from "../../lib/conversations";
 
 // Roster comes straight from memberships (orgId + status active) rather than
 // users/{uid} — users/{uid} is self-read-only in firestore.rules, so
@@ -49,8 +49,12 @@ export function NewConversationModal({ user, orgCtx, onClose, onCreated }) {
     setCreating(true);
     setError(null);
     try {
+      // "Direct" here now goes through the same org-agnostic personal-
+      // conversation path as global search (Phase 1) — including the
+      // accept-gate: a first message to a colleague never messaged before
+      // opens one-way until they accept, same as a stranger via discovery.
       const conv = mode === "direct"
-        ? await getOrCreateDirectConversation({ orgId: orgCtx.orgId, currentUid: user.uid, otherUid: selected[0], names: buildNames(selected) })
+        ? await getOrCreatePersonalConversation({ currentUid: user.uid, counterpartyUid: selected[0], names: buildNames(selected) })
         : await createGroupConversation({ orgId: orgCtx.orgId, currentUid: user.uid, participantUids: selected, names: buildNames(selected) });
       onCreated(conv.id);
     } catch (e) {
