@@ -4,6 +4,7 @@ import { db } from "../firebase/config";
 import { CONTRIBUTOR_LEVELS, ROLES } from "../data/constants";
 import { getLevel } from "../utils/helpers";
 import { canChangeHandle, checkHandleAvailable, claimHandle, isReservedHandle, isValidHandleFormat } from "../utils/handles";
+import { CreateOrganizationSection } from "../components/profile/CreateOrganizationSection";
 
 export function ProfilePage({ user, onUpdateUser, showJobPosts = true }) {
   const lv = getLevel(user.points);
@@ -137,6 +138,8 @@ export function ProfilePage({ user, onUpdateUser, showJobPosts = true }) {
               {(user.youtube||profileForm.youtube) && <a href={(user.youtube||profileForm.youtube).startsWith("http")?(user.youtube||profileForm.youtube):`https://${user.youtube||profileForm.youtube}`} target="_blank" rel="noreferrer" style={{display:"flex",alignItems:"center",gap:5,padding:"5px 12px",borderRadius:20,background:"#FFF1F2",border:"1px solid #FECDD3",color:"#BE123C",fontSize:12,fontWeight:700,textDecoration:"none"}}>▶ YouTube</a>}
             </div>
           )}
+
+          <CreateOrganizationSection user={user} />
 
           {/* EDIT FORM */}
           {editing && (
