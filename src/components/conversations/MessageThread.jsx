@@ -21,6 +21,7 @@ export function MessageThread({ user, orgCtx, conversationId, onBack, onOpenCont
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [error, setError] = useState(null);
   const [suggestedActions, setSuggestedActions] = useState([]);
+  const [suggestedActionsError, setSuggestedActionsError] = useState(null);
   const [accepting, setAccepting] = useState(false);
   const scrollRef = useRef(null);
   const didInitialScroll = useRef(false);
@@ -82,6 +83,7 @@ export function MessageThread({ user, orgCtx, conversationId, onBack, onOpenCont
 
   useEffect(() => {
     setSuggestedActions([]);
+    setSuggestedActionsError(null);
     if (!conversation) return;
     const unsubscribe = subscribeToSuggestedActions({
       conversationId,
@@ -89,7 +91,10 @@ export function MessageThread({ user, orgCtx, conversationId, onBack, onOpenCont
       isPersonalDirect,
       orgId: conversation.orgId ?? null,
       onChange: setSuggestedActions,
-      onError: (e) => console.error("[thread] suggestedActions load failed:", e.message),
+      onError: (e) => {
+        console.error("[thread] suggestedActions load failed:", e.message);
+        setSuggestedActionsError("Couldn't load suggested actions for this conversation.");
+      },
     });
     return () => unsubscribe();
   }, [conversationId, conversation?.context, conversation?.type, conversation?.orgId, user.uid]);
@@ -163,6 +168,7 @@ export function MessageThread({ user, orgCtx, conversationId, onBack, onOpenCont
           </div>
         )}
         {error && <div style={{ color: "#dc2626", fontSize: 12, textAlign: "center", marginBottom: 10 }}>{error}</div>}
+        {suggestedActionsError && <div style={{ color: "#dc2626", fontSize: 12, textAlign: "center", marginBottom: 10 }}>{suggestedActionsError}</div>}
         {allMessages.length === 0 && !error && (
           <div style={{ color: "#888", fontSize: 13, textAlign: "center", marginTop: 30 }}>No messages yet — say hello.</div>
         )}
