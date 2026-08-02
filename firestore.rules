@@ -331,6 +331,59 @@ service cloud.firestore {
     }
     // ══ END AI FOUNDATION LAYER ═════════════════════════════
 
+    // ══ BUSINESS OBJECTS — PHASE 1 FOUNDATION (additive, parallel) ══
+    // docs/BUSINESS_OBJECTS_CONTRACT.md is the design source of truth. This
+    // block is additive and parallel to the AI FOUNDATION LAYER block above
+    // — suggestedActions/ledgerEntries/milestones/snags and their existing
+    // rules are untouched. Nothing writes businessObjects yet in this slice
+    // (Admin SDK only, once wired — same discipline as the collections
+    // above); allow write: if false unconditionally, no exceptions.
+    match /businessObjects/{objectId} {
+      // resource == null guarded first — same standing pattern as the
+      // conversations read rule fix (get() on a nonexistent doc must return
+      // not-found, not crash rule evaluation by dereferencing resource.data
+      // on a null resource).
+      allow read: if request.auth != null
+        && (resource == null || canReadBusinessObject(resource.data));
+      allow write: if false;
+    }
+
+    // Every check reads scopeTags via .get(key, default) rather than dot
+    // access, guarding a doc whose scopeTags map (or a key within it) is
+    // absent — same defensive idiom as canReadMessage's
+    // convData.get('context', null) above. All four are cheap: no more than
+    // one membership get() (isActiveMember) or one store get() (isStoreOwner)
+    // is evaluated, and only if its own null-guard already passed.
+    //
+    // participantUids is gated OUT for type == 'ledger_entry': a ledger is
+    // private books, not shared two-party truth, so a personal-origin ledger
+    // object is readable by its ownerUid only — the other 1:1 participant is
+    // NOT granted read via participantUids for this type. participantUids
+    // stays on scopeTags (see contract doc) for future shared object types
+    // (e.g. commitments) where both parties SHOULD read the same record; the
+    // per-type branch below is exactly where that future type's grant goes.
+    function canReadBusinessObject(data) {
+      let tags = data.get('scopeTags', {});
+      return tags.get('ownerUid', null) == request.auth.uid
+        || (data.get('type', null) != 'ledger_entry' && request.auth.uid in tags.get('participantUids', []))
+        || (tags.get('orgId', null) != null && isActiveMember(tags.orgId))
+        || (tags.get('storeId', null) != null && isStoreOwner(tags.storeId, request.auth.uid));
+    }
+
+    // Intentional placeholder, not a stopgap (see BUSINESS_OBJECTS_CONTRACT.md
+    // "Design decisions"): there is no store-membership concept anywhere in this
+    // schema — match /stores/{storeId} is `allow read: if true`, scoped on
+    // write only by a single contributorId, not a multi-user membership
+    // list. This reflects today's real-world shape (single-owner retailers)
+    // and reuses that one existing relationship as "linked to the store."
+    // Extend with a real membership check once multi-user stores exist —
+    // not built here per explicit scope decision.
+    function isStoreOwner(storeId, uid) {
+      return exists(/databases/$(database)/documents/stores/$(storeId))
+        && get(/databases/$(database)/documents/stores/$(storeId)).data.contributorId == uid;
+    }
+    // ══ END BUSINESS OBJECTS ═════════════════════════════════
+
     function isAdmin() {
       return request.auth != null &&
         request.auth.token.email == "enayathsheik@gmail.com";
