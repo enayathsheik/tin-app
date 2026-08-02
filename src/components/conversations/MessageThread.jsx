@@ -74,15 +74,25 @@ export function MessageThread({ user, orgCtx, conversationId, onBack, onOpenCont
     return () => unsubscribe();
   }, [conversationId]);
 
+  // Mirrors routeAIOutput's own personal-direct condition (functions/ai.js) —
+  // not inferred from field null-ness — to pick the equality filter that
+  // matches how each doc is actually scoped. Waits for `conversation` to load
+  // before subscribing since the filter depends on its context/type/orgId.
+  const isPersonalDirect = conversation?.context === "personal" && conversation?.type === "direct";
+
   useEffect(() => {
     setSuggestedActions([]);
+    if (!conversation) return;
     const unsubscribe = subscribeToSuggestedActions({
       conversationId,
+      currentUid: user.uid,
+      isPersonalDirect,
+      orgId: conversation.orgId ?? null,
       onChange: setSuggestedActions,
       onError: (e) => console.error("[thread] suggestedActions load failed:", e.message),
     });
     return () => unsubscribe();
-  }, [conversationId]);
+  }, [conversationId, conversation?.context, conversation?.type, conversation?.orgId, user.uid]);
 
   const actionsByMessageId = useMemo(() => {
     const map = {};

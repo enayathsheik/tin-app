@@ -326,13 +326,37 @@ export async function sendAttachmentMessage({ conversationId, orgId, senderUid, 
 //
 // One listener per open conversation (not one per message) — bounded to the
 // most recent 100 proposals — caller groups by messageId to attach to rows.
-export function subscribeToSuggestedActions({ conversationId, onChange, onError }) {
-  const q = query(
-    collection(db, SUGGESTED_ACTIONS),
-    where("conversationId", "==", conversationId),
-    orderBy("createdAt", "desc"),
-    limit(100)
-  );
+//
+// A conversationId-only filter can't work here: routeAIOutput() (functions/ai.js)
+// writes personal-direct docs with orgId: null, ownerUid: <sender>, and every
+// other routed context (organization, and legacy pre-backfill context == null)
+// with orgId: <org>, ownerUid: null — never both on the same doc. Two
+// participants in the same personal-direct conversation can each have their
+// own ownerUid-scoped doc under the same conversationId, so a query that pins
+// only conversationId can match docs with different ownerUid values. Firestore
+// requires a query's own filters to prove every potential match satisfies
+// canReadAiRecord() (firestore.rules) — it can't do that across mixed owners,
+// so the entire listener was denied instead of the read narrowing to the
+// caller's own doc. Branching the equality filter on isPersonalDirect (mirroring
+// routeAIOutput's own personal-direct condition, not inferred from null-ness)
+// keeps every potential match uniformly owned by one party, which Firestore
+// can prove.
+export function subscribeToSuggestedActions({ conversationId, currentUid, isPersonalDirect, orgId, onChange, onError }) {
+  const q = isPersonalDirect
+    ? query(
+        collection(db, SUGGESTED_ACTIONS),
+        where("conversationId", "==", conversationId),
+        where("ownerUid", "==", currentUid),
+        orderBy("createdAt", "desc"),
+        limit(100)
+      )
+    : query(
+        collection(db, SUGGESTED_ACTIONS),
+        where("conversationId", "==", conversationId),
+        where("orgId", "==", orgId),
+        orderBy("createdAt", "desc"),
+        limit(100)
+      );
   return onSnapshot(
     q,
     (snap) => onChange(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
