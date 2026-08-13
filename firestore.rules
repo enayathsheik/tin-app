@@ -384,6 +384,61 @@ service cloud.firestore {
     }
     // ══ END BUSINESS OBJECTS ═════════════════════════════════
 
+    // ══ HOM SYSTEMS — "HOUSE OF MOD" — BLOCK 1 (additive, parallel) ══
+    // Kitchen-shutter microsite: editable catalog + vendor directory +
+    // customer orders + supplier purchase orders. Every write below is
+    // gated on isAdmin() (the same single-email check every other
+    // admin-only collection in this file already uses) — TODO(hom_admin):
+    // a dedicated scoped hom_admin role lands in Block 3; swap isAdmin()
+    // for it on every line marked below, no other logic changes.
+
+    // ── CATALOG ── (profiles/colours/glasses/addons/bars/rates — one doc)
+    // Public read: the microsite renders pricing with no auth at all.
+    match /homConfig/{docId} {
+      allow read: if true;
+      allow write: if isAdmin(); // TODO(hom_admin): scope to hom_admin role
+    }
+
+    // ── VENDORS ── (installer/fabricator directory — admin-managed only)
+    match /homVendors/{vendorId} {
+      allow read, write: if isAdmin(); // TODO(hom_admin): scope to hom_admin role
+    }
+
+    // ── ORDERS ── (customer-submitted quote/order requests)
+    // Public create, gated on full-shape validation (isValidHomOrder) — the
+    // microsite has no auth, so anyone can submit an order, but only a
+    // well-formed one with real customer contact info, a real pincode, at
+    // least one cabinet, a pricing snapshot, and a recognized payment
+    // method. Read/update/delete stay admin-only: an unauthenticated
+    // customer has no uid to scope a read to, so they can't read even their
+    // own just-created order back — let alone another customer's.
+    match /homOrders/{orderId} {
+      allow create: if isValidHomOrder(request.resource.data);
+      allow read, update, delete: if isAdmin(); // TODO(hom_admin): scope to hom_admin role
+    }
+
+    // ── SUPPLIER ORDERS ── (admin's own purchase orders to profile/glass suppliers)
+    match /homSupplierOrders/{docId} {
+      allow read, write: if isAdmin(); // TODO(hom_admin): scope to hom_admin role
+    }
+
+    // .get(key, default) throughout — same defensive idiom as
+    // canReadBusinessObject above — a client-submitted request.resource.data
+    // may simply omit a key instead of sending it null, and bare dot-access
+    // on an absent map key throws a rules evaluation error instead of
+    // failing validation cleanly.
+    function isValidHomOrder(data) {
+      let customer = data.get('customer', null);
+      return customer is map
+        && customer.get('name', '') is string && customer.name.size() > 0
+        && customer.get('phone', '') is string && customer.phone.size() > 0
+        && customer.get('pincode', '') is string && customer.pincode.matches('^[0-9]{6}$')
+        && data.get('cabinets', []) is list && data.cabinets.size() > 0
+        && data.get('pricingSnapshot', null) is map
+        && data.get('paymentMethod', '') in ['online', 'cod'];
+    }
+    // ══ END HOM SYSTEMS — BLOCK 1 ═══════════════════════════════
+
     function isAdmin() {
       return request.auth != null &&
         request.auth.token.email == "enayathsheik@gmail.com";

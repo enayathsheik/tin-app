@@ -11,7 +11,8 @@
     "build": "vite build && node scripts/generate-sitemap.js && node scripts/prerender.js",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:rules": "firebase emulators:exec --only firestore \"npx vitest run --no-file-parallelism\""
+    "test:rules": "firebase emulators:exec --only firestore \"npx vitest run --no-file-parallelism\"",
+    "test:unit": "vitest run test/unit"
   },
   "dependencies": {
     "firebase": "^12.14.0",
