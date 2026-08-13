@@ -37,6 +37,30 @@ service firebase.storage {
       allow write: if request.auth != null && request.resource.size < 25 * 1024 * 1024;
     }
 
+    // ── HOM ORDER ATTACHMENTS ── (Block 2, additive)
+    // Reference drawings/photos the customer attaches to a homOrders order.
+    // The microsite has no auth, so — like the homOrders create rule itself
+    // (see firestore.rules) — write is public, capped by size/type only.
+    // Read stays admin-only: unlike inspi/profiles these aren't meant to be
+    // publicly browsable, and there's no customer uid to scope a narrower
+    // read to. Firestore's homOrders read rule is the actual admin-only
+    // gate on ever discovering a file's download URL in the first place —
+    // this mirrors that same isAdmin() check so the file itself is equally
+    // protected if the URL ever leaks.
+    match /hom/orders/{orderId}/{fileName} {
+      allow read: if isHomAdmin();
+      allow create: if request.resource.size < 15 * 1024 * 1024
+        && (
+          request.resource.contentType.matches('image/.*')
+          || request.resource.contentType == 'application/pdf'
+        );
+      allow update, delete: if isHomAdmin();
+    }
+
+    function isHomAdmin() {
+      return request.auth != null && request.auth.token.email == "enayathsheik@gmail.com";
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

@@ -409,12 +409,32 @@ service cloud.firestore {
     // microsite has no auth, so anyone can submit an order, but only a
     // well-formed one with real customer contact info, a real pincode, at
     // least one cabinet, a pricing snapshot, and a recognized payment
-    // method. Read/update/delete stay admin-only: an unauthenticated
-    // customer has no uid to scope a read to, so they can't read even their
-    // own just-created order back — let alone another customer's.
+    // method. Read/delete stay admin-only: an unauthenticated customer has
+    // no uid to scope a read to, so they can't read even their own
+    // just-created order back — let alone another customer's.
     match /homOrders/{orderId} {
       allow create: if isValidHomOrder(request.resource.data);
-      allow read, update, delete: if isAdmin(); // TODO(hom_admin): scope to hom_admin role
+      // BLOCK 2 (additive to Block 1): the microsite uploads reference
+      // attachments to Storage AFTER the order doc already exists (it needs
+      // the real orderId as the storage path), so it must come back and
+      // patch attachments[] onto its own just-created doc — but it's still
+      // unauthenticated, so there is no uid to scope this to the actual
+      // creator. Narrowed instead by what the update can touch and when:
+      // ONLY the attachments key (diff().affectedKeys().hasOnly, per the
+      // project's standing write-scoping convention — see jobListings/
+      // jobApplications above), and ONLY the single transition from empty
+      // to populated (resource.data.get('attachments', []).size() == 0) —
+      // so this path can set attachments exactly once per order and can
+      // never be used to touch pricing/status/customer data on anyone's
+      // order, its own included.
+      allow update: if isAdmin()
+        || (
+          resource != null
+          && resource.data.get('attachments', []).size() == 0
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attachments'])
+          && request.resource.data.attachments is list
+        );
+      allow read, delete: if isAdmin(); // TODO(hom_admin): scope to hom_admin role
     }
 
     // ── SUPPLIER ORDERS ── (admin's own purchase orders to profile/glass suppliers)

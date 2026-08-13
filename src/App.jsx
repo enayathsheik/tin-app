@@ -29,10 +29,45 @@ import { JobDetailPage } from "./pages/JobDetailPage";
 import { StoreProfilePage } from "./pages/StoreProfilePage";
 import { PublicProfilePage } from "./pages/PublicProfilePage";
 import { ConversationsPage } from "./pages/ConversationsPage";
+import { HomSystemsPage } from "./pages/hom/HomSystemsPage";
 
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
+
+  // ══ HOM SYSTEMS — "HOUSE OF MOD" microsite (Block 2, additive) ══
+  // homsystems.tinit.in is a separate public, customer-facing product with
+  // no relationship to the TIN app shell (no nav, no auth, no user state) —
+  // it must never render inside <nav className="topbar">/mobile-nav/auth
+  // gating below. Detected two ways: the real subdomain in production
+  // (window.location.hostname), or a /homsystems path for local dev and any
+  // environment where a subdomain isn't wired up (localhost has no
+  // subdomains to test against). This check runs before EVERYTHING else in
+  // this component — including the authLoading spinner — since the
+  // microsite has no auth to wait on.
+  //
+  // Hosting note: no firebase.json change was needed for this — the
+  // existing single-site hosting config's catch-all rewrite ("**" ->
+  // "/index.html") already serves this same SPA bundle for ANY hostname
+  // pointed at it. Wiring the real subdomain is a one-time, non-code step:
+  // add "homsystems.tinit.in" as an additional custom domain to this same
+  // Firebase Hosting site (Firebase Console -> Hosting -> Add custom
+  // domain) and point its DNS at Firebase per the console's instructions —
+  // no second hosting target/site is required since both domains serve the
+  // identical build.
+  //
+  // The actual early return lives further down (right before the
+  // authLoading spinner), AFTER every hook below has been called — this
+  // const is computed here only for that later branch and for the effect
+  // guards immediately below, never used to conditionally skip a hook call
+  // itself (would violate React's rules of hooks, since location.pathname
+  // can change within a single SPA session for the /homsystems dev
+  // fallback, unlike the hostname check which is stable for the life of
+  // the page).
+  const isHomSystemsRoute = typeof window !== "undefined" && (
+    window.location.hostname.startsWith("homsystems.") ||
+    location.pathname.startsWith("/homsystems")
+  );
   const [user, setUser] = useState(null);
   const [page, setPage] = useState("home");
   const [stores, setStores] = useState(MOCK_STORES);
@@ -42,6 +77,9 @@ export default function App() {
 
   // Load real stores from Firestore on mount
   useEffect(() => {
+    // homsystems has no use for TIN's stores/contributors data — skip the
+    // reads rather than pay for them on every microsite page load.
+    if (isHomSystemsRoute) return;
     const loadStores = async () => {
       try {
         const snap = await getDocs(query(collection(db, "stores"), orderBy("createdAt", "desc")));
@@ -94,6 +132,9 @@ export default function App() {
 
   // Persistent login — check auth state on mount
   useEffect(() => {
+    // homsystems has no auth at all — see the early return before the
+    // authLoading spinner check below, which this component never reaches.
+    if (isHomSystemsRoute) return;
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
@@ -201,6 +242,10 @@ export default function App() {
   const isAdminRoute = typeof window !== "undefined" && window.location.hash === "#admin";
   const [showAdminLogin, setShowAdminLogin] = useState(isAdminRoute);
 
+  // All hooks above have now been called unconditionally on every render —
+  // safe to branch here. See the isHomSystemsRoute comment near the top of
+  // this component for why the return lives here and not earlier.
+  if (isHomSystemsRoute) return <HomSystemsPage />;
   if (authLoading) return <><style>{G}</style><div style={{height:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#f4f5f7",flexDirection:"column",gap:12}}><div style={{fontFamily:"'Barlow Condensed'",fontWeight:800,fontSize:28,color:"var(--acc)"}}>TIN</div><div style={{fontSize:13,color:"#080808"}}>Loading...</div></div></>;
   if (!user && showAdminLogin) return <><style>{G}</style><div className={"light"} style={{background:"#f4f5f7",minHeight:"100vh"}}><AdminLoginPage onAdminLogin={(u) => { setUser(u); navigate("/"); setPage("admin"); setShowAdminLogin(false); }} /></div></>;
   if (!user && showLoginPage) {

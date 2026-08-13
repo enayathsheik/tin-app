@@ -45,6 +45,12 @@ beforeAll(async () => {
     await setDoc(doc(db, "homConfig", "catalog"), { profiles: [], colours: [], seeded: true });
     await setDoc(doc(db, "homVendors", "vendor1"), { name: "Vendor One" });
     await setDoc(doc(db, "homOrders", "orderExisting"), validOrderPayload());
+    // Separate, untouched docs for the attachments-only update tests below —
+    // isolated from orderExisting so those tests can't be order-dependent on
+    // what earlier tests (e.g. admin's status update) already did to it.
+    await setDoc(doc(db, "homOrders", "orderNoAttachments"), validOrderPayload());
+    await setDoc(doc(db, "homOrders", "orderAttachmentsAlreadySet"), validOrderPayload({ attachments: [{ name: "existing.jpg", url: "https://example.com/existing.jpg" }] }));
+    await setDoc(doc(db, "homOrders", "orderForTypeCheck"), validOrderPayload());
     await setDoc(doc(db, "homSupplierOrders", "po1"), { vendorId: "vendor1", items: [] });
   });
 });
@@ -147,5 +153,46 @@ describe("HOM Systems Block 1 — security rules", () => {
     const db = testEnv.authenticatedContext("adminUid", { email: ADMIN_EMAIL }).firestore();
     await assertSucceeds(getDoc(doc(db, "homSupplierOrders", "po1")));
     await assertSucceeds(setDoc(doc(db, "homSupplierOrders", "po2"), { vendorId: "vendor1", items: [] }));
+  });
+
+  // ── Block 2: the public attachments-only update path ──
+  it("17. an unauthenticated client can set attachments once on an order that has none yet", async () => {
+    const db = testEnv.unauthenticatedContext().firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "homOrders", "orderNoAttachments"),
+        { attachments: [{ name: "photo.jpg", url: "https://example.com/photo.jpg" }] },
+        { merge: true }
+      )
+    );
+  });
+
+  it("18. a second unauthenticated attachments update on the same order is denied (already non-empty)", async () => {
+    const db = testEnv.unauthenticatedContext().firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "homOrders", "orderAttachmentsAlreadySet"),
+        { attachments: [{ name: "second.jpg", url: "https://example.com/second.jpg" }] },
+        { merge: true }
+      )
+    );
+  });
+
+  it("19. an unauthenticated update touching any field besides attachments is denied, even on a fresh order", async () => {
+    const db = testEnv.unauthenticatedContext().firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "homOrders", "orderNoAttachments"),
+        { status: "hacked", attachments: [{ name: "x.jpg", url: "https://example.com/x.jpg" }] },
+        { merge: true }
+      )
+    );
+  });
+
+  it("20. an unauthenticated update setting attachments to a non-list is denied", async () => {
+    const db = testEnv.unauthenticatedContext().firestore();
+    await assertFails(
+      setDoc(doc(db, "homOrders", "orderForTypeCheck"), { attachments: "not-a-list" }, { merge: true })
+    );
   });
 });
