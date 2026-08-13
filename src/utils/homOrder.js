@@ -1,4 +1,4 @@
-// HOM Systems "House of Mod" — order-save + attachment-upload for the public
+// HOM Systems — order-save + attachment-upload for the public
 // microsite (Block 2). Builds on src/utils/homPricing.js for all math — this
 // file only shapes/writes data, it never computes a price itself.
 //

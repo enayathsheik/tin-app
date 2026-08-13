@@ -384,24 +384,22 @@ service cloud.firestore {
     }
     // ══ END BUSINESS OBJECTS ═════════════════════════════════
 
-    // ══ HOM SYSTEMS — "HOUSE OF MOD" — BLOCK 1 (additive, parallel) ══
+    // ══ HOM SYSTEMS — BLOCK 1 (additive, parallel) ══
     // Kitchen-shutter microsite: editable catalog + vendor directory +
-    // customer orders + supplier purchase orders. Every write below is
-    // gated on isAdmin() (the same single-email check every other
-    // admin-only collection in this file already uses) — TODO(hom_admin):
-    // a dedicated scoped hom_admin role lands in Block 3; swap isAdmin()
-    // for it on every line marked below, no other logic changes.
+    // customer orders + supplier purchase orders. Management writes are
+    // gated on canManageHom() — full TIN admin (isAdmin()) OR the scoped
+    // hom_admin role (isHomAdminRole(), Block 3) — see both functions below.
 
     // ── CATALOG ── (profiles/colours/glasses/addons/bars/rates — one doc)
     // Public read: the microsite renders pricing with no auth at all.
     match /homConfig/{docId} {
       allow read: if true;
-      allow write: if isAdmin(); // TODO(hom_admin): scope to hom_admin role
+      allow write: if canManageHom();
     }
 
     // ── VENDORS ── (installer/fabricator directory — admin-managed only)
     match /homVendors/{vendorId} {
-      allow read, write: if isAdmin(); // TODO(hom_admin): scope to hom_admin role
+      allow read, write: if canManageHom();
     }
 
     // ── ORDERS ── (customer-submitted quote/order requests)
@@ -409,9 +407,13 @@ service cloud.firestore {
     // microsite has no auth, so anyone can submit an order, but only a
     // well-formed one with real customer contact info, a real pincode, at
     // least one cabinet, a pricing snapshot, and a recognized payment
-    // method. Read/delete stay admin-only: an unauthenticated customer has
-    // no uid to scope a read to, so they can't read even their own
-    // just-created order back — let alone another customer's.
+    // method. Read stays admin/hom_admin-only (the Block 3 order queue needs
+    // it): an unauthenticated customer has no uid to scope a read to, so
+    // they can't read even their own just-created order back — let alone
+    // another customer's. Delete stays isAdmin()-only, narrower than the
+    // rest of this block on purpose — nothing in Block 3's hom_admin
+    // workflow (approve/assign/advance status) ever deletes an order, so
+    // there's no reason to hand out that capability.
     match /homOrders/{orderId} {
       allow create: if isValidHomOrder(request.resource.data);
       // BLOCK 2 (additive to Block 1): the microsite uploads reference
@@ -426,20 +428,25 @@ service cloud.firestore {
       // to populated (resource.data.get('attachments', []).size() == 0) —
       // so this path can set attachments exactly once per order and can
       // never be used to touch pricing/status/customer data on anyone's
-      // order, its own included.
-      allow update: if isAdmin()
+      // order, its own included. BLOCK 3 (additive to Block 2): the
+      // admin/hom_admin branch (canManageHom()) is what actually drives the
+      // order lifecycle — approve/reject, vendor assignment, status
+      // advance — the public-attachments branch alongside it is completely
+      // unchanged from Block 2.
+      allow update: if canManageHom()
         || (
           resource != null
           && resource.data.get('attachments', []).size() == 0
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attachments'])
           && request.resource.data.attachments is list
         );
-      allow read, delete: if isAdmin(); // TODO(hom_admin): scope to hom_admin role
+      allow read: if canManageHom();
+      allow delete: if isAdmin();
     }
 
     // ── SUPPLIER ORDERS ── (admin's own purchase orders to profile/glass suppliers)
     match /homSupplierOrders/{docId} {
-      allow read, write: if isAdmin(); // TODO(hom_admin): scope to hom_admin role
+      allow read, write: if canManageHom();
     }
 
     // .get(key, default) throughout — same defensive idiom as
@@ -462,6 +469,29 @@ service cloud.firestore {
     function isAdmin() {
       return request.auth != null &&
         request.auth.token.email == "enayathsheik@gmail.com";
+    }
+
+    // ── HOM SYSTEMS SCOPED ADMIN (Block 3) ──
+    // Same mechanism the rest of the app already uses for roles: a plain
+    // `role` field on the user's own users/{uid} doc (see App.jsx's existing
+    // profile.role handling) — hom_admin is just another value alongside
+    // consumer/retailer/contractor/architect/contributor, not a new roles
+    // system. exists() is checked before get() since a brand-new auth user
+    // may not have a users/{uid} doc yet (same defensive shape as
+    // isActiveMemberOf above) — reading .data off a nonexistent doc would
+    // throw a rules evaluation error rather than cleanly resolving to "not
+    // hom_admin".
+    function isHomAdminRole() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') == 'hom_admin';
+    }
+
+    // Every HOM Systems management write in this file is gated on this,
+    // not on isAdmin() or isHomAdminRole() directly — the single call site
+    // to widen if a third way to manage HOM Systems is ever added.
+    function canManageHom() {
+      return isAdmin() || isHomAdminRole();
     }
 
     function isConversationParticipant(conversationId) {

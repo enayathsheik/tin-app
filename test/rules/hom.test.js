@@ -1,4 +1,4 @@
-// HOM Systems "House of Mod" Block 1 — permission proof. The microsite has
+// HOM Systems Block 1 — permission proof. The microsite has
 // no auth: it publicly reads the catalog and creates orders, and nothing
 // else. Everything else (vendors, order read/update/delete, supplier
 // orders, catalog write) stays behind the existing isAdmin() email check.

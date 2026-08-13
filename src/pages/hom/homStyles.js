@@ -1,4 +1,4 @@
-// HOM Systems "House of Mod" microsite — standalone stylesheet (Block 2).
+// HOM Systems microsite — standalone stylesheet (Block 2).
 // Deliberately separate from data/globalStyles.js's G (dark TIN app shell
 // theme): this page renders standalone, outside the TIN app shell, for a
 // different customer entirely — see App.jsx's homsystems host/path check.
@@ -18,9 +18,11 @@ export const HOM_STYLES = `
 
 /* HEADER */
 .hm-topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;background:var(--hm-paper);border-bottom:2px solid var(--hm-ink)}
+.hm-brand-block{display:flex;flex-direction:column;gap:4px}
+.hm-logo{height:38px;width:auto;object-fit:contain;display:block}
 .hm-brand{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:20px;letter-spacing:.04em}
 .hm-brand em{color:var(--hm-acc);font-style:normal}
-.hm-brand-sub{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--hm-sub);margin-top:1px}
+.hm-brand-sub{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--hm-sub);margin-top:1px}
 .hm-topbar-right{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--hm-sub)}
 
 /* LAYOUT */
@@ -154,4 +156,48 @@ export const HOM_STYLES = `
 .hm-confirm-step{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--hm-line)}
 .hm-confirm-step:last-child{border-bottom:none}
 .hm-confirm-step-no{font-family:'Barlow Condensed',sans-serif;font-weight:800;color:var(--hm-acc);width:22px;flex-shrink:0}
+
+/* ADMIN TAB (Block 3) — same design tokens, arranged for a dense back-office UI */
+.hm-admin-shell{max-width:1280px;margin:0 auto}
+.hm-admin-nav{display:flex;gap:6px;flex-wrap:wrap;padding:14px 0 18px;border-bottom:1px solid var(--hm-line);margin-bottom:20px}
+.hm-admin-navbtn{padding:8px 16px;border:1.5px solid var(--hm-line);background:#fff;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;cursor:pointer;color:var(--hm-ink)}
+.hm-admin-navbtn:hover{border-color:var(--hm-ink)}
+.hm-admin-navbtn.on{background:var(--hm-ink);color:#fff;border-color:var(--hm-ink)}
+.hm-section-title{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:22px;margin-bottom:4px}
+.hm-section-sub{font-size:12px;color:var(--hm-sub);margin-bottom:18px}
+.hm-save-bar{display:flex;align-items:center;gap:12px;margin-top:18px;padding-top:16px;border-top:1px dashed var(--hm-line)}
+.hm-dirty-flag{font-size:11px;color:var(--hm-warn);font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.hm-table{width:100%;border-collapse:collapse;font-size:12px}
+.hm-table th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--hm-sub);padding:8px 10px;border-bottom:2px solid var(--hm-ink)}
+.hm-table td{padding:9px 10px;border-bottom:1px solid var(--hm-line);vertical-align:top}
+.hm-table tr:hover td{background:var(--hm-paper)}
+.hm-badge{display:inline-block;padding:3px 9px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border:1px solid var(--hm-line)}
+.hm-badge-warn{color:var(--hm-warn);border-color:var(--hm-warn);background:#fdecea}
+.hm-badge-ok{color:var(--hm-ok);border-color:var(--hm-ok);background:#eaf7ee}
+.hm-badge-neutral{color:var(--hm-sub);border-color:var(--hm-line);background:var(--hm-paper)}
+.hm-catalog-item{border:1px solid var(--hm-line);padding:14px;margin-bottom:10px;background:#fff}
+.hm-catalog-item-hd{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.hm-photo-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.hm-photo-thumb{position:relative;width:64px;height:64px;border:1px solid var(--hm-line);overflow:hidden}
+.hm-photo-thumb img{width:100%;height:100%;object-fit:cover}
+.hm-photo-thumb .hm-photo-rm{position:absolute;top:0;right:0;background:#000000a0;color:#fff;border:none;width:18px;height:18px;font-size:11px;cursor:pointer;line-height:1}
+.hm-order-row{cursor:pointer}
+.hm-order-detail{border:1px solid var(--hm-line);background:#fff;padding:18px;margin-top:14px}
+.hm-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.hm-detail-block{border:1px dashed var(--hm-line);padding:12px}
+.hm-detail-block-hd{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--hm-sub);margin-bottom:8px;font-weight:700}
+.hm-vendor-select{border:1.5px solid var(--hm-line);padding:9px 12px;font-size:13px;font-family:'Barlow',sans-serif;width:100%;background:#fff;color:var(--hm-ink)}
+.hm-chit-overlay{position:fixed;inset:0;background:#00000080;z-index:500;display:flex;align-items:flex-start;justify-content:center;padding:30px;overflow-y:auto}
+.hm-chit-paper{background:#fff;width:100%;max-width:720px;padding:28px;position:relative}
+.hm-chit-hd{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid var(--hm-ink);padding-bottom:12px;margin-bottom:16px}
+.hm-chit-title{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:18px;text-transform:uppercase}
+.hm-chit-order{font-size:12px;color:var(--hm-sub)}
+.hm-chit-close{position:absolute;top:14px;right:14px}
+.hm-chit-label{border:1.5px dashed var(--hm-ink);padding:16px;margin-bottom:14px}
+@media print{
+  body *{visibility:hidden}
+  .hm-chit-paper,.hm-chit-paper *{visibility:visible}
+  .hm-chit-paper{position:absolute;top:0;left:0;width:100%;max-width:none}
+  .hm-chit-close,.hm-chit-print-btn{display:none!important}
+}
 `;

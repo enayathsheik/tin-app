@@ -1,4 +1,4 @@
-// HOM Systems "House of Mod" — the customer-facing cabinet builder (Block 2).
+// HOM Systems — the customer-facing cabinet builder (Block 2).
 // All prices shown here come from src/utils/homPricing.js reading the live
 // homConfig/catalog doc — nothing in this file hardcodes a rate.
 import { useMemo, useState } from "react";

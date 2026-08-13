@@ -1,4 +1,4 @@
-// HOM Systems "House of Mod" — kitchen-shutter pricing engine.
+// HOM Systems — kitchen-shutter pricing engine.
 // Pure, unit-testable functions — mirrors HOM_Kitchen_Calculator.xlsx exactly
 // (no per-sqft profile pricing). Both exports take the homConfig/catalog
 // document (see scripts/seed-hom-catalog.mjs) as their first argument so the
@@ -31,6 +31,15 @@ function pickCheapestBar(bars, longest, regularCut) {
     if (!best || cost < best.cost) best = { cost, label: bar.label };
   }
   return best ? { ...best, ok: true } : { cost: 0, label: "n/a", ok: false };
+}
+
+// Glass cut size for one shutter — shutter size minus the deduct margin on
+// all four sides. Factored out of priceCabinet (which uses it for
+// glassArea) so chit-building code (Block 3) can derive the same cut size
+// for the glass supplier's chit without re-deriving the formula itself.
+export function glassCutSize(shutterW, shutterH, glassDeductMm) {
+  const deduct = glassDeductMm || 0;
+  return { gW: shutterW - 2 * deduct, gH: shutterH - 2 * deduct };
 }
 
 // Prices one line of `qty` identical cabinets.
@@ -67,9 +76,7 @@ export function priceCabinet(catalog, input) {
 
   const handleCost = round((handleCut / MM_PER_FT) * catalog.handleRatePerFt);
 
-  const glassDeductMm = catalog.glassDeductMm || 0;
-  const gW = shutterW - 2 * glassDeductMm;
-  const gH = shutterH - 2 * glassDeductMm;
+  const { gW, gH } = glassCutSize(shutterW, shutterH, catalog.glassDeductMm);
   const glassArea = round2((gW * gH * totalShutters) / MM2_PER_SQFT);
 
   const addonRate = addons.reduce((sum, addonId) => {

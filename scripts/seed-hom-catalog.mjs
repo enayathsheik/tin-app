@@ -1,5 +1,5 @@
 // One-time seed for homConfig/catalog — the single editable-catalog doc the
-// HOM Systems "House of Mod" microsite reads (profiles/colours/glasses/
+// HOM Systems microsite reads (profiles/colours/glasses/
 // addons/bars/rates). Values are the real HOM_Kitchen_Calculator.xlsx
 // numbers for Block 1; the admin edits this doc going forward.
 //

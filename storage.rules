@@ -57,8 +57,50 @@ service firebase.storage {
       allow update, delete: if isHomAdmin();
     }
 
+    // ── HOM CATALOG PHOTOS ── (Block 3, additive)
+    // Profile/colour/glass reference photos the admin/hom_admin uploads
+    // while editing homConfig/catalog — the resulting download URL is
+    // stored on that item's photos[] array (see src/utils/homAdmin.js).
+    // Image-only, size-limited, same shape as every other upload rule in
+    // this file. Read is public (not isHomManager()-gated): the microsite
+    // itself renders these photos with no auth at all (see
+    // src/pages/hom/HomBuilder.jsx's PhotoGallery), same as homConfig's
+    // Firestore read rule being public.
+    match /hom/catalog/{itemType}/{itemId}/{fileName} {
+      allow read: if true;
+      allow write: if isHomManager()
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // Block-2's order-attachment read stays exactly isHomAdmin() (master
+    // admin only, unchanged) — this task's own instructions say to keep
+    // that rule intact. isHomManager() is a SEPARATE, wider check (used
+    // only by the new hom/catalog/ path above) so hom_admin gets the
+    // catalogue-management access Block 3 actually asks for, without
+    // touching Block 2's order-attachment behavior at all.
     function isHomAdmin() {
       return request.auth != null && request.auth.token.email == "enayathsheik@gmail.com";
+    }
+
+    // Mirrors firestore.rules' canManageHom() (isAdmin() OR a `role: 'hom_admin'`
+    // field on the caller's own users/{uid} doc) via a cross-service
+    // firestore.get() read — Storage rules can read Firestore data this way.
+    // (default) is a literal, not a variable — Storage rules cross-service
+    // calls always resolve against the CLI's actual configured project (see
+    // .firebaserc), not any per-request "database" binding; confirmed
+    // empirically against the emulator while building this. exists() first,
+    // same reasoning as firestore.rules' isHomAdminRole(): a brand-new auth
+    // user may have no users/{uid} doc yet, and get() on a path that
+    // doesn't exist throws a rules evaluation error rather than cleanly
+    // resolving to "not hom_admin".
+    function isHomManager() {
+      return isHomAdmin()
+        || (
+          request.auth != null
+          && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+          && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.get('role', '') == 'hom_admin'
+        );
     }
 
     match /{allPaths=**} {

@@ -1,4 +1,4 @@
-// HOM Systems "House of Mod" — standalone microsite entry point (Block 2).
+// HOM Systems — standalone microsite entry point (Block 2).
 // Rendered outside the TIN app shell entirely (see App.jsx's homsystems
 // host/path check) — this component owns its own catalog load, its own
 // stylesheet, and its own screen state (builder -> confirmation). No TIN
@@ -8,6 +8,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../firebase/config";
 import { HOM_STYLES } from "./homStyles";
 import { HomBuilder } from "./HomBuilder";
+import { HomBrandMark } from "./HomBrandMark";
 
 function fmtINR(n) {
   return "₹" + Math.round(n || 0).toLocaleString("en-IN");
@@ -72,10 +73,7 @@ export function HomSystemsPage() {
     <div className="hom-root">
       <style>{HOM_STYLES}</style>
       <div className="hm-topbar">
-        <div>
-          <div className="hm-brand">HOUSE OF <em>MOD</em></div>
-          <div className="hm-brand-sub">Kitchen Shutter Systems</div>
-        </div>
+        <HomBrandMark />
         <div className="hm-topbar-right">HOM Systems</div>
       </div>
 

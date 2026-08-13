@@ -30,12 +30,13 @@ import { StoreProfilePage } from "./pages/StoreProfilePage";
 import { PublicProfilePage } from "./pages/PublicProfilePage";
 import { ConversationsPage } from "./pages/ConversationsPage";
 import { HomSystemsPage } from "./pages/hom/HomSystemsPage";
+import { HomAdminTab } from "./pages/hom/HomAdminTab";
 
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ══ HOM SYSTEMS — "HOUSE OF MOD" microsite (Block 2, additive) ══
+  // ══ HOM SYSTEMS microsite (Block 2, additive) ══
   // homsystems.tinit.in is a separate public, customer-facing product with
   // no relationship to the TIN app shell (no nav, no auth, no user state) —
   // it must never render inside <nav className="topbar">/mobile-nav/auth
@@ -144,7 +145,7 @@ export default function App() {
             const isAdminEmail = firebaseUser.email === "enayathsheik@gmail.com";
             const finalProfile = isAdminEmail ? { ...profile, role: "admin" } : profile;
             setUser({ ...finalProfile, uid: firebaseUser.uid });
-            setPage(isAdminEmail ? "admin" : (profile.role === "admin" ? "admin" : "home"));
+            setPage(isAdminEmail ? "admin" : (profile.role === "admin" ? "admin" : (profile.role === "hom_admin" ? "homSystems" : "home")));
             // Identity-first (Phase 1): solo-org bootstrap is no longer
             // automatic on login — a personal inbox needs no org membership
             // at all (see firestore.rules canReadConversation, context ==
@@ -214,7 +215,12 @@ export default function App() {
         ["login","Login"],
       ]
     : user.role === "admin"
-    ? [["admin","Admin Panel"],["inspi","Browse Inspi"],["jobs","Browse Jobs"],["messages","Messages"]]
+    ? [["admin","Admin Panel"],["inspi","Browse Inspi"],["jobs","Browse Jobs"],["messages","Messages"],["homSystems","HOM Systems"]]
+    // hom_admin (Block 3): a scoped role, not a full TIN admin — sees ONLY
+    // the HOM Systems tab, nothing else in TIN (mirrored in mobile-nav and
+    // the login-routing effect below).
+    : user.role === "hom_admin"
+    ? [["homSystems","HOM Systems"]]
     : isRetailer
     ? [] // Retailer uses internal sidebar nav
     : [
@@ -257,6 +263,7 @@ export default function App() {
             setUser(u);
             setShowLoginPage(false);
             if (u.role === "admin") { navigate("/"); setPage("admin"); setPendingPath(null); return; }
+            if (u.role === "hom_admin") { navigate("/"); setPage("homSystems"); setPendingPath(null); return; }
             if (pendingPath) { navigate(pendingPath); setPendingPath(null); return; }
             navigate("/");
             setPage(pendingPage || "home");
@@ -289,7 +296,7 @@ export default function App() {
             {user ? (
               <>
                 {selectedCity && <div style={{ fontSize: 11, color: "var(--t3)", fontWeight: 600 }}>📍 {selectedCity}</div>}
-                {user.role !== "admin" && user.role !== "retailer" && <div className="pts-badge">{user.points || 0} pts</div>}
+                {user.role !== "admin" && user.role !== "hom_admin" && user.role !== "retailer" && <div className="pts-badge">{user.points || 0} pts</div>}
                 <div className="avatar" onClick={() => { navigate("/"); setPage("profile"); }}>{user.name.charAt(0).toUpperCase()}</div>
                 <button onClick={handleLogout} style={{padding:"4px 10px",borderRadius:8,background:"transparent",border:"1px solid var(--b3)",color:"#080808",fontSize:12,cursor:"pointer",fontFamily:"'Barlow',sans-serif"}} title="Logout">↩ Out</button>
               </>
@@ -315,7 +322,7 @@ export default function App() {
           </div>
         )}
         {/* MOBILE BOTTOM NAV */}
-        {!isRetailer && user?.role !== "admin" && (
+        {!isRetailer && user?.role !== "admin" && user?.role !== "hom_admin" && (
           <div className="mobile-nav">
             {(user
               ? [
@@ -383,6 +390,7 @@ export default function App() {
               {page === "profile" && <ProfilePage user={user} onUpdateUser={(updated) => setUser(updated)} />}
               {page === "myzone" && <MyZonePage user={user} stores={stores} onNavigate={setPage} />}
               {page === "admin" && <AdminDashboard stores={stores} contributors={contributors} user={user} />}
+              {page === "homSystems" && <HomAdminTab user={user} />}
             </>} />
             <Route path="/jobs" element={<JobsPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath("/jobs"); setShowLoginPage(true); }} toast={showToast} />} />
             <Route path="/jobs/:jobId" element={<JobDetailPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath(location.pathname); setShowLoginPage(true); }} />} />
