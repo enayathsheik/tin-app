@@ -118,6 +118,10 @@ export async function submitHomOrder({ catalog, cabinets, customer, sites, payme
       // Lives here, not on `address` — see file header. Mirrors the
       // primary (first) site's pincode — see the `sites` comment above.
       pincode: primarySite.address.pincode,
+      // Free-text production notes (additive, optional) — same shape as
+      // email above: a plain trimmed string on `customer`, never required
+      // by isValidHomOrder (it only checks name/phone/pincode).
+      notes: (customer.notes || "").trim(),
     },
     // Backward-compat mirror of the primary site's address lines — see the
     // `sites` comment above. `sites` is the authoritative data.

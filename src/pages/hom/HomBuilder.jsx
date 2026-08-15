@@ -161,7 +161,7 @@ export function HomBuilder({ catalog, onPlaceOrder, authUser, onAuthed }) {
   const [schedule, setSchedule] = useState([]);
   const [files, setFiles] = useState([]);
   const [fileError, setFileError] = useState("");
-  const [customer, setCustomer] = useState({ name: "", phone: "", email: "" });
+  const [customer, setCustomer] = useState({ name: "", phone: "", email: "", notes: "" });
   // Multi-site delivery (additive): one address per distinct project/site
   // label, keyed by that label — resolveSiteLabel() is the SAME function
   // homOrder.js uses to build sites[]/stamp cabinet.siteId, so a site here
@@ -627,6 +627,18 @@ export function HomBuilder({ catalog, onPlaceOrder, authUser, onAuthed }) {
               ))}
             </div>
           )}
+
+          <div className="hm-field" style={{ marginTop: 16 }}>
+            <div className="hm-field-label">Notes for production (optional)</div>
+            <textarea
+              className="hm-input"
+              rows={3}
+              style={{ resize: "vertical" }}
+              value={customer.notes}
+              onChange={(e) => setCustomer((c) => ({ ...c, notes: e.target.value }))}
+              placeholder="Anything our team should know before manufacturing"
+            />
+          </div>
         </Plate>
       </div>
 

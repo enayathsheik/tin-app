@@ -301,4 +301,16 @@ describe("HOM Systems Block 1 — security rules", () => {
     // explicitly as the multi-site feature's own backward-compat proof.
     await assertSucceeds(setDoc(doc(ownerDb(), "homOrders", "noSitesFieldOrder"), validOrderPayload()));
   });
+
+  // ── production notes (additive, optional) ──
+  it("22. an order with customer.notes (free-text production notes) creates successfully", async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(ownerDb(), "homOrders", "orderWithNotes"),
+        validOrderPayload({
+          customer: { name: "Test Customer", phone: "9998887776", pincode: "560001", notes: "Please deliver after 6pm." },
+        })
+      )
+    );
+  });
 });
