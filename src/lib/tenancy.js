@@ -9,7 +9,7 @@
 // hasRole, isActiveMember) that these shapes are designed against.
 import {
   collection, doc, getDoc, getDocs, query, where,
-  writeBatch, serverTimestamp, updateDoc, setDoc,
+  serverTimestamp, updateDoc, setDoc,
 } from "firebase/firestore";
 import { db, auth } from "../firebase/config";
 
@@ -40,8 +40,24 @@ async function findOwnedOrg(uid) {
 }
 
 // Creates an organization plus its owner membership (createdBy = current
-// uid) in a single batched write. Idempotent: if the signed-in user already
-// owns an org, returns it instead of creating a duplicate.
+// uid). Idempotent: if the signed-in user already owns an org (anywhere —
+// including a legacy random-id org from before this used a deterministic
+// id), returns it instead of creating a duplicate.
+//
+// The solo org this creates always lives at organizations/{uid}: a stable,
+// deterministic id means repeat calls can detect exactly what's missing
+// instead of guessing. This also makes each write self-healing — if a
+// previous call committed the org but never reached the membership write
+// (tab closed, network drop), the next call sees the org already there and
+// writes only the missing membership.
+//
+// The org and membership writes are deliberately two separate, ordered
+// commits rather than one batch: the memberships create rule does a
+// cross-doc get() on the org to verify createdBy, and within a single
+// batch/transaction that get() sees pre-commit state — the sibling org
+// write in the same batch isn't visible yet, so the get() finds nothing
+// and the rule denies the write. Committing the org first (and awaiting
+// it) guarantees the membership rule's get() sees it.
 export async function createOrganization({ name, type }) {
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error("createOrganization: must be signed in");
@@ -50,32 +66,42 @@ export async function createOrganization({ name, type }) {
   const existing = await findOwnedOrg(uid);
   if (existing) return existing;
 
-  const orgRef = doc(collection(db, ORGANIZATIONS));
-  const memberRef = doc(db, MEMBERSHIPS, membershipId(orgRef.id, uid));
+  const orgRef = doc(db, ORGANIZATIONS, uid);
+  const memberRef = doc(db, MEMBERSHIPS, membershipId(uid, uid));
+  const [orgSnap, memberSnap] = await Promise.all([getDoc(orgRef), getDoc(memberRef)]);
 
-  const batch = writeBatch(db);
-  batch.set(orgRef, {
-    name,
-    type,
-    createdAt: serverTimestamp(),
-    createdBy: uid,
-    capabilities: { ...DEFAULT_CAPABILITIES },
-  });
-  batch.set(memberRef, {
-    orgId: orgRef.id,
-    uid,
-    role: "owner",
-    teamIds: [],
-    status: "active",
-    createdAt: serverTimestamp(),
-  });
-  await batch.commit();
+  let org;
+  if (orgSnap.exists()) {
+    org = { id: uid, ...orgSnap.data() };
+  } else {
+    const orgData = {
+      name,
+      type,
+      createdAt: serverTimestamp(),
+      createdBy: uid,
+      capabilities: { ...DEFAULT_CAPABILITIES },
+    };
+    await setDoc(orgRef, orgData);
+    org = { id: uid, ...orgData };
+  }
 
-  return {
-    orgId: orgRef.id,
-    org: { id: orgRef.id, name, type, createdBy: uid, capabilities: { ...DEFAULT_CAPABILITIES } },
-    membership: { id: memberRef.id, orgId: orgRef.id, uid, role: "owner", teamIds: [], status: "active" },
-  };
+  let membership;
+  if (memberSnap.exists()) {
+    membership = { id: memberRef.id, ...memberSnap.data() };
+  } else {
+    const memberData = {
+      orgId: uid,
+      uid,
+      role: "owner",
+      teamIds: [],
+      status: "active",
+      createdAt: serverTimestamp(),
+    };
+    await setDoc(memberRef, memberData);
+    membership = { id: memberRef.id, ...memberData };
+  }
+
+  return { orgId: uid, org, membership };
 }
 
 // Returns the user's active memberships — drives which tenants they can see.

@@ -4,7 +4,7 @@
 // design tokens (HOM_STYLES) so the brand reads the same everywhere, but
 // this component and everything under it is TIN-shell content, not the
 // standalone public microsite.
-import { useEffect, useMemo, useState } from "react";
+import { Component, useEffect, useMemo, useState } from "react";
 import { HOM_STYLES } from "./homStyles";
 import { HomBrandMark } from "./HomBrandMark";
 import {
@@ -25,6 +25,53 @@ const SECTIONS = [
 
 function fmtINR(n) {
   return "₹" + Math.round(n || 0).toLocaleString("en-IN");
+}
+
+// Rate List / Catalogue are built entirely around the post-overhaul shape
+// (brands[] with per-brand regularBars/handleTypes, hingeCategories[],
+// liftUp) — there's no sensible way to render them against the pre-overhaul
+// shape (flat bars[]/hinges[]), so we gate on it rather than guess. Run
+// `node scripts/seed-hom-catalog.mjs` against the target project to reshape.
+function hasNewCatalogShape(catalog) {
+  return Array.isArray(catalog?.brands);
+}
+
+function CatalogNeedsSeedNotice() {
+  return (
+    <div className="hm-error-banner">
+      This catalog document is still in the old shape (no <code>brands[]</code>). Run{" "}
+      <code>node scripts/seed-hom-catalog.mjs --service-account=…</code> against this project to
+      reshape it before Rate List / Catalogue can be edited here.
+    </div>
+  );
+}
+
+// Belt-and-suspenders: hasNewCatalogShape + the per-field defaults below
+// should prevent any crash, but a single bad/edited-by-hand field must never
+// blank the whole TIN app shell — catches it and shows a readable message
+// scoped to just this sub-tab instead.
+class HomAdminErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  componentDidCatch(error, info) {
+    console.error("HOM admin tab section crashed:", error, info);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="hm-error-banner">
+          This section hit an error and couldn't render: {this.state.error.message || String(this.state.error)}.
+          Try another tab, or reload the page.
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 export function HomAdminTab({ user }) {
@@ -67,13 +114,21 @@ export function HomAdminTab({ user }) {
         {loading && <div style={{ padding: 40, textAlign: "center", color: "#6b6d76" }}>Loading…</div>}
 
         {!loading && !loadErr && catalog && (
-          <>
+          <HomAdminErrorBoundary key={section}>
             {section === "orders" && <OrdersSection catalog={catalog} />}
-            {section === "rates" && <RatesSection catalog={catalog} onSaved={setCatalog} />}
-            {section === "catalogue" && <CatalogueSection catalog={catalog} onSaved={setCatalog} />}
+            {section === "rates" && (
+              hasNewCatalogShape(catalog)
+                ? <RatesSection catalog={catalog} onSaved={setCatalog} />
+                : <CatalogNeedsSeedNotice />
+            )}
+            {section === "catalogue" && (
+              hasNewCatalogShape(catalog)
+                ? <CatalogueSection catalog={catalog} onSaved={setCatalog} />
+                : <CatalogNeedsSeedNotice />
+            )}
             {section === "vendors" && <VendorsSection />}
             {section === "logs" && <LogsSection />}
-          </>
+          </HomAdminErrorBoundary>
         )}
       </div>
     </div>
@@ -131,27 +186,27 @@ function RatesSection({ catalog, onSaved }) {
   };
   const updRegularBar = (brandIdx, barIdx, patch) => {
     const brand = draft.brands[brandIdx];
-    const regularBars = [...brand.regularBars];
+    const regularBars = [...(brand.regularBars || [])];
     regularBars[barIdx] = { ...regularBars[barIdx], ...patch };
     updBrand(brandIdx, { regularBars });
   };
   const updHandleType = (brandIdx, htIdx, patch) => {
     const brand = draft.brands[brandIdx];
-    const handleTypes = [...brand.handleTypes];
+    const handleTypes = [...(brand.handleTypes || [])];
     handleTypes[htIdx] = { ...handleTypes[htIdx], ...patch };
     updBrand(brandIdx, { handleTypes });
   };
   const updHandleBar = (brandIdx, htIdx, barIdx, patch) => {
-    const ht = draft.brands[brandIdx].handleTypes[htIdx];
-    const bars = [...ht.bars];
+    const ht = (draft.brands[brandIdx].handleTypes || [])[htIdx];
+    const bars = [...(ht.bars || [])];
     bars[barIdx] = { ...bars[barIdx], ...patch };
     updHandleType(brandIdx, htIdx, { bars });
   };
 
   const updHingeCategoryBrand = (catIdx, brandIdx, patch) => {
     setDraft((d) => {
-      const hingeCategories = [...d.hingeCategories];
-      const brands = [...hingeCategories[catIdx].brands];
+      const hingeCategories = [...(d.hingeCategories || [])];
+      const brands = [...(hingeCategories[catIdx].brands || [])];
       brands[brandIdx] = { ...brands[brandIdx], ...patch };
       hingeCategories[catIdx] = { ...hingeCategories[catIdx], brands };
       return { ...d, hingeCategories };
@@ -161,7 +216,7 @@ function RatesSection({ catalog, onSaved }) {
 
   const updHydraulic = (i, patch) => {
     setDraft((d) => {
-      const hydraulicSystems = [...d.liftUp.hydraulicSystems];
+      const hydraulicSystems = [...(d.liftUp?.hydraulicSystems || [])];
       hydraulicSystems[i] = { ...hydraulicSystems[i], ...patch };
       return { ...d, liftUp: { ...d.liftUp, hydraulicSystems } };
     });
@@ -188,30 +243,30 @@ function RatesSection({ catalog, onSaved }) {
       <div className="hm-section-title">Rate List</div>
       <div className="hm-section-sub">Editing rates here never changes an already-placed order — each order froze its own catalogSnapshot at checkout.</div>
 
-      {draft.brands.map((brand, brandIdx) => (
+      {(draft.brands || []).map((brand, brandIdx) => (
         <div className="hm-plate" style={{ marginBottom: 14 }} key={brand.id}>
           <div className="hm-plate-hd"><span className="hm-plate-title">{brand.name} — Regular Profile Bars</span></div>
           <div className="hm-plate-body">
-            <BarsTable bars={brand.regularBars} onChange={(barIdx, patch) => updRegularBar(brandIdx, barIdx, patch)} />
+            <BarsTable bars={brand.regularBars || []} onChange={(barIdx, patch) => updRegularBar(brandIdx, barIdx, patch)} />
 
-            {brand.handleTypes.map((ht, htIdx) => (
+            {(brand.handleTypes || []).map((ht, htIdx) => (
               <div key={ht.id} style={{ marginTop: 16 }}>
                 <div className="hm-detail-block-hd">{brand.name} — {ht.name} Bars</div>
-                <BarsTable bars={ht.bars} onChange={(barIdx, patch) => updHandleBar(brandIdx, htIdx, barIdx, patch)} />
+                <BarsTable bars={ht.bars || []} onChange={(barIdx, patch) => updHandleBar(brandIdx, htIdx, barIdx, patch)} />
               </div>
             ))}
           </div>
         </div>
       ))}
 
-      {draft.hingeCategories.map((cat, catIdx) => (
+      {(draft.hingeCategories || []).map((cat, catIdx) => (
         <div className="hm-plate" style={{ marginBottom: 14 }} key={cat.id}>
           <div className="hm-plate-hd"><span className="hm-plate-title">Hinges — {cat.name}</span></div>
           <div className="hm-plate-body">
             <table className="hm-table">
               <thead><tr><th>Brand</th><th>₹ / hinge</th><th>Active</th></tr></thead>
               <tbody>
-                {cat.brands.map((b, brandIdx) => (
+                {(cat.brands || []).map((b, brandIdx) => (
                   <tr key={b.id}>
                     <td>{b.name}</td>
                     <td><input className="hm-input" type="number" value={b.rate} onChange={(e) => updHingeCategoryBrand(catIdx, brandIdx, { rate: Number(e.target.value) })} /></td>
@@ -230,7 +285,7 @@ function RatesSection({ catalog, onSaved }) {
           <table className="hm-table">
             <thead><tr><th>System</th><th>₹ / shutter</th><th>Active</th></tr></thead>
             <tbody>
-              {draft.liftUp.hydraulicSystems.map((h, i) => (
+              {(draft.liftUp?.hydraulicSystems || []).map((h, i) => (
                 <tr key={h.id}>
                   <td>{h.name}</td>
                   <td><input className="hm-input" type="number" value={h.rate} onChange={(e) => updHydraulic(i, { rate: Number(e.target.value) })} /></td>
@@ -241,7 +296,7 @@ function RatesSection({ catalog, onSaved }) {
           </table>
           <div className="hm-field" style={{ maxWidth: 200, marginTop: 12 }}>
             <div className="hm-field-label">Qty per shutter</div>
-            <input className="hm-input" type="number" value={draft.liftUp.qtyPerShutter} onChange={(e) => updLiftUp({ qtyPerShutter: Number(e.target.value) })} />
+            <input className="hm-input" type="number" value={draft.liftUp?.qtyPerShutter ?? 0} onChange={(e) => updLiftUp({ qtyPerShutter: Number(e.target.value) })} />
           </div>
         </div>
       </div>
@@ -250,11 +305,11 @@ function RatesSection({ catalog, onSaved }) {
         <div className="hm-plate-hd"><span className="hm-plate-title">Other rates</span></div>
         <div className="hm-plate-body">
           <div className="hm-field-grid">
-            <div className="hm-field"><div className="hm-field-label">Making ₹/shutter</div><input className="hm-input" type="number" value={draft.makingPerShutter} onChange={(e) => upd({ makingPerShutter: Number(e.target.value) })} /></div>
-            <div className="hm-field"><div className="hm-field-label">Glass deduct (mm)</div><input className="hm-input" type="number" value={draft.glassDeductMm} onChange={(e) => upd({ glassDeductMm: Number(e.target.value) })} /></div>
-            <div className="hm-field"><div className="hm-field-label">Kerf (mm)</div><input className="hm-input" type="number" value={draft.kerfMm} onChange={(e) => upd({ kerfMm: Number(e.target.value) })} /></div>
-            <div className="hm-field"><div className="hm-field-label">GST %</div><input className="hm-input" type="number" value={draft.gstPct} onChange={(e) => upd({ gstPct: Number(e.target.value) })} /></div>
-            <div className="hm-field"><div className="hm-field-label">Transport flat ₹</div><input className="hm-input" type="number" value={draft.transportFlat} onChange={(e) => upd({ transportFlat: Number(e.target.value) })} /></div>
+            <div className="hm-field"><div className="hm-field-label">Making ₹/shutter</div><input className="hm-input" type="number" value={draft.makingPerShutter ?? 0} onChange={(e) => upd({ makingPerShutter: Number(e.target.value) })} /></div>
+            <div className="hm-field"><div className="hm-field-label">Glass deduct (mm)</div><input className="hm-input" type="number" value={draft.glassDeductMm ?? 0} onChange={(e) => upd({ glassDeductMm: Number(e.target.value) })} /></div>
+            <div className="hm-field"><div className="hm-field-label">Kerf (mm)</div><input className="hm-input" type="number" value={draft.kerfMm ?? 0} onChange={(e) => upd({ kerfMm: Number(e.target.value) })} /></div>
+            <div className="hm-field"><div className="hm-field-label">GST %</div><input className="hm-input" type="number" value={draft.gstPct ?? 0} onChange={(e) => upd({ gstPct: Number(e.target.value) })} /></div>
+            <div className="hm-field"><div className="hm-field-label">Transport flat ₹</div><input className="hm-input" type="number" value={draft.transportFlat ?? 0} onChange={(e) => upd({ transportFlat: Number(e.target.value) })} /></div>
           </div>
         </div>
       </div>
@@ -319,13 +374,13 @@ function CatalogueSection({ catalog, onSaved }) {
 
   // ── flat lists (colours/glasses/addons) ──
   const updFlatItem = (typeKey, id, patch) => {
-    setDraft((d) => ({ ...d, [typeKey]: d[typeKey].map((it) => (it.id === id ? { ...it, ...patch } : it)) }));
+    setDraft((d) => ({ ...d, [typeKey]: (d[typeKey] || []).map((it) => (it.id === id ? { ...it, ...patch } : it)) }));
     markDirty();
   };
   const addFlatItem = (typeKey, hasRate) => {
     const base = { id: newItemId(typeKey), name: "New item", photos: typeKey === "addons" ? undefined : [], active: typeKey !== "addons" ? true : undefined };
     if (hasRate) base.rate = 0;
-    setDraft((d) => ({ ...d, [typeKey]: [...d[typeKey], base] }));
+    setDraft((d) => ({ ...d, [typeKey]: [...(d[typeKey] || []), base] }));
     markDirty();
   };
 
@@ -351,77 +406,77 @@ function CatalogueSection({ catalog, onSaved }) {
   };
 
   const handleFlatPhotoUpload = async (typeKey, id, files) => {
-    const item = draft[typeKey].find((it) => it.id === id);
+    const item = (draft[typeKey] || []).find((it) => it.id === id);
     const photos = await uploadPhotos(typeKey, id, item.photos, files, `flat-${typeKey}-${id}`);
     if (photos) updFlatItem(typeKey, id, { photos });
   };
   const removeFlatPhoto = (typeKey, id, url) => {
-    const item = draft[typeKey].find((it) => it.id === id);
+    const item = (draft[typeKey] || []).find((it) => it.id === id);
     updFlatItem(typeKey, id, { photos: (item.photos || []).filter((p) => p !== url) });
   };
 
   // ── brands (+ nested profile types / handle types) ──
   const updBrand = (brandIdx, patch) => {
-    setDraft((d) => { const brands = [...d.brands]; brands[brandIdx] = { ...brands[brandIdx], ...patch }; return { ...d, brands }; });
+    setDraft((d) => { const brands = [...(d.brands || [])]; brands[brandIdx] = { ...brands[brandIdx], ...patch }; return { ...d, brands }; });
     markDirty();
   };
   const addBrand = () => {
     setDraft((d) => ({
       ...d,
-      brands: [...d.brands, { id: newItemId("brand"), name: "New Brand", active: true, profileTypes: [], regularBars: freshBarSet(), handleTypes: [] }],
+      brands: [...(d.brands || []), { id: newItemId("brand"), name: "New Brand", active: true, profileTypes: [], regularBars: freshBarSet(), handleTypes: [] }],
     }));
     markDirty();
   };
 
   const updProfileType = (brandIdx, ptIdx, patch) => {
     const brand = draft.brands[brandIdx];
-    const profileTypes = [...brand.profileTypes];
+    const profileTypes = [...(brand.profileTypes || [])];
     profileTypes[ptIdx] = { ...profileTypes[ptIdx], ...patch };
     updBrand(brandIdx, { profileTypes });
   };
   const addProfileType = (brandIdx) => {
     const brand = draft.brands[brandIdx];
-    updBrand(brandIdx, { profileTypes: [...brand.profileTypes, { id: newItemId("prof"), name: "New Profile Type", photos: [], active: true }] });
+    updBrand(brandIdx, { profileTypes: [...(brand.profileTypes || []), { id: newItemId("prof"), name: "New Profile Type", photos: [], active: true }] });
   };
 
   const updHandleType = (brandIdx, htIdx, patch) => {
     const brand = draft.brands[brandIdx];
-    const handleTypes = [...brand.handleTypes];
+    const handleTypes = [...(brand.handleTypes || [])];
     handleTypes[htIdx] = { ...handleTypes[htIdx], ...patch };
     updBrand(brandIdx, { handleTypes });
   };
   const addHandleType = (brandIdx) => {
     const brand = draft.brands[brandIdx];
-    updBrand(brandIdx, { handleTypes: [...brand.handleTypes, { id: newItemId("hdl"), name: "New Handle Type", photos: [], active: true, bars: freshBarSet() }] });
+    updBrand(brandIdx, { handleTypes: [...(brand.handleTypes || []), { id: newItemId("hdl"), name: "New Handle Type", photos: [], active: true, bars: freshBarSet() }] });
   };
 
   // ── hinge categories (+ nested brands) ──
   const updHingeCategory = (catIdx, patch) => {
-    setDraft((d) => { const hingeCategories = [...d.hingeCategories]; hingeCategories[catIdx] = { ...hingeCategories[catIdx], ...patch }; return { ...d, hingeCategories }; });
+    setDraft((d) => { const hingeCategories = [...(d.hingeCategories || [])]; hingeCategories[catIdx] = { ...hingeCategories[catIdx], ...patch }; return { ...d, hingeCategories }; });
     markDirty();
   };
   const addHingeCategory = () => {
-    setDraft((d) => ({ ...d, hingeCategories: [...d.hingeCategories, { id: newItemId("cat"), name: "New Category", brands: [] }] }));
+    setDraft((d) => ({ ...d, hingeCategories: [...(d.hingeCategories || []), { id: newItemId("cat"), name: "New Category", brands: [] }] }));
     markDirty();
   };
   const updHingeCategoryBrand = (catIdx, brandIdx, patch) => {
     const cat = draft.hingeCategories[catIdx];
-    const brands = [...cat.brands];
+    const brands = [...(cat.brands || [])];
     brands[brandIdx] = { ...brands[brandIdx], ...patch };
     updHingeCategory(catIdx, { brands });
   };
   const addHingeCategoryBrand = (catIdx) => {
     const cat = draft.hingeCategories[catIdx];
-    updHingeCategory(catIdx, { brands: [...cat.brands, { id: newItemId("hb"), name: "New Brand", rate: 0, active: true }] });
+    updHingeCategory(catIdx, { brands: [...(cat.brands || []), { id: newItemId("hb"), name: "New Brand", rate: 0, active: true }] });
   };
 
   // ── lift-up hydraulic systems ──
   const updHydraulic = (i, patch) => {
-    setDraft((d) => { const hydraulicSystems = [...d.liftUp.hydraulicSystems]; hydraulicSystems[i] = { ...hydraulicSystems[i], ...patch }; return { ...d, liftUp: { ...d.liftUp, hydraulicSystems } }; });
+    setDraft((d) => { const hydraulicSystems = [...(d.liftUp?.hydraulicSystems || [])]; hydraulicSystems[i] = { ...hydraulicSystems[i], ...patch }; return { ...d, liftUp: { ...d.liftUp, hydraulicSystems } }; });
     markDirty();
   };
   const addHydraulic = () => {
-    setDraft((d) => ({ ...d, liftUp: { ...d.liftUp, hydraulicSystems: [...d.liftUp.hydraulicSystems, { id: newItemId("lift"), name: "New Hydraulic System", rate: 0, active: true }] } }));
+    setDraft((d) => ({ ...d, liftUp: { ...d.liftUp, hydraulicSystems: [...(d.liftUp?.hydraulicSystems || []), { id: newItemId("lift"), name: "New Hydraulic System", rate: 0, active: true }] } }));
     markDirty();
   };
 
@@ -450,7 +505,7 @@ function CatalogueSection({ catalog, onSaved }) {
           <span className="hm-plate-sub"><button className="hm-btn hm-btn-ghost hm-btn-sm" onClick={addBrand}>+ Add Brand</button></span>
         </div>
         <div className="hm-plate-body">
-          {draft.brands.map((brand, brandIdx) => (
+          {(draft.brands || []).map((brand, brandIdx) => (
             <div className="hm-catalog-item" key={brand.id}>
               <div className="hm-catalog-item-hd">
                 <input className="hm-input" style={{ maxWidth: 240 }} value={brand.name} onChange={(e) => updBrand(brandIdx, { name: e.target.value })} />
@@ -462,7 +517,7 @@ function CatalogueSection({ catalog, onSaved }) {
 
               <div style={{ marginTop: 10 }}>
                 <div className="hm-detail-block-hd">Profile Types <button className="hm-btn hm-btn-ghost hm-btn-sm" style={{ marginLeft: 8 }} onClick={() => addProfileType(brandIdx)}>+ Add</button></div>
-                {brand.profileTypes.map((pt, ptIdx) => (
+                {(brand.profileTypes || []).map((pt, ptIdx) => (
                   <div className="hm-catalog-item" key={pt.id} style={{ marginLeft: 14 }}>
                     <div className="hm-catalog-item-hd">
                       <input className="hm-input" style={{ maxWidth: 240 }} value={pt.name} onChange={(e) => updProfileType(brandIdx, ptIdx, { name: e.target.value })} />
@@ -482,12 +537,12 @@ function CatalogueSection({ catalog, onSaved }) {
                     />
                   </div>
                 ))}
-                {brand.profileTypes.length === 0 && <div className="hm-sched-empty">No profile types yet.</div>}
+                {(brand.profileTypes || []).length === 0 && <div className="hm-sched-empty">No profile types yet.</div>}
               </div>
 
               <div style={{ marginTop: 14 }}>
                 <div className="hm-detail-block-hd">Handle Types <button className="hm-btn hm-btn-ghost hm-btn-sm" style={{ marginLeft: 8 }} onClick={() => addHandleType(brandIdx)}>+ Add</button></div>
-                {brand.handleTypes.map((ht, htIdx) => (
+                {(brand.handleTypes || []).map((ht, htIdx) => (
                   <div className="hm-catalog-item" key={ht.id} style={{ marginLeft: 14 }}>
                     <div className="hm-catalog-item-hd">
                       <input className="hm-input" style={{ maxWidth: 240 }} value={ht.name} onChange={(e) => updHandleType(brandIdx, htIdx, { name: e.target.value })} />
@@ -507,11 +562,11 @@ function CatalogueSection({ catalog, onSaved }) {
                     />
                   </div>
                 ))}
-                {brand.handleTypes.length === 0 && <div className="hm-sched-empty">No handle types yet.</div>}
+                {(brand.handleTypes || []).length === 0 && <div className="hm-sched-empty">No handle types yet.</div>}
               </div>
             </div>
           ))}
-          {draft.brands.length === 0 && <div className="hm-sched-empty">No brands yet.</div>}
+          {(draft.brands || []).length === 0 && <div className="hm-sched-empty">No brands yet.</div>}
         </div>
       </div>
 
@@ -522,7 +577,7 @@ function CatalogueSection({ catalog, onSaved }) {
             <span className="hm-plate-sub"><button className="hm-btn hm-btn-ghost hm-btn-sm" onClick={() => addFlatItem(key, hasRate)}>+ Add</button></span>
           </div>
           <div className="hm-plate-body">
-            {draft[key].map((item) => (
+            {(draft[key] || []).map((item) => (
               <div className="hm-catalog-item" key={item.id}>
                 <div className="hm-catalog-item-hd">
                   <input className="hm-input" style={{ maxWidth: 240 }} value={item.name} onChange={(e) => updFlatItem(key, item.id, { name: e.target.value })} />
@@ -544,7 +599,7 @@ function CatalogueSection({ catalog, onSaved }) {
                 )}
               </div>
             ))}
-            {draft[key].length === 0 && <div className="hm-sched-empty">Nothing here yet.</div>}
+            {(draft[key] || []).length === 0 && <div className="hm-sched-empty">Nothing here yet.</div>}
           </div>
         </div>
       ))}
@@ -552,14 +607,14 @@ function CatalogueSection({ catalog, onSaved }) {
       <div className="hm-plate" style={{ marginBottom: 14 }}>
         <div className="hm-plate-hd"><span className="hm-plate-title">Hinge Categories</span><span className="hm-plate-sub"><button className="hm-btn hm-btn-ghost hm-btn-sm" onClick={addHingeCategory}>+ Add Category</button></span></div>
         <div className="hm-plate-body">
-          {draft.hingeCategories.map((cat, catIdx) => (
+          {(draft.hingeCategories || []).map((cat, catIdx) => (
             <div className="hm-catalog-item" key={cat.id}>
               <div className="hm-catalog-item-hd">
                 <input className="hm-input" style={{ maxWidth: 240 }} value={cat.name} onChange={(e) => updHingeCategory(catIdx, { name: e.target.value })} />
                 <span style={{ fontSize: 10, color: "#6b6d76", marginLeft: "auto" }}>{cat.id}</span>
               </div>
               <div className="hm-detail-block-hd" style={{ marginTop: 8 }}>Brands <button className="hm-btn hm-btn-ghost hm-btn-sm" style={{ marginLeft: 8 }} onClick={() => addHingeCategoryBrand(catIdx)}>+ Add</button></div>
-              {cat.brands.map((b, brandIdx) => (
+              {(cat.brands || []).map((b, brandIdx) => (
                 <div className="hm-catalog-item-hd" key={b.id} style={{ marginLeft: 14, marginBottom: 6 }}>
                   <input className="hm-input" style={{ maxWidth: 200 }} value={b.name} onChange={(e) => updHingeCategoryBrand(catIdx, brandIdx, { name: e.target.value })} />
                   <label style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
@@ -568,17 +623,17 @@ function CatalogueSection({ catalog, onSaved }) {
                   <span style={{ fontSize: 10, color: "#6b6d76" }}>rate set in Rate List</span>
                 </div>
               ))}
-              {cat.brands.length === 0 && <div className="hm-sched-empty">No brands yet.</div>}
+              {(cat.brands || []).length === 0 && <div className="hm-sched-empty">No brands yet.</div>}
             </div>
           ))}
-          {draft.hingeCategories.length === 0 && <div className="hm-sched-empty">No hinge categories yet.</div>}
+          {(draft.hingeCategories || []).length === 0 && <div className="hm-sched-empty">No hinge categories yet.</div>}
         </div>
       </div>
 
       <div className="hm-plate" style={{ marginBottom: 14 }}>
         <div className="hm-plate-hd"><span className="hm-plate-title">Lift-Up Hydraulic Systems</span><span className="hm-plate-sub"><button className="hm-btn hm-btn-ghost hm-btn-sm" onClick={addHydraulic}>+ Add</button></span></div>
         <div className="hm-plate-body">
-          {draft.liftUp.hydraulicSystems.map((h, i) => (
+          {(draft.liftUp?.hydraulicSystems || []).map((h, i) => (
             <div className="hm-catalog-item-hd" key={h.id} style={{ marginBottom: 6 }}>
               <input className="hm-input" style={{ maxWidth: 240 }} value={h.name} onChange={(e) => updHydraulic(i, { name: e.target.value })} />
               <label style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
@@ -587,7 +642,7 @@ function CatalogueSection({ catalog, onSaved }) {
               <span style={{ fontSize: 10, color: "#6b6d76" }}>rate set in Rate List</span>
             </div>
           ))}
-          {draft.liftUp.hydraulicSystems.length === 0 && <div className="hm-sched-empty">Nothing here yet.</div>}
+          {(draft.liftUp?.hydraulicSystems || []).length === 0 && <div className="hm-sched-empty">Nothing here yet.</div>}
         </div>
       </div>
 

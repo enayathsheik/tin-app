@@ -27,6 +27,15 @@ try {
   console.error("Failed to load ai.js — AI Foundation functions unavailable:", err);
 }
 
+// HOM Systems functions (approveHomOrder, rejectHomOrder — Block 4) — see
+// hom.js. Same load-and-isolate pattern as ai.js above: a bug in hom.js
+// must not take down pullPlacesData/ai.js/anything else in this entrypoint.
+try {
+  Object.assign(exports, require("./hom"));
+} catch (err) {
+  console.error("Failed to load hom.js — HOM Systems functions unavailable:", err);
+}
+
 // ── YOUR PLACES API KEY (store in Firebase env config) ───────
 // Set via: firebase functions:secrets:set PLACES_API_KEY
 // Then access via: process.env.PLACES_API_KEY
