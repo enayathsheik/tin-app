@@ -12,7 +12,7 @@ export function HomBrandMark() {
       {!imgFailed ? (
         <img src="/hom-logo.png" alt="HOM Systems" className="hm-logo" onError={() => setImgFailed(true)} />
       ) : (
-        <div className="hm-brand">HOM <em>Systems</em></div>
+        <div className="hm-brand">HOM <em>SYSTEMS</em></div>
       )}
       <div className="hm-brand-sub">System designed for infinite possibilities</div>
     </div>
