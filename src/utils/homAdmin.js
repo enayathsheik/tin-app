@@ -98,7 +98,12 @@ export async function approveAndAssignOrder(order, { profileVendor, glassVendor 
     region: profileVendor.region || "",
     items: order.cabinets.map((c) => ({
       brandId: c.brandId, profileTypeId: c.profileTypeId, colourId: c.colourId, shutterW: c.shutterW, shutterH: c.shutterH,
-      totalShutters: c.totalShutters, barLabel: c.regularBar?.label, handleBarLabel: c.handleBar?.label,
+      totalShutters: c.totalShutters, barLabel: c.regularBar?.label || null,
+      // `|| null`, not just `?.label` — a handle-less cabinet's handleBar is
+      // null (see homPricing.js), so `c.handleBar?.label` alone evaluates
+      // to `undefined`, and Firestore's addDoc rejects any field whose
+      // value is undefined outright (throws, not a silent drop).
+      handleBarLabel: c.handleBar?.label || null,
     })),
     status: "to_send",
     createdAt: serverTimestamp(),
