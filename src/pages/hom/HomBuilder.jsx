@@ -73,11 +73,10 @@ function TileGrid({ items, selectedId, onSelect }) {
   );
 }
 
-function Plate({ no, title, sub, children }) {
+function Plate({ title, sub, children }) {
   return (
     <div className="hm-plate">
       <div className="hm-plate-hd">
-        <span className="hm-plate-no">PLATE {no}</span>
         <span className="hm-plate-title">{title}</span>
         {sub && <span className="hm-plate-sub">{sub}</span>}
       </div>
@@ -388,13 +387,13 @@ export function HomBuilder({ catalog, onPlaceOrder, authUser, onAuthed }) {
       <div className="hm-main">
         <div className="hm-section-title" style={{ marginBottom: 18 }}>Cabinetry</div>
 
-        <Plate no="01" title="Brand">
+        <Plate title="Brand">
           {brands.length === 0
             ? <div className="hm-sched-empty">No brands available right now.</div>
             : <TileGrid items={brands} selectedId={builder.brandId} onSelect={selectBrand} />}
         </Plate>
 
-        <Plate no="02" title="Profile Type" sub={selectedBrand ? undefined : "Pick a brand first"}>
+        <Plate title="Profile Type" sub={selectedBrand ? undefined : "Pick a brand first"}>
           {!selectedBrand
             ? <div className="hm-sched-empty">Pick a brand above first.</div>
             : profileTypes.length === 0
@@ -402,13 +401,13 @@ export function HomBuilder({ catalog, onPlaceOrder, authUser, onAuthed }) {
               : <TileGrid items={profileTypes} selectedId={builder.profileTypeId} onSelect={(id) => upd({ profileTypeId: id })} />}
         </Plate>
 
-        <Plate no="03" title="Finish">
+        <Plate title="Finish">
           {colours.length === 0
             ? <div className="hm-sched-empty">No finishes available right now.</div>
             : <TileGrid items={colours} selectedId={builder.colourId} onSelect={(id) => upd({ colourId: id })} />}
         </Plate>
 
-        <Plate no="04" title="Fourth Side" sub={selectedBrand ? undefined : "Pick a brand first"}>
+        <Plate title="Fourth Side" sub={selectedBrand ? undefined : "Pick a brand first"}>
           {!selectedBrand
             ? <div className="hm-sched-empty">Pick a brand above first.</div>
             : <>
@@ -419,7 +418,7 @@ export function HomBuilder({ catalog, onPlaceOrder, authUser, onAuthed }) {
               </>}
         </Plate>
 
-        <Plate no="05" title="Glass">
+        <Plate title="Glass">
           {glasses.length === 0
             ? <div className="hm-sched-empty">No glass options available right now.</div>
             : <TileGrid items={glasses} selectedId={builder.glassId} onSelect={(id) => upd({ glassId: id })} />}
@@ -435,7 +434,7 @@ export function HomBuilder({ catalog, onPlaceOrder, authUser, onAuthed }) {
           )}
         </Plate>
 
-        <Plate no="06" title="Lift-Up">
+        <Plate title="Lift-Up">
           <div className="hm-config-row">
             <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
               <input type="checkbox" checked={builder.liftUp} onChange={(e) => upd({ liftUp: e.target.checked, hydraulicId: e.target.checked ? builder.hydraulicId : null })} />
@@ -449,7 +448,7 @@ export function HomBuilder({ catalog, onPlaceOrder, authUser, onAuthed }) {
           )}
         </Plate>
 
-        <Plate no="07" title="Hinge">
+        <Plate title="Hinge">
           <div className="hm-config-row">
             <div className="hm-config-label">Category</div>
             {hingeCategories.length === 0
@@ -470,7 +469,7 @@ export function HomBuilder({ catalog, onPlaceOrder, authUser, onAuthed }) {
           </div>
         </Plate>
 
-        <Plate no="08" title="Dimensions" sub="mm, outer × outer">
+        <Plate title="Dimensions" sub="mm, outer × outer">
           <div className="hm-config-row">
             <div className="hm-config-label">Shutters per cabinet</div>
             <div className="hm-option-row">
@@ -530,7 +529,7 @@ export function HomBuilder({ catalog, onPlaceOrder, authUser, onAuthed }) {
           </div>
         </Plate>
 
-        <Plate no="09" title="Schedule" sub={`${schedule.length} cabinet line${schedule.length === 1 ? "" : "s"}`}>
+        <Plate title="Schedule" sub={`${schedule.length} cabinet line${schedule.length === 1 ? "" : "s"}`}>
           {schedule.length === 0
             ? <div className="hm-sched-empty">No cabinets added yet — configure one above and hit "Add Cabinet".</div>
             : scheduleGroups.map(([label, rows]) => (
@@ -559,7 +558,7 @@ export function HomBuilder({ catalog, onPlaceOrder, authUser, onAuthed }) {
               ))}
         </Plate>
 
-        <Plate no="10" title="Customer & Delivery">
+        <Plate title="Customer & Delivery">
           <div className="hm-field-grid">
             <div className="hm-field">
               <div className="hm-field-label">Name <span className="req">*</span></div>

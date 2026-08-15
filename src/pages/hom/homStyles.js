@@ -37,7 +37,6 @@ export const HOM_STYLES = `
 .hm-plate::before{top:-1px;left:-1px;border-right:none;border-bottom:none}
 .hm-plate::after{top:-1px;right:-1px;border-left:none;border-bottom:none}
 .hm-plate-hd{display:flex;align-items:baseline;gap:10px;padding:14px 18px;border-bottom:1px solid var(--hm-line)}
-.hm-plate-no{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:12px;color:var(--hm-acc);letter-spacing:.06em}
 .hm-plate-title{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:16px;text-transform:uppercase;letter-spacing:.06em}
 .hm-plate-sub{margin-left:auto;font-size:11px;color:var(--hm-sub)}
 .hm-plate-body{padding:18px}
