@@ -372,6 +372,12 @@ function CatalogueSection({ catalog, onSaved }) {
 
   const markDirty = () => { setDirty(true); setOk(""); };
 
+  // Shared confirm prompt for every "Remove" button below — a removal only
+  // ever touches the in-memory draft (filtered out of its parent array,
+  // every sibling untouched), same as every other edit in this section; it
+  // reaches Firestore only once the admin hits "Save Catalogue" below.
+  const confirmRemove = (name) => window.confirm(`Remove "${name}"? This can't be undone once you save.`);
+
   // ── flat lists (colours/glasses/addons) ──
   const updFlatItem = (typeKey, id, patch) => {
     setDraft((d) => ({ ...d, [typeKey]: (d[typeKey] || []).map((it) => (it.id === id ? { ...it, ...patch } : it)) }));
@@ -381,6 +387,11 @@ function CatalogueSection({ catalog, onSaved }) {
     const base = { id: newItemId(typeKey), name: "New item", photos: typeKey === "addons" ? undefined : [], active: typeKey !== "addons" ? true : undefined };
     if (hasRate) base.rate = 0;
     setDraft((d) => ({ ...d, [typeKey]: [...(d[typeKey] || []), base] }));
+    markDirty();
+  };
+  const removeFlatItem = (typeKey, id, name) => {
+    if (!confirmRemove(name)) return;
+    setDraft((d) => ({ ...d, [typeKey]: (d[typeKey] || []).filter((it) => it.id !== id) }));
     markDirty();
   };
 
@@ -436,6 +447,11 @@ function CatalogueSection({ catalog, onSaved }) {
     const brand = draft.brands[brandIdx];
     updBrand(brandIdx, { photos: (brand.photos || []).filter((p) => p !== url) });
   };
+  const removeBrand = (brandIdx, name) => {
+    if (!confirmRemove(name)) return;
+    setDraft((d) => ({ ...d, brands: (d.brands || []).filter((_, i) => i !== brandIdx) }));
+    markDirty();
+  };
 
   const updProfileType = (brandIdx, ptIdx, patch) => {
     const brand = draft.brands[brandIdx];
@@ -447,6 +463,11 @@ function CatalogueSection({ catalog, onSaved }) {
     const brand = draft.brands[brandIdx];
     updBrand(brandIdx, { profileTypes: [...(brand.profileTypes || []), { id: newItemId("prof"), name: "New Profile Type", photos: [], active: true }] });
   };
+  const removeProfileType = (brandIdx, ptIdx, name) => {
+    if (!confirmRemove(name)) return;
+    const brand = draft.brands[brandIdx];
+    updBrand(brandIdx, { profileTypes: (brand.profileTypes || []).filter((_, i) => i !== ptIdx) });
+  };
 
   const updHandleType = (brandIdx, htIdx, patch) => {
     const brand = draft.brands[brandIdx];
@@ -457,6 +478,11 @@ function CatalogueSection({ catalog, onSaved }) {
   const addHandleType = (brandIdx) => {
     const brand = draft.brands[brandIdx];
     updBrand(brandIdx, { handleTypes: [...(brand.handleTypes || []), { id: newItemId("hdl"), name: "New Handle Type", photos: [], active: true, bars: freshBarSet() }] });
+  };
+  const removeHandleType = (brandIdx, htIdx, name) => {
+    if (!confirmRemove(name)) return;
+    const brand = draft.brands[brandIdx];
+    updBrand(brandIdx, { handleTypes: (brand.handleTypes || []).filter((_, i) => i !== htIdx) });
   };
 
   // ── hinge categories (+ nested brands) ──
@@ -477,6 +503,11 @@ function CatalogueSection({ catalog, onSaved }) {
     const cat = draft.hingeCategories[catIdx];
     updHingeCategory(catIdx, { photos: (cat.photos || []).filter((p) => p !== url) });
   };
+  const removeHingeCategory = (catIdx, name) => {
+    if (!confirmRemove(name)) return;
+    setDraft((d) => ({ ...d, hingeCategories: (d.hingeCategories || []).filter((_, i) => i !== catIdx) }));
+    markDirty();
+  };
   const updHingeCategoryBrand = (catIdx, brandIdx, patch) => {
     const cat = draft.hingeCategories[catIdx];
     const brands = [...(cat.brands || [])];
@@ -486,6 +517,11 @@ function CatalogueSection({ catalog, onSaved }) {
   const addHingeCategoryBrand = (catIdx) => {
     const cat = draft.hingeCategories[catIdx];
     updHingeCategory(catIdx, { brands: [...(cat.brands || []), { id: newItemId("hb"), name: "New Brand", rate: 0, active: true }] });
+  };
+  const removeHingeCategoryBrand = (catIdx, brandIdx, name) => {
+    if (!confirmRemove(name)) return;
+    const cat = draft.hingeCategories[catIdx];
+    updHingeCategory(catIdx, { brands: (cat.brands || []).filter((_, i) => i !== brandIdx) });
   };
   const handleHingeBrandPhotoUpload = async (catIdx, brandIdx, files) => {
     const cat = draft.hingeCategories[catIdx];
@@ -522,6 +558,11 @@ function CatalogueSection({ catalog, onSaved }) {
     setDraft((d) => ({ ...d, liftUp: { ...d.liftUp, hydraulicSystems: [...(d.liftUp?.hydraulicSystems || []), { id: newItemId("lift"), name: "New Hydraulic System", rate: 0, active: true }] } }));
     markDirty();
   };
+  const removeHydraulic = (i, name) => {
+    if (!confirmRemove(name)) return;
+    setDraft((d) => ({ ...d, liftUp: { ...d.liftUp, hydraulicSystems: (d.liftUp?.hydraulicSystems || []).filter((_, idx) => idx !== i) } }));
+    markDirty();
+  };
 
   const save = async () => {
     setSaving(true); setErr(""); setOk("");
@@ -555,6 +596,7 @@ function CatalogueSection({ catalog, onSaved }) {
                 <label style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
                   <input type="checkbox" checked={brand.active !== false} onChange={(e) => updBrand(brandIdx, { active: e.target.checked })} /> Active
                 </label>
+                <button className="hm-btn hm-btn-danger hm-btn-sm" onClick={() => removeBrand(brandIdx, brand.name)}>Remove</button>
                 <span style={{ fontSize: 10, color: "#6b6d76", marginLeft: "auto" }}>{brand.id}</span>
               </div>
               <PhotoEditor
@@ -573,6 +615,7 @@ function CatalogueSection({ catalog, onSaved }) {
                       <label style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
                         <input type="checkbox" checked={pt.active !== false} onChange={(e) => updProfileType(brandIdx, ptIdx, { active: e.target.checked })} /> Active
                       </label>
+                      <button className="hm-btn hm-btn-danger hm-btn-sm" onClick={() => removeProfileType(brandIdx, ptIdx, pt.name)}>Remove</button>
                       <span style={{ fontSize: 10, color: "#6b6d76", marginLeft: "auto" }}>{pt.id}</span>
                     </div>
                     <PhotoEditor
@@ -598,6 +641,7 @@ function CatalogueSection({ catalog, onSaved }) {
                       <label style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
                         <input type="checkbox" checked={ht.active !== false} onChange={(e) => updHandleType(brandIdx, htIdx, { active: e.target.checked })} /> Active
                       </label>
+                      <button className="hm-btn hm-btn-danger hm-btn-sm" onClick={() => removeHandleType(brandIdx, htIdx, ht.name)}>Remove</button>
                       <span style={{ fontSize: 10, color: "#6b6d76", marginLeft: "auto" }}>{ht.id}</span>
                     </div>
                     <PhotoEditor
@@ -651,6 +695,7 @@ function CatalogueSection({ catalog, onSaved }) {
                       <input type="checkbox" checked={item.active !== false} onChange={(e) => updFlatItem(key, item.id, { active: e.target.checked })} /> Active
                     </label>
                   )}
+                  <button className="hm-btn hm-btn-danger hm-btn-sm" onClick={() => removeFlatItem(key, item.id, item.name)}>Remove</button>
                   <span style={{ fontSize: 10, color: "#6b6d76", marginLeft: "auto" }}>{item.id}</span>
                 </div>
                 {hasPhotos && (
@@ -675,6 +720,7 @@ function CatalogueSection({ catalog, onSaved }) {
             <div className="hm-catalog-item" key={cat.id}>
               <div className="hm-catalog-item-hd">
                 <input className="hm-input" style={{ maxWidth: 240 }} value={cat.name} onChange={(e) => updHingeCategory(catIdx, { name: e.target.value })} />
+                <button className="hm-btn hm-btn-danger hm-btn-sm" onClick={() => removeHingeCategory(catIdx, cat.name)}>Remove</button>
                 <span style={{ fontSize: 10, color: "#6b6d76", marginLeft: "auto" }}>{cat.id}</span>
               </div>
               <PhotoEditor
@@ -691,6 +737,7 @@ function CatalogueSection({ catalog, onSaved }) {
                     <label style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
                       <input type="checkbox" checked={b.active !== false} onChange={(e) => updHingeCategoryBrand(catIdx, brandIdx, { active: e.target.checked })} /> Active
                     </label>
+                    <button className="hm-btn hm-btn-danger hm-btn-sm" onClick={() => removeHingeCategoryBrand(catIdx, brandIdx, b.name)}>Remove</button>
                     <span style={{ fontSize: 10, color: "#6b6d76" }}>rate set in Rate List</span>
                   </div>
                   <PhotoEditor
@@ -717,6 +764,7 @@ function CatalogueSection({ catalog, onSaved }) {
               <label style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
                 <input type="checkbox" checked={h.active !== false} onChange={(e) => updHydraulic(i, { active: e.target.checked })} /> Active
               </label>
+              <button className="hm-btn hm-btn-danger hm-btn-sm" onClick={() => removeHydraulic(i, h.name)}>Remove</button>
               <span style={{ fontSize: 10, color: "#6b6d76" }}>rate set in Rate List</span>
             </div>
           ))}
