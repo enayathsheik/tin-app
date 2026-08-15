@@ -200,7 +200,7 @@ export function HomBuilder({ catalog, onPlaceOrder, authUser, onAuthed }) {
   const selectedBrand = brands.find((b) => b.id === builder.brandId) || null;
   const profileTypes = active(selectedBrand?.profileTypes);
   const handleTypes = active(selectedBrand?.handleTypes);
-  const fourthSideOptions = [{ id: "none", name: "Handle-less", photos: [] }, ...handleTypes];
+  const fourthSideOptions = [{ id: "none", name: "Handle-less", photos: catalog.handleless?.photos || [] }, ...handleTypes];
 
   const selectBrand = (brandId) => upd({ brandId, profileTypeId: null, fourthSide: "none" });
 

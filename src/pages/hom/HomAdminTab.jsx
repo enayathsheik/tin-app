@@ -427,6 +427,15 @@ function CatalogueSection({ catalog, onSaved }) {
     }));
     markDirty();
   };
+  const handleBrandPhotoUpload = async (brandIdx, files) => {
+    const brand = draft.brands[brandIdx];
+    const photos = await uploadPhotos("brands", brand.id, brand.photos, files, `brand-${brandIdx}`);
+    if (photos) updBrand(brandIdx, { photos });
+  };
+  const removeBrandPhoto = (brandIdx, url) => {
+    const brand = draft.brands[brandIdx];
+    updBrand(brandIdx, { photos: (brand.photos || []).filter((p) => p !== url) });
+  };
 
   const updProfileType = (brandIdx, ptIdx, patch) => {
     const brand = draft.brands[brandIdx];
@@ -459,6 +468,15 @@ function CatalogueSection({ catalog, onSaved }) {
     setDraft((d) => ({ ...d, hingeCategories: [...(d.hingeCategories || []), { id: newItemId("cat"), name: "New Category", brands: [] }] }));
     markDirty();
   };
+  const handleHingeCategoryPhotoUpload = async (catIdx, files) => {
+    const cat = draft.hingeCategories[catIdx];
+    const photos = await uploadPhotos("hingeCategories", cat.id, cat.photos, files, `hcat-${catIdx}`);
+    if (photos) updHingeCategory(catIdx, { photos });
+  };
+  const removeHingeCategoryPhoto = (catIdx, url) => {
+    const cat = draft.hingeCategories[catIdx];
+    updHingeCategory(catIdx, { photos: (cat.photos || []).filter((p) => p !== url) });
+  };
   const updHingeCategoryBrand = (catIdx, brandIdx, patch) => {
     const cat = draft.hingeCategories[catIdx];
     const brands = [...(cat.brands || [])];
@@ -468,6 +486,31 @@ function CatalogueSection({ catalog, onSaved }) {
   const addHingeCategoryBrand = (catIdx) => {
     const cat = draft.hingeCategories[catIdx];
     updHingeCategory(catIdx, { brands: [...(cat.brands || []), { id: newItemId("hb"), name: "New Brand", rate: 0, active: true }] });
+  };
+  const handleHingeBrandPhotoUpload = async (catIdx, brandIdx, files) => {
+    const cat = draft.hingeCategories[catIdx];
+    const b = cat.brands[brandIdx];
+    const photos = await uploadPhotos("hingeBrands", `${cat.id}_${b.id}`, b.photos, files, `hbrand-${catIdx}-${brandIdx}`);
+    if (photos) updHingeCategoryBrand(catIdx, brandIdx, { photos });
+  };
+  const removeHingeBrandPhoto = (catIdx, brandIdx, url) => {
+    const b = draft.hingeCategories[catIdx].brands[brandIdx];
+    updHingeCategoryBrand(catIdx, brandIdx, { photos: (b.photos || []).filter((p) => p !== url) });
+  };
+
+  // ── handle-less (fourth side) — a single fixed slot, not a list; see
+  // HomBuilder.jsx's fourthSideOptions, which reads catalog.handleless.photos
+  // for the synthetic "none" tile every brand shares. ──
+  const updHandleless = (patch) => {
+    setDraft((d) => ({ ...d, handleless: { ...d.handleless, ...patch } }));
+    markDirty();
+  };
+  const handleHandlelessPhotoUpload = async (files) => {
+    const photos = await uploadPhotos("handleless", "handleless", draft.handleless?.photos, files, "handleless");
+    if (photos) updHandleless({ photos });
+  };
+  const removeHandlelessPhoto = (url) => {
+    updHandleless({ photos: (draft.handleless?.photos || []).filter((p) => p !== url) });
   };
 
   // ── lift-up hydraulic systems ──
@@ -514,6 +557,12 @@ function CatalogueSection({ catalog, onSaved }) {
                 </label>
                 <span style={{ fontSize: 10, color: "#6b6d76", marginLeft: "auto" }}>{brand.id}</span>
               </div>
+              <PhotoEditor
+                photos={brand.photos}
+                uploading={uploadingKey === `brand-${brandIdx}`}
+                onUpload={(files) => handleBrandPhotoUpload(brandIdx, files)}
+                onRemove={(url) => removeBrandPhoto(brandIdx, url)}
+              />
 
               <div style={{ marginTop: 10 }}>
                 <div className="hm-detail-block-hd">Profile Types <button className="hm-btn hm-btn-ghost hm-btn-sm" style={{ marginLeft: 8 }} onClick={() => addProfileType(brandIdx)}>+ Add</button></div>
@@ -570,6 +619,21 @@ function CatalogueSection({ catalog, onSaved }) {
         </div>
       </div>
 
+      <div className="hm-plate" style={{ marginBottom: 14 }}>
+        <div className="hm-plate-hd"><span className="hm-plate-title">Handle-less</span></div>
+        <div className="hm-plate-body">
+          <div className="hm-section-sub" style={{ marginBottom: 8 }}>
+            Shown on the microsite's Fourth Side step as the "no handle" option, shared across every brand.
+          </div>
+          <PhotoEditor
+            photos={draft.handleless?.photos}
+            uploading={uploadingKey === "handleless"}
+            onUpload={handleHandlelessPhotoUpload}
+            onRemove={removeHandlelessPhoto}
+          />
+        </div>
+      </div>
+
       {FLAT_CATALOG_TYPES.map(({ key, label, hasRate, hasPhotos }) => (
         <div className="hm-plate" key={key} style={{ marginBottom: 14 }}>
           <div className="hm-plate-hd">
@@ -613,14 +677,28 @@ function CatalogueSection({ catalog, onSaved }) {
                 <input className="hm-input" style={{ maxWidth: 240 }} value={cat.name} onChange={(e) => updHingeCategory(catIdx, { name: e.target.value })} />
                 <span style={{ fontSize: 10, color: "#6b6d76", marginLeft: "auto" }}>{cat.id}</span>
               </div>
+              <PhotoEditor
+                photos={cat.photos}
+                uploading={uploadingKey === `hcat-${catIdx}`}
+                onUpload={(files) => handleHingeCategoryPhotoUpload(catIdx, files)}
+                onRemove={(url) => removeHingeCategoryPhoto(catIdx, url)}
+              />
               <div className="hm-detail-block-hd" style={{ marginTop: 8 }}>Brands <button className="hm-btn hm-btn-ghost hm-btn-sm" style={{ marginLeft: 8 }} onClick={() => addHingeCategoryBrand(catIdx)}>+ Add</button></div>
               {(cat.brands || []).map((b, brandIdx) => (
-                <div className="hm-catalog-item-hd" key={b.id} style={{ marginLeft: 14, marginBottom: 6 }}>
-                  <input className="hm-input" style={{ maxWidth: 200 }} value={b.name} onChange={(e) => updHingeCategoryBrand(catIdx, brandIdx, { name: e.target.value })} />
-                  <label style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
-                    <input type="checkbox" checked={b.active !== false} onChange={(e) => updHingeCategoryBrand(catIdx, brandIdx, { active: e.target.checked })} /> Active
-                  </label>
-                  <span style={{ fontSize: 10, color: "#6b6d76" }}>rate set in Rate List</span>
+                <div key={b.id} style={{ marginLeft: 14, marginBottom: 6 }}>
+                  <div className="hm-catalog-item-hd">
+                    <input className="hm-input" style={{ maxWidth: 200 }} value={b.name} onChange={(e) => updHingeCategoryBrand(catIdx, brandIdx, { name: e.target.value })} />
+                    <label style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
+                      <input type="checkbox" checked={b.active !== false} onChange={(e) => updHingeCategoryBrand(catIdx, brandIdx, { active: e.target.checked })} /> Active
+                    </label>
+                    <span style={{ fontSize: 10, color: "#6b6d76" }}>rate set in Rate List</span>
+                  </div>
+                  <PhotoEditor
+                    photos={b.photos}
+                    uploading={uploadingKey === `hbrand-${catIdx}-${brandIdx}`}
+                    onUpload={(files) => handleHingeBrandPhotoUpload(catIdx, brandIdx, files)}
+                    onRemove={(url) => removeHingeBrandPhoto(catIdx, brandIdx, url)}
+                  />
                 </div>
               ))}
               {(cat.brands || []).length === 0 && <div className="hm-sched-empty">No brands yet.</div>}

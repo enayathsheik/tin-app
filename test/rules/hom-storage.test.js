@@ -151,4 +151,17 @@ describe("HOM catalog photos — storage rules (Block 3)", () => {
     const publicStorage = testEnv.unauthenticatedContext().storage();
     await assertSucceeds(getBytes(ref(publicStorage, "hom/catalog/profiles/item1/photo.jpg")));
   });
+
+  // hom/catalog/{itemType}/{itemId}/{fileName} — itemType is a bare
+  // wildcard segment, so it already covers brands/hingeCategories/
+  // hingeBrands/handleless (added to the admin Catalogue UI) with no rule
+  // change; proven directly here rather than just asserted in a comment.
+  it("15. hom_admin can upload a photo under each new admin-editable item type (brands/hingeCategories/hingeBrands/handleless)", async () => {
+    const homAdminStorage = testEnv.authenticatedContext("homAdminUid", { email: "hom-admin-not-master@example.com" }).storage();
+    for (const itemType of ["brands", "hingeCategories", "hingeBrands", "handleless"]) {
+      await assertSucceeds(
+        uploadBytes(ref(homAdminStorage, `hom/catalog/${itemType}/item1/photo.jpg`), smallImage(), { contentType: "image/jpeg" })
+      );
+    }
+  });
 });
