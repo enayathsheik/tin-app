@@ -5,6 +5,7 @@ import { auth, db, saveUserProfile, getUserProfile } from "../firebase/config";
 import { ROLES } from "../data/constants";
 import { getLevel } from "../utils/helpers";
 import { checkHandleAvailable, claimHandle, findAvailableHandle, isReservedHandle, isValidHandleFormat, suggestHandleBase } from "../utils/handles";
+import { normalizeIndianMobile, phoneToSyntheticEmail, resolveAuthEmail } from "../utils/phoneAuth";
 
 export function LoginPage({ onLogin }) {
   const [mode, setMode] = useState("login");
@@ -19,6 +20,15 @@ export function LoginPage({ onLogin }) {
   const [showForgot, setShowForgot] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotSent, setForgotSent] = useState(false);
+  const [forgotPhoneBlocked, setForgotPhoneBlocked] = useState(false);
+  // Register-mode identifier method — "email" (unchanged default) or
+  // "mobile" (Part 1: mobile signup, no OTP — see src/utils/phoneAuth.js).
+  // Contributor (Market Champion) signup keeps its existing work-email-only
+  // flow untouched — a business validation email doesn't make sense to
+  // replace with a phone number, so this toggle only appears for the other
+  // roles (see the isContrib guard around its render below).
+  const [signupMethod, setSignupMethod] = useState("email");
+  const [mobile, setMobile] = useState("");
   const [loading, setLoading] = useState(false);
   const [showRoleConfirm, setShowRoleConfirm] = useState(false);
 
@@ -69,21 +79,61 @@ export function LoginPage({ onLogin }) {
     return () => clearTimeout(t);
   }, [handle, handleEdited, mode]);
 
+  // Mobile accounts have no real inbox behind their synthetic email (see
+  // src/utils/phoneAuth.js) — sending a reset link there would "succeed"
+  // from Firebase's point of view while silently reaching nobody. Detect a
+  // phone-shaped identifier up front and say so plainly instead; email
+  // identifiers go through the exact same reset flow as before, unchanged.
   const handleForgotPassword = async () => {
     if (!forgotEmail) return;
+    setForgotPhoneBlocked(false);
+    const resolved = resolveAuthEmail(forgotEmail);
+    if (resolved.error) {
+      alert(resolved.error);
+      return;
+    }
+    if (resolved.isPhone) {
+      setForgotPhoneBlocked(true);
+      return;
+    }
     try {
-      await sendPasswordResetEmail(auth, forgotEmail);
+      await sendPasswordResetEmail(auth, resolved.email);
       setForgotSent(true);
     } catch(err) {
       alert("Could not send reset email. Please check the address.");
     }
   };
 
+  // Register-mode mobile signup only ever applies outside the contributor
+  // (Market Champion) role — see the signupMethod state comment above.
+  const isMobileSignup = mode === "register" && !isContrib && signupMethod === "mobile";
+
   const doSubmit = async () => {
-    const emailToUse = (mode === "register" && isContrib ? workEmail : email).trim();
+    // Resolves the actual Firebase Auth email for this attempt. Email paths
+    // (login-by-email, register-by-email, contributor work-email) are byte
+    // -identical to before this change — only the two mobile branches are
+    // new (see src/utils/phoneAuth.js for the normalisation rule).
+    let emailToUse;
+    let phoneDigits = null;
+    let usedPhoneLogin = false;
+    if (mode === "login") {
+      const resolved = resolveAuthEmail(email);
+      if (resolved.error) { alert(resolved.error); return; }
+      emailToUse = resolved.email;
+      usedPhoneLogin = resolved.isPhone;
+      phoneDigits = resolved.phone || null;
+    } else if (isMobileSignup) {
+      const digits = normalizeIndianMobile(mobile);
+      if (!digits) { alert("Enter a valid 10-digit mobile number."); return; }
+      phoneDigits = digits;
+      emailToUse = phoneToSyntheticEmail(digits);
+    } else {
+      emailToUse = (isContrib ? workEmail : email).trim();
+    }
+
     const passToUse = pass.trim();
     if (!emailToUse || !passToUse) {
-      alert("Please enter email and password");
+      alert(mode === "login" ? "Please enter your email or mobile number, and password" : (isMobileSignup ? "Please enter your mobile number and password" : "Please enter email and password"));
       return;
     }
     setLoading(true);
@@ -97,7 +147,7 @@ export function LoginPage({ onLogin }) {
           const finalProfile = isAdminEmail ? { ...profile, role: "admin" } : profile;
           onLogin({ ...finalProfile, uid: cred.user.uid });
         } else {
-          const basicProfile = { name: emailToUse.split("@")[0], email: emailToUse, workEmail: emailToUse, personalEmail: "", role: isAdminEmail ? "admin" : "contributor", linkedin: "", company: "", points: 0, storesAdded: 0, citiesCovered: 0, level: getLevel(0).name, validationStatus: "n/a", createdAt: new Date().toISOString(), uid: cred.user.uid };
+          const basicProfile = { name: phoneDigits || emailToUse.split("@")[0], email: emailToUse, phone: phoneDigits, workEmail: emailToUse, personalEmail: "", role: isAdminEmail ? "admin" : "contributor", linkedin: "", company: "", points: 0, storesAdded: 0, citiesCovered: 0, level: getLevel(0).name, validationStatus: "n/a", createdAt: new Date().toISOString(), uid: cred.user.uid };
           await saveUserProfile(cred.user.uid, basicProfile);
           onLogin(basicProfile);
         }
@@ -107,6 +157,10 @@ export function LoginPage({ onLogin }) {
         const ud = {
           name: name || emailToUse.split("@")[0],
           email: emailToUse,
+          // Real mobile number lives here — the synthetic email above is an
+          // internal auth-identity detail only, never shown to the user
+          // (see src/utils/phoneAuth.js). null for email signups, unchanged.
+          phone: phoneDigits,
           workEmail: isContrib ? workEmail : emailToUse,
           personalEmail,
           role,
@@ -149,12 +203,15 @@ export function LoginPage({ onLogin }) {
         onLogin(ud);
       }
     } catch(err) {
+      // Phone-attempt phrasing never leaks the synthetic email — same
+      // Firebase error codes, wording chosen from what THIS attempt used.
+      const isPhoneAttempt = isMobileSignup || usedPhoneLogin;
       const msg = err.message
         .replace("Firebase: ", "")
-        .replace("(auth/email-already-in-use)", "Email already registered — please sign in.")
+        .replace("(auth/email-already-in-use)", isPhoneAttempt ? "Mobile number already registered — please sign in." : "Email already registered — please sign in.")
         .replace("(auth/wrong-password)", "Wrong password.")
-        .replace("(auth/user-not-found)", "No account found — please register.")
-        .replace("(auth/invalid-credential)", "Invalid email or password.")
+        .replace("(auth/user-not-found)", isPhoneAttempt ? "No account found for this mobile number — please register." : "No account found — please register.")
+        .replace("(auth/invalid-credential)", isPhoneAttempt ? "Invalid mobile number or password." : "Invalid email or password.")
         .replace("(auth/weak-password)", "Password must be at least 6 characters.");
       alert(msg);
     }
@@ -179,18 +236,22 @@ export function LoginPage({ onLogin }) {
       <div className="login-card">
         <div className="login-logo">Trade Interface Network</div>
         <div className="login-title">Reset <em>Password</em></div>
-        <div className="login-sub">Enter your registered email — we will send a reset link.</div>
+        <div className="login-sub">Enter your registered email or mobile number — email accounts get a reset link.</div>
         {forgotSent ? (
           <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:"var(--r)",padding:"12px 16px",fontSize:13,color:"#16a34a",marginBottom:14}}>
             ✓ Reset link sent to <strong>{forgotEmail}</strong>. Check your inbox.
           </div>
+        ) : forgotPhoneBlocked ? (
+          <div style={{background:"#fff7ed",border:"1px solid #fed7aa",borderRadius:"var(--r)",padding:"12px 16px",fontSize:13,color:"#9a3412",marginBottom:14}}>
+            Mobile-number accounts don't have a recovery email on file — self-serve reset isn't available yet. Please contact support or an admin to reset your password.
+          </div>
         ) : (
           <div className="login-fields">
-            <div className="lf"><label>Email Address</label><input className="fi" type="email" placeholder="your@email.com" value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} /></div>
+            <div className="lf"><label>Email or Mobile Number</label><input className="fi" placeholder="your@email.com or 98765 43210" value={forgotEmail} onChange={e => { setForgotEmail(e.target.value); setForgotPhoneBlocked(false); }} /></div>
           </div>
         )}
-        {!forgotSent && <button className="btn-login" onClick={handleForgotPassword}>Send Reset Link →</button>}
-        <div className="login-sw" style={{marginTop:14}}><span onClick={() => { setShowForgot(false); setForgotSent(false); }}>← Back to Login</span></div>
+        {!forgotSent && !forgotPhoneBlocked && <button className="btn-login" onClick={handleForgotPassword}>Send Reset Link →</button>}
+        <div className="login-sw" style={{marginTop:14}}><span onClick={() => { setShowForgot(false); setForgotSent(false); setForgotPhoneBlocked(false); }}>← Back to Login</span></div>
       </div>
     </div>
   );
@@ -269,15 +330,33 @@ export function LoginPage({ onLogin }) {
               <div className="lf"><label>Personal Email (backup)</label><input className="fi" type="email" placeholder="you@gmail.com" value={personalEmail} onChange={e => setPersonalEmail(e.target.value)} /></div>
               <div className="lf"><label>LinkedIn <span style={{fontSize:10,color:"#555",fontWeight:400}}>(optional)</span></label><input className="fi" placeholder="linkedin.com/in/yourname" value={linkedin} onChange={e => setLinkedin(e.target.value)} /></div>
             </>
+          ) : mode === "login" ? (
+            <div className="lf">
+              <label>Email or Mobile Number</label>
+              <input className="fi" placeholder="you@example.com or 98765 43210" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSubmit()} />
+            </div>
           ) : (
             <>
               <div className="lf">
-                <label>Email</label>
-                <input className="fi" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSubmit()} />
+                <label>Sign up with</label>
+                <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                  <button type="button" onClick={() => setSignupMethod("email")} style={{ padding: "8px 16px", borderRadius: 8, border: signupMethod === "email" ? "1.5px solid #e85a2a" : "1px solid #e0e0e0", background: signupMethod === "email" ? "#fff5f0" : "#fff", color: "#080808", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Email</button>
+                  <button type="button" onClick={() => setSignupMethod("mobile")} style={{ padding: "8px 16px", borderRadius: 8, border: signupMethod === "mobile" ? "1.5px solid #e85a2a" : "1px solid #e0e0e0", background: signupMethod === "mobile" ? "#fff5f0" : "#fff", color: "#080808", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Mobile Number</button>
+                </div>
               </div>
-              {mode === "register" && (
-                <div className="lf"><label>Personal Email (backup)</label><input className="fi" type="email" placeholder="backup@gmail.com" value={personalEmail} onChange={e => setPersonalEmail(e.target.value)} /></div>
+              {signupMethod === "mobile" ? (
+                <div className="lf">
+                  <label>Mobile Number</label>
+                  <input className="fi" type="tel" placeholder="98765 43210" value={mobile} onChange={e => setMobile(e.target.value.replace(/[^\d+ ]/g, ""))} onKeyDown={e => e.key === "Enter" && handleSubmit()} />
+                  <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>No OTP — you'll sign in with this number and your password. It isn't verified yet.</div>
+                </div>
+              ) : (
+                <div className="lf">
+                  <label>Email</label>
+                  <input className="fi" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSubmit()} />
+                </div>
               )}
+              <div className="lf"><label>Personal Email (backup)</label><input className="fi" type="email" placeholder="backup@gmail.com" value={personalEmail} onChange={e => setPersonalEmail(e.target.value)} /></div>
             </>
           )}
 
