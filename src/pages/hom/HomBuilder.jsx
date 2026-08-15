@@ -386,6 +386,8 @@ export function HomBuilder({ catalog, onPlaceOrder, authUser, onAuthed }) {
   return (
     <div className="hm-shell">
       <div className="hm-main">
+        <div className="hm-section-title" style={{ marginBottom: 18 }}>Cabinetry</div>
+
         <Plate no="01" title="Brand">
           {brands.length === 0
             ? <div className="hm-sched-empty">No brands available right now.</div>
