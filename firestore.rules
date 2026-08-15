@@ -492,7 +492,15 @@ service cloud.firestore {
       return customer is map
         && customer.get('name', '') is string && customer.name.size() > 0
         && customer.get('phone', '') is string && customer.phone.size() > 0
-        && customer.get('pincode', '') is string && customer.pincode.matches('^[0-9]{6}$')
+        // Pincode is OPTIONAL: '' passes (nothing entered); a non-empty
+        // value must still be a real 6-digit pincode. Same relaxation,
+        // for the same reason, on isValidHomOrderSite's address.pincode
+        // below. Bare `customer.pincode` dot-access after the .get() check
+        // still throws on a truly absent key (see the .get(key, default)
+        // comment above this function) — so re-.get() it here too rather
+        // than dot-accessing the already-checked value.
+        && customer.get('pincode', '') is string
+        && (customer.get('pincode', '') == '' || customer.get('pincode', '').matches('^[0-9]{6}$'))
         && data.get('cabinets', []) is list && data.cabinets.size() > 0
         && data.get('pricingSnapshot', null) is map
         && data.get('paymentMethod', '') in ['online', 'cod']
@@ -531,7 +539,11 @@ service cloud.firestore {
         && site.get('siteId', '') is string && site.siteId.size() > 0
         && site.get('label', '') is string && site.label.size() > 0
         && site.get('address', null) is map
-        && site.address.get('pincode', '') is string && site.address.pincode.matches('^[0-9]{6}$');
+        // Optional, same relaxation (and the same re-.get() to avoid a
+        // bare-dot-access error on a truly absent key) as isValidHomOrder's
+        // customer.pincode.
+        && site.address.get('pincode', '') is string
+        && (site.address.get('pincode', '') == '' || site.address.get('pincode', '').matches('^[0-9]{6}$'));
     }
     // ══ END HOM SYSTEMS — BLOCK 1 ═══════════════════════════════
 

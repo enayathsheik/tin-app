@@ -91,7 +91,11 @@ function Plate({ title, sub, children }) {
 // plain {flat,street,area,city,pincode} object (see getSiteAddress in
 // HomBuilder).
 function SiteAddressFields({ address, onChange, touched }) {
-  const pincodeValid = /^[0-9]{6}$/.test((address.pincode || "").trim());
+  // Optional: blank passes (nothing to place an order without a pincode
+  // needs to satisfy); a value that IS entered must still be a real
+  // 6-digit pincode — see firestore.rules' matching relaxation.
+  const trimmedPincode = (address.pincode || "").trim();
+  const pincodeValid = trimmedPincode === "" || /^[0-9]{6}$/.test(trimmedPincode);
   return (
     <div className="hm-field-grid">
       <div className="hm-field">
@@ -111,9 +115,9 @@ function SiteAddressFields({ address, onChange, touched }) {
         <input className="hm-input" value={address.city} onChange={(e) => onChange({ city: e.target.value })} />
       </div>
       <div className="hm-field hm-field-full">
-        <div className="hm-field-label">Pincode <span className="req">*</span></div>
+        <div className="hm-field-label">Pincode (optional)</div>
         <input className={`hm-input ${touched && !pincodeValid ? "err" : ""}`} value={address.pincode} onChange={(e) => onChange({ pincode: e.target.value.replace(/\D/g, "").slice(0, 6) })} placeholder="6-digit pincode" />
-        {touched && !pincodeValid && <div className="hm-field-err">Enter a valid 6-digit pincode.</div>}
+        {touched && !pincodeValid && <div className="hm-field-err">Enter a valid 6-digit pincode, or leave it blank.</div>}
       </div>
     </div>
   );
@@ -278,7 +282,12 @@ export function HomBuilder({ catalog, onPlaceOrder, authUser, onAuthed }) {
   const emptySiteAddress = { flat: "", street: "", area: "", city: "", pincode: "" };
   const getSiteAddress = (label) => siteAddresses[label] || emptySiteAddress;
   const updSiteAddress = (label, patch) => setSiteAddresses((s) => ({ ...s, [label]: { ...getSiteAddress(label), ...patch } }));
-  const siteAddressValid = (label) => /^[0-9]{6}$/.test((getSiteAddress(label).pincode || "").trim());
+  // Optional: blank passes; an entered value must still be a real 6-digit
+  // pincode — mirrors SiteAddressFields' own pincodeValid above.
+  const siteAddressValid = (label) => {
+    const p = (getSiteAddress(label).pincode || "").trim();
+    return p === "" || /^[0-9]{6}$/.test(p);
+  };
   const allSitesValid = distinctSiteLabels.length === 0 || distinctSiteLabels.every(siteAddressValid);
 
   const computeFormValid = (cust) => cust.name.trim().length > 0 && cust.phone.trim().length > 0 && allSitesValid && schedule.length > 0;
@@ -678,7 +687,7 @@ export function HomBuilder({ catalog, onPlaceOrder, authUser, onAuthed }) {
               {schedule.length === 0 && "Add at least one cabinet. "}
               {!customer.name.trim() && "Name is required. "}
               {!customer.phone.trim() && "Phone is required. "}
-              {!allSitesValid && "A valid 6-digit pincode is required for every delivery site."}
+              {!allSitesValid && "Enter a valid 6-digit pincode for every delivery site, or leave it blank."}
             </div>
           )}
           {submitError && <div className="hm-quote-err">{submitError}</div>}

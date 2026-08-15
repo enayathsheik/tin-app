@@ -114,11 +114,30 @@ describe("HOM Systems Block 1 — security rules", () => {
     await assertFails(setDoc(doc(ownerDb(), "homOrders", "spoofedOwnerOrder"), validOrderPayload({ ownerUid: OTHER_UID })));
   });
 
-  it("7. invalid order create is denied — malformed pincode (even for the correct owner)", async () => {
+  it("7. invalid order create is denied — malformed (non-empty) pincode (even for the correct owner)", async () => {
     await assertFails(
       setDoc(
         doc(ownerDb(), "homOrders", "badOrder1"),
         validOrderPayload({ customer: { name: "X", phone: "999", pincode: "12" } })
+      )
+    );
+  });
+
+  // ── pincode is optional: blank passes, a real value is still validated ──
+  it("7a. an order with an empty customer.pincode creates successfully — pincode is optional", async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(ownerDb(), "homOrders", "noPincodeOrder"),
+        validOrderPayload({ customer: { name: "Test Customer", phone: "9998887776", pincode: "" } })
+      )
+    );
+  });
+
+  it("7b. an order that omits customer.pincode entirely also creates successfully", async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(ownerDb(), "homOrders", "omittedPincodeOrder"),
+        validOrderPayload({ customer: { name: "Test Customer", phone: "9998887776" } })
       )
     );
   });
@@ -280,8 +299,8 @@ describe("HOM Systems Block 1 — security rules", () => {
     );
   });
 
-  it("21c. a site missing a pincode entirely denies the whole create", async () => {
-    await assertFails(
+  it("21c. a site missing a pincode entirely still creates successfully — pincode is optional per-site too", async () => {
+    await assertSucceeds(
       setDoc(
         doc(ownerDb(), "homOrders", "missingSitePincode"),
         validOrderPayload({ sites: [{ siteId: "Kitchen", label: "Kitchen", address: { flat: "", street: "", area: "", city: "" } }] })
