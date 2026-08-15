@@ -241,4 +241,64 @@ describe("HOM Systems Block 1 — security rules", () => {
       setDoc(doc(ownerDb(), "homOrders", "orderForTypeCheck"), { attachments: "not-a-list" }, { merge: true })
     );
   });
+
+  // ── Block 6: multi-site delivery — additive `sites[]` validation ──
+  it("21. a single-site order (sites[] with exactly one valid entry) creates exactly as before", async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(ownerDb(), "homOrders", "singleSiteOrder"),
+        validOrderPayload({ sites: [{ siteId: "Site 1", label: "Site 1", address: { flat: "", street: "", area: "", city: "", pincode: "560001" } }] })
+      )
+    );
+  });
+
+  it("21a. a multi-site order (sites[] with two valid-pincode entries) creates successfully", async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(ownerDb(), "homOrders", "multiSiteOrder"),
+        validOrderPayload({
+          sites: [
+            { siteId: "Kitchen", label: "Kitchen", address: { flat: "1", street: "", area: "", city: "", pincode: "560001" } },
+            { siteId: "Utility", label: "Utility", address: { flat: "2", street: "", area: "", city: "", pincode: "600001" } },
+          ],
+        })
+      )
+    );
+  });
+
+  it("21b. a site with a malformed pincode denies the whole create", async () => {
+    await assertFails(
+      setDoc(
+        doc(ownerDb(), "homOrders", "badSitePincode"),
+        validOrderPayload({
+          sites: [
+            { siteId: "Kitchen", label: "Kitchen", address: { flat: "", street: "", area: "", city: "", pincode: "560001" } },
+            { siteId: "Utility", label: "Utility", address: { flat: "", street: "", area: "", city: "", pincode: "12" } },
+          ],
+        })
+      )
+    );
+  });
+
+  it("21c. a site missing a pincode entirely denies the whole create", async () => {
+    await assertFails(
+      setDoc(
+        doc(ownerDb(), "homOrders", "missingSitePincode"),
+        validOrderPayload({ sites: [{ siteId: "Kitchen", label: "Kitchen", address: { flat: "", street: "", area: "", city: "" } }] })
+      )
+    );
+  });
+
+  it("21d. a malformed site (not a map) denies the whole create", async () => {
+    await assertFails(
+      setDoc(doc(ownerDb(), "homOrders", "badSiteShape"), validOrderPayload({ sites: ["not-a-site-map"] }))
+    );
+  });
+
+  it("21e. an order with no `sites` field at all still creates — backward compatible with the pre-Block-6 shape", async () => {
+    // validOrderPayload() with no `sites` override — the exact same call
+    // every pre-existing test in this file already makes; asserted here
+    // explicitly as the multi-site feature's own backward-compat proof.
+    await assertSucceeds(setDoc(doc(ownerDb(), "homOrders", "noSitesFieldOrder"), validOrderPayload()));
+  });
 });

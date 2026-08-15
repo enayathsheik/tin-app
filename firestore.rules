@@ -495,7 +495,43 @@ service cloud.firestore {
         && customer.get('pincode', '') is string && customer.pincode.matches('^[0-9]{6}$')
         && data.get('cabinets', []) is list && data.cabinets.size() > 0
         && data.get('pricingSnapshot', null) is map
-        && data.get('paymentMethod', '') in ['online', 'cod'];
+        && data.get('paymentMethod', '') in ['online', 'cod']
+        && isValidHomOrderSites(data.get('sites', []));
+    }
+
+    // ── BLOCK 6: multi-site delivery (additive) ──
+    // `sites` is OPTIONAL — .get('sites', []) defaults to an empty list, so
+    // this is a pure no-op (trivially valid) for any write that omits it
+    // entirely, which is exactly what lets a doc from before this field
+    // existed keep satisfying isValidHomOrder unchanged. When present, every
+    // entry must carry a real 6-digit pincode — same rule as the top-level
+    // customer.pincode above, just per-site. Firestore rules have no
+    // general-purpose loop/`.every()` over arbitrary-length lists, so this
+    // is the standard bounded-unroll idiom: check up to MAX_HOM_SITES
+    // entries, each guarded by sites.size() so indexing past the real
+    // length never happens. 10 sites is far beyond anything the microsite's
+    // UI drives a customer to today (see HomBuilder.jsx) — a generous,
+    // deliberately-fixed cap, not a real expected maximum.
+    function isValidHomOrderSites(sites) {
+      return sites is list && sites.size() <= 10
+        && (sites.size() < 1 || isValidHomOrderSite(sites[0]))
+        && (sites.size() < 2 || isValidHomOrderSite(sites[1]))
+        && (sites.size() < 3 || isValidHomOrderSite(sites[2]))
+        && (sites.size() < 4 || isValidHomOrderSite(sites[3]))
+        && (sites.size() < 5 || isValidHomOrderSite(sites[4]))
+        && (sites.size() < 6 || isValidHomOrderSite(sites[5]))
+        && (sites.size() < 7 || isValidHomOrderSite(sites[6]))
+        && (sites.size() < 8 || isValidHomOrderSite(sites[7]))
+        && (sites.size() < 9 || isValidHomOrderSite(sites[8]))
+        && (sites.size() < 10 || isValidHomOrderSite(sites[9]));
+    }
+
+    function isValidHomOrderSite(site) {
+      return site is map
+        && site.get('siteId', '') is string && site.siteId.size() > 0
+        && site.get('label', '') is string && site.label.size() > 0
+        && site.get('address', null) is map
+        && site.address.get('pincode', '') is string && site.address.pincode.matches('^[0-9]{6}$');
     }
     // ══ END HOM SYSTEMS — BLOCK 1 ═══════════════════════════════
 

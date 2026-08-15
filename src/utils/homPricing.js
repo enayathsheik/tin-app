@@ -233,6 +233,9 @@ export function priceOrder(catalog, cabinets) {
 
   const basic = orderBarCost + nonBarTotal;
   const gst = round(basic * (catalog.gstPct / 100));
+  // Flat, order-level, regardless of how many delivery sites the order's
+  // cabinets are split across (see homOrder.js's `sites` array) —
+  // per-site transport is a future decision, not built here.
   const transport = cabinets.length > 0 ? catalog.transportFlat : 0;
   const grand = basic + gst + transport;
 

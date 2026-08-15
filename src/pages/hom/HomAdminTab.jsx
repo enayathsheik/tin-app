@@ -13,7 +13,7 @@ import {
   loadOrders, rejectOrder, approveAndAssignOrder, advanceOrderStatus, ORDER_STATUS_LIFECYCLE,
   loadSupplierOrders,
 } from "../../utils/homAdmin";
-import { buildProductionChit, buildProfileChit, buildGlassChit, buildDeliveryLabels } from "./homChits";
+import { buildProductionChit, buildProfileChit, buildGlassChit, buildDeliveryChits } from "./homChits";
 
 const SECTIONS = [
   ["orders", "Orders"],
@@ -842,10 +842,34 @@ function OrdersSection({ catalog }) {
             </div>
           </div>
 
+          {/* Block 6 (additive, multi-site delivery) — orders placed before
+              this shipped have no `sites` array at all; this block simply
+              doesn't render for them, leaving the Customer block above as
+              the sole address display, exactly as it always was. */}
+          {selected.sites?.length > 0 && (
+            <div className="hm-detail-block" style={{ marginBottom: 16 }}>
+              <div className="hm-detail-block-hd">Sites ({selected.sites.length})</div>
+              {selected.sites.map((site) => {
+                const addr = site.address || {};
+                const defaultSiteId = selected.sites[0].siteId;
+                const cabsForSite = (selected.cabinets || []).filter((c) => (c.siteId || defaultSiteId) === site.siteId);
+                return (
+                  <div key={site.siteId} style={{ marginBottom: 10, paddingBottom: 8, borderBottom: "1px dashed var(--hm-line)" }}>
+                    <div style={{ fontWeight: 700 }}>{site.label}</div>
+                    <div style={{ fontSize: 11, color: "#6b6d76" }}>
+                      {[addr.flat, addr.street, addr.area, addr.city].filter(Boolean).join(", ")} — PIN {addr.pincode}
+                    </div>
+                    <div style={{ fontSize: 11, color: "#6b6d76", marginTop: 2 }}>{cabsForSite.length} cabinet{cabsForSite.length === 1 ? "" : "s"}</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           <div className="hm-detail-block" style={{ marginBottom: 16 }}>
             <div className="hm-detail-block-hd">Cabinets ({selected.cabinets?.length || 0})</div>
             <table className="hm-table">
-              <thead><tr><th>#</th><th>Profile</th><th>Glass</th><th>Size</th><th>Qty</th><th>Shutters</th><th>Bar</th><th>Price</th></tr></thead>
+              <thead><tr><th>#</th><th>Profile</th><th>Glass</th><th>Size</th><th>Qty</th><th>Shutters</th><th>Bar</th>{selected.sites?.length > 1 && <th>Site</th>}<th>Price</th></tr></thead>
               <tbody>
                 {(selected.cabinets || []).map((c, i) => (
                   <tr key={i}>
@@ -856,6 +880,7 @@ function OrdersSection({ catalog }) {
                     <td>{c.qty}</td>
                     <td>{c.totalShutters}</td>
                     <td>{c.regularBar?.label}{!c.regularBar?.ok && " ⚠"}{c.handleBar && ` + ${c.handleBar.label}${!c.handleBar.ok ? " ⚠" : ""}`}</td>
+                    {selected.sites?.length > 1 && <td>{c.siteId}</td>}
                     <td>{fmtINR(c.indicativeTotal)}</td>
                   </tr>
                 ))}
@@ -938,7 +963,7 @@ function ChitModal({ kind, order, catalog, onClose }) {
     if (kind === "production") return buildProductionChit(order, catalog);
     if (kind === "profile") return buildProfileChit(order, catalog);
     if (kind === "glass") return buildGlassChit(order);
-    if (kind === "delivery") return buildDeliveryLabels(order);
+    if (kind === "delivery") return buildDeliveryChits(order);
     return null;
   }, [kind, order, catalog]);
 
@@ -989,14 +1014,30 @@ function ChitModal({ kind, order, catalog, onClose }) {
           </table>
         )}
 
-        {kind === "delivery" && data.map((label) => (
-          <div className="hm-chit-label" key={label.index}>
-            <div style={{ fontSize: 11, color: "#6b6d76" }}>Package {label.index} of {label.packageOf}</div>
-            <div style={{ fontWeight: 800, fontSize: 16 }}>{label.orderNo}</div>
-            <div style={{ marginTop: 6 }}>{label.customerName} · {label.customerPhone}</div>
-            <div>{label.siteAddress}</div>
-            <div>PIN: {label.pincode}</div>
-            <div style={{ marginTop: 6, fontSize: 12 }}>{label.shutterSize} · {label.totalShutters} shutters · qty {label.qty}</div>
+        {/* Block 6 — one delivery chit PER SITE, each carrying its own
+            logo + order no + site label header (per spec: a site's chit is
+            a standalone printable document once the sheet is cut apart) —
+            not just the shared modal header above, which stays "Delivery
+            Labels" / order no only regardless of site count. */}
+        {kind === "delivery" && data.map((site) => (
+          <div key={site.siteId} style={{ marginBottom: 24, paddingBottom: 16, borderBottom: "2px dashed var(--hm-line)" }}>
+            <div className="hm-chit-hd" style={{ marginBottom: 10, paddingBottom: 8 }}>
+              <HomBrandMark />
+              <div>
+                <div className="hm-chit-title">Delivery — {site.label}</div>
+                <div className="hm-chit-order">{site.orderNo}</div>
+              </div>
+            </div>
+            {site.packages.map((pkg) => (
+              <div className="hm-chit-label" key={pkg.index}>
+                <div style={{ fontSize: 11, color: "#6b6d76" }}>Package {pkg.index} of {pkg.packageOf}</div>
+                <div style={{ fontWeight: 800, fontSize: 16 }}>{site.orderNo} · {site.label}</div>
+                <div style={{ marginTop: 6 }}>{site.customerName} · {site.customerPhone}</div>
+                <div>{site.siteAddress}</div>
+                <div>PIN: {site.pincode}</div>
+                <div style={{ marginTop: 6, fontSize: 12 }}>{pkg.shutterSize} · {pkg.totalShutters} shutters · qty {pkg.qty}</div>
+              </div>
+            ))}
           </div>
         ))}
 

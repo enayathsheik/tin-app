@@ -7,7 +7,7 @@
 // over the WHOLE schedule, so it always shows the real pooled total.
 import { useEffect, useMemo, useState } from "react";
 import { priceOrder, estimateCabinet } from "../../utils/homPricing";
-import { submitHomOrder, uploadHomOrderFiles } from "../../utils/homOrder";
+import { submitHomOrder, uploadHomOrderFiles, resolveSiteLabel, DEFAULT_SITE_LABEL } from "../../utils/homOrder";
 import { ShuttersPerCabDiagram } from "./homDiagrams";
 import { HomAuthGate } from "./HomAuthGate";
 
@@ -86,6 +86,40 @@ function Plate({ no, title, sub, children }) {
   );
 }
 
+// One site's delivery-address fields — used both for the single-address
+// case (today's flow, unchanged in substance) and once per site when an
+// order spans more than one project/site label. `address` is always a
+// plain {flat,street,area,city,pincode} object (see getSiteAddress in
+// HomBuilder).
+function SiteAddressFields({ address, onChange, touched }) {
+  const pincodeValid = /^[0-9]{6}$/.test((address.pincode || "").trim());
+  return (
+    <div className="hm-field-grid">
+      <div className="hm-field">
+        <div className="hm-field-label">Flat / Unit</div>
+        <input className="hm-input" value={address.flat} onChange={(e) => onChange({ flat: e.target.value })} />
+      </div>
+      <div className="hm-field">
+        <div className="hm-field-label">Street</div>
+        <input className="hm-input" value={address.street} onChange={(e) => onChange({ street: e.target.value })} />
+      </div>
+      <div className="hm-field">
+        <div className="hm-field-label">Area</div>
+        <input className="hm-input" value={address.area} onChange={(e) => onChange({ area: e.target.value })} />
+      </div>
+      <div className="hm-field">
+        <div className="hm-field-label">City</div>
+        <input className="hm-input" value={address.city} onChange={(e) => onChange({ city: e.target.value })} />
+      </div>
+      <div className="hm-field hm-field-full">
+        <div className="hm-field-label">Pincode <span className="req">*</span></div>
+        <input className={`hm-input ${touched && !pincodeValid ? "err" : ""}`} value={address.pincode} onChange={(e) => onChange({ pincode: e.target.value.replace(/\D/g, "").slice(0, 6) })} placeholder="6-digit pincode" />
+        {touched && !pincodeValid && <div className="hm-field-err">Enter a valid 6-digit pincode.</div>}
+      </div>
+    </div>
+  );
+}
+
 function Stepper({ value, min = 1, max = 99, onChange }) {
   return (
     <div className="hm-stepper">
@@ -129,7 +163,14 @@ export function HomBuilder({ catalog, onPlaceOrder, authUser, onAuthed }) {
   const [files, setFiles] = useState([]);
   const [fileError, setFileError] = useState("");
   const [customer, setCustomer] = useState({ name: "", phone: "", email: "" });
-  const [address, setAddress] = useState({ flat: "", street: "", area: "", city: "", pincode: "" });
+  // Multi-site delivery (additive): one address per distinct project/site
+  // label, keyed by that label — resolveSiteLabel() is the SAME function
+  // homOrder.js uses to build sites[]/stamp cabinet.siteId, so a site here
+  // always matches the site the order ends up storing. Replaces the old
+  // single `address` state; the single-address case (0 or 1 distinct
+  // labels) is just this map holding exactly one entry, rendered with no
+  // extra grouping UI — see distinctSiteLabels below.
+  const [siteAddresses, setSiteAddresses] = useState({});
   const [paymentMethod, setPaymentMethod] = useState("cod");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -220,8 +261,28 @@ export function HomBuilder({ catalog, onPlaceOrder, authUser, onAuthed }) {
 
   const removeFile = (idx) => setFiles((f) => f.filter((_, i) => i !== idx));
 
-  const pincodeValid = /^[0-9]{6}$/.test(address.pincode.trim());
-  const computeFormValid = (cust) => cust.name.trim().length > 0 && cust.phone.trim().length > 0 && pincodeValid && schedule.length > 0;
+  // Multi-site delivery — distinct site labels in the order they first
+  // appear in the schedule. Length <= 1 is the common case (today's single-
+  // address flow, unchanged); length > 1 is when the per-site address
+  // section below appears. resolveSiteLabel is the exact function
+  // homOrder.js uses to build sites[]/stamp cabinet.siteId, so grouping
+  // here always matches what the order ends up storing.
+  const distinctSiteLabels = useMemo(() => {
+    const labels = [];
+    for (const row of schedule) {
+      const label = resolveSiteLabel(row.input.projectLabel);
+      if (!labels.includes(label)) labels.push(label);
+    }
+    return labels;
+  }, [schedule]);
+
+  const emptySiteAddress = { flat: "", street: "", area: "", city: "", pincode: "" };
+  const getSiteAddress = (label) => siteAddresses[label] || emptySiteAddress;
+  const updSiteAddress = (label, patch) => setSiteAddresses((s) => ({ ...s, [label]: { ...getSiteAddress(label), ...patch } }));
+  const siteAddressValid = (label) => /^[0-9]{6}$/.test((getSiteAddress(label).pincode || "").trim());
+  const allSitesValid = distinctSiteLabels.length === 0 || distinctSiteLabels.every(siteAddressValid);
+
+  const computeFormValid = (cust) => cust.name.trim().length > 0 && cust.phone.trim().length > 0 && allSitesValid && schedule.length > 0;
   const formValid = computeFormValid(customer);
 
   // Opens Razorpay checkout for an already-created order and only calls
@@ -255,11 +316,16 @@ export function HomBuilder({ catalog, onPlaceOrder, authUser, onAuthed }) {
     setSubmitting(true);
     setSubmitError("");
     try {
+      // One entry per distinct site label, each carrying its own captured
+      // address — see distinctSiteLabels/getSiteAddress above. homOrder.js
+      // stamps each cabinet's siteId with the exact same resolveSiteLabel()
+      // call, so every cabinet always lands under one of these entries.
+      const sites = distinctSiteLabels.map((label) => ({ siteId: label, label, address: getSiteAddress(label) }));
       const { orderId, orderNo, pricing } = await submitHomOrder({
         catalog,
         cabinets: schedule.map((s) => s.input),
-        customer: { ...cust, pincode: address.pincode },
-        address,
+        customer: cust,
+        sites,
         paymentMethod,
         ownerUid: uid,
       });
@@ -304,12 +370,13 @@ export function HomBuilder({ catalog, onPlaceOrder, authUser, onAuthed }) {
     placeOrder(profile.uid, prefilled);
   };
 
-  // Schedule grouped by project/site label — "Unlabeled" catches cabinets
-  // where the customer left the optional label blank.
+  // Schedule grouped by project/site label — same resolveSiteLabel() as
+  // distinctSiteLabels above, so a cabinet with no label lands under
+  // DEFAULT_SITE_LABEL ("Site 1") here exactly like everywhere else.
   const scheduleGroups = useMemo(() => {
     const groups = new Map();
     for (const row of schedule) {
-      const label = (row.input.projectLabel || "").trim() || "Unlabeled";
+      const label = resolveSiteLabel(row.input.projectLabel);
       if (!groups.has(label)) groups.set(label, []);
       groups.get(label).push(row);
     }
@@ -504,30 +571,43 @@ export function HomBuilder({ catalog, onPlaceOrder, authUser, onAuthed }) {
               <div className="hm-field-label">Email (optional)</div>
               <input className="hm-input" value={customer.email} onChange={(e) => setCustomer((c) => ({ ...c, email: e.target.value }))} placeholder="you@example.com" />
             </div>
-            <div className="hm-field">
-              <div className="hm-field-label">Flat / Unit</div>
-              <input className="hm-input" value={address.flat} onChange={(e) => setAddress((a) => ({ ...a, flat: e.target.value }))} />
-            </div>
-            <div className="hm-field">
-              <div className="hm-field-label">Street</div>
-              <input className="hm-input" value={address.street} onChange={(e) => setAddress((a) => ({ ...a, street: e.target.value }))} />
-            </div>
-            <div className="hm-field">
-              <div className="hm-field-label">Area</div>
-              <input className="hm-input" value={address.area} onChange={(e) => setAddress((a) => ({ ...a, area: e.target.value }))} />
-            </div>
-            <div className="hm-field">
-              <div className="hm-field-label">City</div>
-              <input className="hm-input" value={address.city} onChange={(e) => setAddress((a) => ({ ...a, city: e.target.value }))} />
-            </div>
-            <div className="hm-field hm-field-full">
-              <div className="hm-field-label">Pincode <span className="req">*</span></div>
-              <input className={`hm-input ${touched && !pincodeValid ? "err" : ""}`} value={address.pincode} onChange={(e) => setAddress((a) => ({ ...a, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) }))} placeholder="6-digit pincode" />
-              {touched && !pincodeValid && <div className="hm-field-err">Enter a valid 6-digit pincode.</div>}
-            </div>
           </div>
+
+          {distinctSiteLabels.length <= 1 ? (
+            // Common case — one address for the whole order, exactly like
+            // before. distinctSiteLabels[0] falls back to DEFAULT_SITE_LABEL
+            // when the schedule is empty (nothing to key an address by yet).
+            <SiteAddressFields
+              address={getSiteAddress(distinctSiteLabels[0] || DEFAULT_SITE_LABEL)}
+              onChange={(patch) => updSiteAddress(distinctSiteLabels[0] || DEFAULT_SITE_LABEL, patch)}
+              touched={touched}
+            />
+          ) : (
+            // Multi-site — one address block per distinct project/site
+            // label, each showing exactly which cabinets it covers so the
+            // customer can tell them apart at a glance.
+            distinctSiteLabels.map((label) => {
+              const group = scheduleGroups.find(([l]) => l === label);
+              const rows = group ? group[1] : [];
+              return (
+                <div key={label} className="hm-detail-block" style={{ marginTop: 14 }}>
+                  <div className="hm-detail-block-hd">
+                    {label} <span style={{ fontWeight: 400, color: "var(--hm-sub)" }}>— {rows.length} cabinet{rows.length === 1 ? "" : "s"}: {rows.map((r) => `${r.input.cabW}×${r.input.cabH}mm`).join(", ")}</span>
+                  </div>
+                  <SiteAddressFields
+                    address={getSiteAddress(label)}
+                    onChange={(patch) => updSiteAddress(label, patch)}
+                    touched={touched}
+                  />
+                </div>
+              );
+            })
+          )}
+
           <div className="hm-section-sub" style={{ marginTop: 10, marginBottom: 0 }}>
-            One delivery address for the whole order today — splitting delivery by project/site is a follow-up.
+            {distinctSiteLabels.length > 1
+              ? "Delivering to multiple sites — one delivery address, and one delivery chit, per site above. Every cabinet still ships from a single pooled order."
+              : "One delivery address for this order."}
           </div>
 
           <div className="hm-config-label" style={{ marginTop: 20, marginBottom: 8 }}>Reference drawings / photos (optional)</div>
@@ -585,7 +665,7 @@ export function HomBuilder({ catalog, onPlaceOrder, authUser, onAuthed }) {
               {schedule.length === 0 && "Add at least one cabinet. "}
               {!customer.name.trim() && "Name is required. "}
               {!customer.phone.trim() && "Phone is required. "}
-              {!pincodeValid && "A valid 6-digit pincode is required."}
+              {!allSitesValid && "A valid 6-digit pincode is required for every delivery site."}
             </div>
           )}
           {submitError && <div className="hm-quote-err">{submitError}</div>}

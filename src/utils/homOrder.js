@@ -16,6 +16,19 @@ function makeOrderNo() {
   return "HOM-" + Date.now().toString(36).toUpperCase();
 }
 
+// Multi-site delivery (additive): every cabinet already carries an optional
+// `projectLabel` (see HomBuilder.jsx's Dimensions plate). This is the ONE
+// place that turns a raw label into the resolved site identity — used here
+// to build `sites[]`/stamp each cabinet's siteId, by HomBuilder.jsx to
+// group cabinets for the per-site address form, and by homChits.js to
+// group cabinets back out per delivery chit — so a cabinet's site
+// membership is computed exactly once, the same way, everywhere.
+export const DEFAULT_SITE_LABEL = "Site 1";
+
+export function resolveSiteLabel(projectLabel) {
+  return (projectLabel || "").trim() || DEFAULT_SITE_LABEL;
+}
+
 // Freezes exactly the catalog values priceOrder reads, so a later admin
 // edit to homConfig/catalog never reprices an already-placed order.
 // Deliberately excludes colours/profileTypes/photos/active flags —
@@ -48,7 +61,11 @@ function freezeCatalogRates(catalog) {
 // customer's form on catch (see HomBuilder.jsx). priceOrder's cabinets[]
 // already merge each cabinet's raw input with its computed fields
 // (shutterW, indicativeTotal, regularBar/handleBar, etc.) — one source of
-// pricing math, stored whole, not re-derived here.
+// pricing math, stored whole, not re-derived here. Pricing/pooling is
+// completely unaffected by sites below — priceOrder pools bars across
+// EVERY cabinet in the order regardless of which site it's going to; sites
+// only ever change how the ALREADY-PRICED cabinets get grouped for
+// delivery afterward (see homChits.js's buildDeliveryChits).
 //
 // `ownerUid` (Block 5 — login gate): the caller MUST already be signed in
 // before this is called (see HomBuilder.jsx's placeOrder — it shows the
@@ -57,9 +74,39 @@ function freezeCatalogRates(catalog) {
 // request.auth != null && request.resource.data.ownerUid ==
 // request.auth.uid, so an order written without a matching ownerUid is
 // rejected at the rules layer, not just skipped client-side.
-export async function submitHomOrder({ catalog, cabinets, customer, address, paymentMethod, ownerUid }) {
+//
+// `sites` (multi-site delivery, additive): one entry per distinct project/
+// site label in use, each `{ siteId, label, address: {flat,street,area,
+// city,pincode} }` — HomBuilder.jsx always sends at least one (defaulting
+// to DEFAULT_SITE_LABEL when no cabinet was given a label), so this never
+// receives an empty array. Every cabinet gets stamped with siteId ==
+// resolveSiteLabel(its own projectLabel), which — since HomBuilder derives
+// each site's siteId the exact same way — always matches one of the
+// entries in `sites`. The top-level `customer.pincode`/`address` fields
+// are kept, additively, as a mirror of sites[0] so nothing that only knows
+// about the old single-address shape (existing admin UI, old chits) breaks;
+// `sites` is the authoritative multi-site data going forward.
+export async function submitHomOrder({ catalog, cabinets, customer, sites, paymentMethod, ownerUid }) {
   const priced = priceOrder(catalog, cabinets);
   const orderNo = makeOrderNo();
+
+  const normalizedSites = sites.map((site) => ({
+    siteId: site.siteId,
+    label: site.label,
+    address: {
+      flat: site.address?.flat || "",
+      street: site.address?.street || "",
+      area: site.address?.area || "",
+      city: site.address?.city || "",
+      pincode: (site.address?.pincode || "").trim(),
+    },
+  }));
+  const primarySite = normalizedSites[0];
+
+  const cabinetsWithSite = priced.cabinets.map((c) => ({
+    ...c,
+    siteId: resolveSiteLabel(c.projectLabel),
+  }));
 
   const payload = {
     orderNo,
@@ -68,16 +115,20 @@ export async function submitHomOrder({ catalog, cabinets, customer, address, pay
       name: customer.name.trim(),
       phone: customer.phone.trim(),
       email: (customer.email || "").trim(),
-      // Lives here, not on `address` — see file header.
-      pincode: customer.pincode.trim(),
+      // Lives here, not on `address` — see file header. Mirrors the
+      // primary (first) site's pincode — see the `sites` comment above.
+      pincode: primarySite.address.pincode,
     },
+    // Backward-compat mirror of the primary site's address lines — see the
+    // `sites` comment above. `sites` is the authoritative data.
     address: {
-      flat: address.flat || "",
-      street: address.street || "",
-      area: address.area || "",
-      city: address.city || "",
+      flat: primarySite.address.flat,
+      street: primarySite.address.street,
+      area: primarySite.address.area,
+      city: primarySite.address.city,
     },
-    cabinets: priced.cabinets,
+    sites: normalizedSites,
+    cabinets: cabinetsWithSite,
     pricingSnapshot: {
       basic: priced.basic,
       gst: priced.gst,
