@@ -142,6 +142,8 @@ export const HOM_STYLES = `
 .hm-pay-row{display:flex;flex-direction:column;gap:8px;margin:16px 0}
 .hm-pay-opt{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid #ffffff2e;cursor:pointer;font-size:12px}
 .hm-pay-opt.on{border-color:var(--hm-acc2);background:#ffffff0d}
+.hm-pay-opt-disabled{cursor:not-allowed;opacity:.5}
+.hm-pay-soon{margin-left:auto;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--hm-acc2)}
 .hm-quote-err{font-size:11px;color:#ffb199;margin-top:8px;line-height:1.5}
 
 /* ERROR BANNER */

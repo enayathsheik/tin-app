@@ -1,22 +1,26 @@
-// HOM Systems chit builders (Block 3) — pure functions, no Firestore. Every
-// number here comes straight off the order's FROZEN cabinets[]/
-// catalogSnapshot (written once at order-placement time by
-// src/utils/homOrder.js) — never off the live homConfig/catalog — so an
-// admin editing today's rates can never retroactively change a chit for an
-// order placed yesterday. glassCutSize is the one shared formula, imported
-// from homPricing.js rather than re-derived here.
+// HOM Systems chit builders (Block 3, updated for the rate-list + optimiser
+// overhaul) — pure functions, no Firestore. Every number here comes
+// straight off the order's FROZEN cabinets[]/catalogSnapshot (written once
+// at order-placement time by src/utils/homOrder.js) — never off the live
+// homConfig/catalog — so an admin editing today's rates can never
+// retroactively change a chit for an order placed yesterday. glassCutSize
+// is the one shared formula, imported from homPricing.js rather than
+// re-derived here.
 import { glassCutSize } from "../../utils/homPricing";
 
-// The regular/handle cut breakdown mirrors homPricing.js's own regularCut/
-// handleCut formulas exactly (see that file) — this just re-expresses the
-// same totals as an itemized piece list for a workshop to actually cut
-// against, using the same frozen shutterW/shutterH/totalShutters/withHandle
+// Mirrors homPricing.js's own cabinetPieces formula exactly (see that
+// file): handle-less is 2 regular Height + 2 regular Width per shutter;
+// with a fourth side, ONE Height comes from the regular profile and one
+// from the handle profile, plus 2 regular Width — this just re-expresses
+// the same totals as an itemized piece list for a workshop to actually cut
+// against, using the frozen shutterW/shutterH/totalShutters/fourthSide
 // fields already on the line, not a re-derivation of the price math.
 function cutPieces(line) {
+  const hasHandle = !!line.fourthSide && line.fourthSide !== "none";
   const pieces = [];
-  if (line.withHandle) {
-    pieces.push({ label: "Height (handle side)", lengthMm: line.shutterH, qty: line.totalShutters });
-    pieces.push({ label: "Height (regular)", lengthMm: line.shutterH, qty: line.totalShutters });
+  if (hasHandle) {
+    pieces.push({ label: "Height (handle profile)", lengthMm: line.shutterH, qty: line.totalShutters });
+    pieces.push({ label: "Height (regular profile)", lengthMm: line.shutterH, qty: line.totalShutters });
   } else {
     pieces.push({ label: "Height", lengthMm: line.shutterH, qty: line.totalShutters * 2 });
   }
@@ -25,12 +29,21 @@ function cutPieces(line) {
 }
 
 // Resolves a catalog id to a human-readable name for DISPLAY only — never
-// for pricing. `liveCatalog` is today's homConfig/catalog (profiles/colours
-// aren't in catalogSnapshot — see homOrder.js's freezeCatalogRates comment —
-// since nothing in homPricing.js prices off them). Falls back to the raw id
-// if the item was since removed/renamed, rather than showing nothing.
+// for pricing. `liveCatalog` is today's homConfig/catalog (brand names live
+// there; colours/glasses names come off catalogSnapshot below since those
+// ARE pricing-relevant and frozen). Falls back to the raw id if the item
+// was since removed/renamed, rather than showing nothing.
 function nameFrom(list, id) {
   return (list || []).find((item) => item.id === id)?.name || id || "—";
+}
+
+function brandName(liveCatalog, brandId) {
+  return nameFrom(liveCatalog?.brands, brandId);
+}
+
+function profileTypeName(liveCatalog, brandId, profileTypeId) {
+  const brand = (liveCatalog?.brands || []).find((b) => b.id === brandId);
+  return nameFrom(brand?.profileTypes, profileTypeId);
 }
 
 export function buildProductionChit(order, liveCatalog) {
@@ -39,15 +52,18 @@ export function buildProductionChit(order, liveCatalog) {
     customerName: order.customer?.name || "",
     cabinets: (order.cabinets || []).map((line, i) => ({
       index: i + 1,
-      profileName: nameFrom(liveCatalog?.profiles, line.profileId),
+      brandName: brandName(liveCatalog, line.brandId),
+      profileName: profileTypeName(liveCatalog, line.brandId, line.profileTypeId),
       colourName: nameFrom(liveCatalog?.colours, line.colourId),
       glassName: nameFrom(order.catalogSnapshot?.glasses, line.glassId),
       shutterSize: `${line.shutterW}×${line.shutterH}mm`,
       totalShutters: line.totalShutters,
       qty: line.qty,
       pieces: cutPieces(line),
-      barLabel: line.barLabel,
-      barOk: line.barOk,
+      barLabel: line.regularBar?.label,
+      barOk: line.regularBar?.ok,
+      handleBarLabel: line.handleBar?.label,
+      handleBarOk: line.handleBar?.ok,
     })),
   };
 }
@@ -57,7 +73,8 @@ export function buildProfileChit(order, liveCatalog) {
     orderNo: order.orderNo,
     lines: (order.cabinets || []).map((line, i) => ({
       index: i + 1,
-      profileName: nameFrom(liveCatalog?.profiles, line.profileId),
+      brandName: brandName(liveCatalog, line.brandId),
+      profileName: profileTypeName(liveCatalog, line.brandId, line.profileTypeId),
       colourName: nameFrom(liveCatalog?.colours, line.colourId),
       pieces: cutPieces(line),
       totalShutters: line.totalShutters,

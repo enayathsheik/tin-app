@@ -80,7 +80,42 @@ export function HomAdminTab({ user }) {
   );
 }
 
+// Fresh 8/10/12/16ft bar rows for a newly-added brand or handle type —
+// mirrors the seeded shape (only 10ft available) so the admin fills in
+// rates via the Bars table rather than hand-adding rows.
+function freshBarSet() {
+  return [
+    { label: "8 ft", lengthMm: 2438, available: false, ratePerBar: 0 },
+    { label: "10 ft", lengthMm: 3048, available: true, ratePerBar: 0 },
+    { label: "12 ft", lengthMm: 3658, available: false, ratePerBar: 0 },
+    { label: "16 ft", lengthMm: 4877, available: false, ratePerBar: 0 },
+  ];
+}
+
+function BarsTable({ bars, onChange }) {
+  return (
+    <table className="hm-table">
+      <thead><tr><th>Label</th><th>Length (mm)</th><th>Available</th><th>₹ / bar</th></tr></thead>
+      <tbody>
+        {bars.map((b, i) => (
+          <tr key={i}>
+            <td>{b.label}</td>
+            <td><input className="hm-input" type="number" value={b.lengthMm} onChange={(e) => onChange(i, { lengthMm: Number(e.target.value) })} /></td>
+            <td><input type="checkbox" checked={b.available} onChange={(e) => onChange(i, { available: e.target.checked })} /></td>
+            <td><input className="hm-input" type="number" value={b.ratePerBar} onChange={(e) => onChange(i, { ratePerBar: Number(e.target.value) })} /></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 // ══ RATE LIST ══
+// Every ₹ figure lives here: per-brand regular-profile bars, per-brand
+// per-handle-type bars, hinge-category brand rates, lift-up hydraulic
+// rates, and the flat cross-cutting rates. Structural editing (brand/
+// profile-type/handle-type/colour/glass/addon names, active flags, photos)
+// lives in Catalogue below.
 function RatesSection({ catalog, onSaved }) {
   const [draft, setDraft] = useState(() => structuredClone(catalog));
   const [dirty, setDirty] = useState(false);
@@ -89,8 +124,50 @@ function RatesSection({ catalog, onSaved }) {
   const [ok, setOk] = useState("");
 
   const upd = (patch) => { setDraft((d) => ({ ...d, ...patch })); setDirty(true); setOk(""); };
-  const updBar = (i, patch) => { setDraft((d) => { const bars = [...d.bars]; bars[i] = { ...bars[i], ...patch }; return { ...d, bars }; }); setDirty(true); setOk(""); };
-  const updHinge = (i, patch) => { setDraft((d) => { const hinges = [...d.hinges]; hinges[i] = { ...hinges[i], ...patch }; return { ...d, hinges }; }); setDirty(true); setOk(""); };
+
+  const updBrand = (brandIdx, patch) => {
+    setDraft((d) => { const brands = [...d.brands]; brands[brandIdx] = { ...brands[brandIdx], ...patch }; return { ...d, brands }; });
+    setDirty(true); setOk("");
+  };
+  const updRegularBar = (brandIdx, barIdx, patch) => {
+    const brand = draft.brands[brandIdx];
+    const regularBars = [...brand.regularBars];
+    regularBars[barIdx] = { ...regularBars[barIdx], ...patch };
+    updBrand(brandIdx, { regularBars });
+  };
+  const updHandleType = (brandIdx, htIdx, patch) => {
+    const brand = draft.brands[brandIdx];
+    const handleTypes = [...brand.handleTypes];
+    handleTypes[htIdx] = { ...handleTypes[htIdx], ...patch };
+    updBrand(brandIdx, { handleTypes });
+  };
+  const updHandleBar = (brandIdx, htIdx, barIdx, patch) => {
+    const ht = draft.brands[brandIdx].handleTypes[htIdx];
+    const bars = [...ht.bars];
+    bars[barIdx] = { ...bars[barIdx], ...patch };
+    updHandleType(brandIdx, htIdx, { bars });
+  };
+
+  const updHingeCategoryBrand = (catIdx, brandIdx, patch) => {
+    setDraft((d) => {
+      const hingeCategories = [...d.hingeCategories];
+      const brands = [...hingeCategories[catIdx].brands];
+      brands[brandIdx] = { ...brands[brandIdx], ...patch };
+      hingeCategories[catIdx] = { ...hingeCategories[catIdx], brands };
+      return { ...d, hingeCategories };
+    });
+    setDirty(true); setOk("");
+  };
+
+  const updHydraulic = (i, patch) => {
+    setDraft((d) => {
+      const hydraulicSystems = [...d.liftUp.hydraulicSystems];
+      hydraulicSystems[i] = { ...hydraulicSystems[i], ...patch };
+      return { ...d, liftUp: { ...d.liftUp, hydraulicSystems } };
+    });
+    setDirty(true); setOk("");
+  };
+  const updLiftUp = (patch) => { setDraft((d) => ({ ...d, liftUp: { ...d.liftUp, ...patch } })); setDirty(true); setOk(""); };
 
   const save = async () => {
     setSaving(true); setErr(""); setOk("");
@@ -111,39 +188,61 @@ function RatesSection({ catalog, onSaved }) {
       <div className="hm-section-title">Rate List</div>
       <div className="hm-section-sub">Editing rates here never changes an already-placed order — each order froze its own catalogSnapshot at checkout.</div>
 
-      <div className="hm-plate" style={{ marginBottom: 14 }}>
-        <div className="hm-plate-hd"><span className="hm-plate-title">Bars</span></div>
-        <div className="hm-plate-body">
-          <table className="hm-table">
-            <thead><tr><th>Label</th><th>Length (mm)</th><th>Available</th><th>₹ / bar</th></tr></thead>
-            <tbody>
-              {draft.bars.map((b, i) => (
-                <tr key={i}>
-                  <td>{b.label}</td>
-                  <td><input className="hm-input" type="number" value={b.lengthMm} onChange={(e) => updBar(i, { lengthMm: Number(e.target.value) })} /></td>
-                  <td><input type="checkbox" checked={b.available} onChange={(e) => updBar(i, { available: e.target.checked })} /></td>
-                  <td><input className="hm-input" type="number" value={b.ratePerBar} onChange={(e) => updBar(i, { ratePerBar: Number(e.target.value) })} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {draft.brands.map((brand, brandIdx) => (
+        <div className="hm-plate" style={{ marginBottom: 14 }} key={brand.id}>
+          <div className="hm-plate-hd"><span className="hm-plate-title">{brand.name} — Regular Profile Bars</span></div>
+          <div className="hm-plate-body">
+            <BarsTable bars={brand.regularBars} onChange={(barIdx, patch) => updRegularBar(brandIdx, barIdx, patch)} />
+
+            {brand.handleTypes.map((ht, htIdx) => (
+              <div key={ht.id} style={{ marginTop: 16 }}>
+                <div className="hm-detail-block-hd">{brand.name} — {ht.name} Bars</div>
+                <BarsTable bars={ht.bars} onChange={(barIdx, patch) => updHandleBar(brandIdx, htIdx, barIdx, patch)} />
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      ))}
+
+      {draft.hingeCategories.map((cat, catIdx) => (
+        <div className="hm-plate" style={{ marginBottom: 14 }} key={cat.id}>
+          <div className="hm-plate-hd"><span className="hm-plate-title">Hinges — {cat.name}</span></div>
+          <div className="hm-plate-body">
+            <table className="hm-table">
+              <thead><tr><th>Brand</th><th>₹ / hinge</th><th>Active</th></tr></thead>
+              <tbody>
+                {cat.brands.map((b, brandIdx) => (
+                  <tr key={b.id}>
+                    <td>{b.name}</td>
+                    <td><input className="hm-input" type="number" value={b.rate} onChange={(e) => updHingeCategoryBrand(catIdx, brandIdx, { rate: Number(e.target.value) })} /></td>
+                    <td><input type="checkbox" checked={b.active !== false} onChange={(e) => updHingeCategoryBrand(catIdx, brandIdx, { active: e.target.checked })} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
 
       <div className="hm-plate" style={{ marginBottom: 14 }}>
-        <div className="hm-plate-hd"><span className="hm-plate-title">Hinges</span></div>
+        <div className="hm-plate-hd"><span className="hm-plate-title">Lift-Up Hydraulics</span></div>
         <div className="hm-plate-body">
           <table className="hm-table">
-            <thead><tr><th>Name</th><th>₹ / hinge</th></tr></thead>
+            <thead><tr><th>System</th><th>₹ / shutter</th><th>Active</th></tr></thead>
             <tbody>
-              {draft.hinges.map((h, i) => (
-                <tr key={i}>
+              {draft.liftUp.hydraulicSystems.map((h, i) => (
+                <tr key={h.id}>
                   <td>{h.name}</td>
-                  <td><input className="hm-input" type="number" value={h.rate} onChange={(e) => updHinge(i, { rate: Number(e.target.value) })} /></td>
+                  <td><input className="hm-input" type="number" value={h.rate} onChange={(e) => updHydraulic(i, { rate: Number(e.target.value) })} /></td>
+                  <td><input type="checkbox" checked={h.active !== false} onChange={(e) => updHydraulic(i, { active: e.target.checked })} /></td>
                 </tr>
               ))}
             </tbody>
           </table>
+          <div className="hm-field" style={{ maxWidth: 200, marginTop: 12 }}>
+            <div className="hm-field-label">Qty per shutter</div>
+            <input className="hm-input" type="number" value={draft.liftUp.qtyPerShutter} onChange={(e) => updLiftUp({ qtyPerShutter: Number(e.target.value) })} />
+          </div>
         </div>
       </div>
 
@@ -151,9 +250,9 @@ function RatesSection({ catalog, onSaved }) {
         <div className="hm-plate-hd"><span className="hm-plate-title">Other rates</span></div>
         <div className="hm-plate-body">
           <div className="hm-field-grid">
-            <div className="hm-field"><div className="hm-field-label">Handle ₹/ft</div><input className="hm-input" type="number" value={draft.handleRatePerFt} onChange={(e) => upd({ handleRatePerFt: Number(e.target.value) })} /></div>
             <div className="hm-field"><div className="hm-field-label">Making ₹/shutter</div><input className="hm-input" type="number" value={draft.makingPerShutter} onChange={(e) => upd({ makingPerShutter: Number(e.target.value) })} /></div>
             <div className="hm-field"><div className="hm-field-label">Glass deduct (mm)</div><input className="hm-input" type="number" value={draft.glassDeductMm} onChange={(e) => upd({ glassDeductMm: Number(e.target.value) })} /></div>
+            <div className="hm-field"><div className="hm-field-label">Kerf (mm)</div><input className="hm-input" type="number" value={draft.kerfMm} onChange={(e) => upd({ kerfMm: Number(e.target.value) })} /></div>
             <div className="hm-field"><div className="hm-field-label">GST %</div><input className="hm-input" type="number" value={draft.gstPct} onChange={(e) => upd({ gstPct: Number(e.target.value) })} /></div>
             <div className="hm-field"><div className="hm-field-label">Transport flat ₹</div><input className="hm-input" type="number" value={draft.transportFlat} onChange={(e) => upd({ transportFlat: Number(e.target.value) })} /></div>
           </div>
@@ -171,15 +270,41 @@ function RatesSection({ catalog, onSaved }) {
 }
 
 // ══ CATALOGUE ══
-const CATALOG_TYPES = [
-  { key: "profiles", label: "Profiles", hasRate: false, hasPhotos: true },
+// Structural editing — names, active flags, photos — for every catalog
+// entry. Numeric rates (bar/hinge/hydraulic ₹) live in Rate List above;
+// this section only carries `rate` for glasses/addons, matching the
+// pre-overhaul convention of editing those two together with their name.
+const FLAT_CATALOG_TYPES = [
   { key: "colours", label: "Colours", hasRate: false, hasPhotos: true },
   { key: "glasses", label: "Glass", hasRate: true, hasPhotos: true },
   { key: "addons", label: "Add-ons", hasRate: true, hasPhotos: false },
 ];
 
-function newItemId(typeKey) {
-  return `${typeKey.slice(0, 3)}-${Date.now().toString(36)}${Math.floor(Math.random() * 900 + 100)}`;
+function newItemId(prefix) {
+  return `${prefix.slice(0, 3)}-${Date.now().toString(36)}${Math.floor(Math.random() * 900 + 100)}`;
+}
+
+function PhotoEditor({ photos, uploading, onUpload, onRemove }) {
+  return (
+    <>
+      <div className="hm-photo-row">
+        {(photos || []).map((url) => (
+          <div className="hm-photo-thumb" key={url}>
+            <img src={url} alt="" />
+            <button className="hm-photo-rm" onClick={() => onRemove(url)}>×</button>
+          </div>
+        ))}
+      </div>
+      <label className="hm-btn hm-btn-ghost hm-btn-sm" style={{ display: "inline-block", marginTop: 8, cursor: "pointer" }}>
+        {uploading ? "Uploading…" : "+ Photo"}
+        <input
+          type="file" accept="image/*" multiple style={{ display: "none" }}
+          disabled={uploading}
+          onChange={(e) => { if (e.target.files?.length) onUpload(e.target.files); e.target.value = ""; }}
+        />
+      </label>
+    </>
+  );
 }
 
 function CatalogueSection({ catalog, onSaved }) {
@@ -190,46 +315,114 @@ function CatalogueSection({ catalog, onSaved }) {
   const [ok, setOk] = useState("");
   const [uploadingKey, setUploadingKey] = useState(null);
 
-  const updItem = (typeKey, id, patch) => {
-    setDraft((d) => ({ ...d, [typeKey]: d[typeKey].map((it) => (it.id === id ? { ...it, ...patch } : it)) }));
-    setDirty(true); setOk("");
-  };
+  const markDirty = () => { setDirty(true); setOk(""); };
 
-  const addItem = (typeKey, hasRate) => {
-    const id = newItemId(typeKey);
-    const base = { id, name: "New item", photos: typeKey === "addons" ? undefined : [] };
+  // ── flat lists (colours/glasses/addons) ──
+  const updFlatItem = (typeKey, id, patch) => {
+    setDraft((d) => ({ ...d, [typeKey]: d[typeKey].map((it) => (it.id === id ? { ...it, ...patch } : it)) }));
+    markDirty();
+  };
+  const addFlatItem = (typeKey, hasRate) => {
+    const base = { id: newItemId(typeKey), name: "New item", photos: typeKey === "addons" ? undefined : [], active: typeKey !== "addons" ? true : undefined };
     if (hasRate) base.rate = 0;
-    if (typeKey !== "addons") base.active = true;
     setDraft((d) => ({ ...d, [typeKey]: [...d[typeKey], base] }));
-    setDirty(true); setOk("");
+    markDirty();
   };
 
   // Upload failures never advance silently — surfaced as a hard error, and
-  // the photo is never added to the item's photos[] unless the upload (and
+  // the photo is never added to an item's photos[] unless the upload (and
   // the getDownloadURL that follows it) actually succeeded.
-  const handlePhotoUpload = async (typeKey, id, files) => {
-    const item = draft[typeKey].find((it) => it.id === id);
-    const room = 5 - (item.photos?.length || 0);
+  const uploadPhotos = async (storageType, storageId, currentPhotos, files, uploadingTag) => {
+    const room = 5 - (currentPhotos?.length || 0);
     const picked = Array.from(files).slice(0, Math.max(room, 0));
-    if (!picked.length) { setErr("This item already has 5 photos — remove one first."); return; }
-    setUploadingKey(`${typeKey}-${id}`);
+    if (!picked.length) { setErr("This item already has 5 photos — remove one first."); return null; }
+    setUploadingKey(uploadingTag);
     setErr("");
     try {
       const urls = [];
-      for (const file of picked) {
-        urls.push(await uploadCatalogPhoto(typeKey, id, file));
-      }
-      updItem(typeKey, id, { photos: [...(item.photos || []), ...urls] });
+      for (const file of picked) urls.push(await uploadCatalogPhoto(storageType, storageId, file));
+      return [...(currentPhotos || []), ...urls];
     } catch (e) {
       setErr(e.message || "Photo upload failed.");
+      return null;
     } finally {
       setUploadingKey(null);
     }
   };
 
-  const removePhoto = (typeKey, id, url) => {
+  const handleFlatPhotoUpload = async (typeKey, id, files) => {
     const item = draft[typeKey].find((it) => it.id === id);
-    updItem(typeKey, id, { photos: (item.photos || []).filter((p) => p !== url) });
+    const photos = await uploadPhotos(typeKey, id, item.photos, files, `flat-${typeKey}-${id}`);
+    if (photos) updFlatItem(typeKey, id, { photos });
+  };
+  const removeFlatPhoto = (typeKey, id, url) => {
+    const item = draft[typeKey].find((it) => it.id === id);
+    updFlatItem(typeKey, id, { photos: (item.photos || []).filter((p) => p !== url) });
+  };
+
+  // ── brands (+ nested profile types / handle types) ──
+  const updBrand = (brandIdx, patch) => {
+    setDraft((d) => { const brands = [...d.brands]; brands[brandIdx] = { ...brands[brandIdx], ...patch }; return { ...d, brands }; });
+    markDirty();
+  };
+  const addBrand = () => {
+    setDraft((d) => ({
+      ...d,
+      brands: [...d.brands, { id: newItemId("brand"), name: "New Brand", active: true, profileTypes: [], regularBars: freshBarSet(), handleTypes: [] }],
+    }));
+    markDirty();
+  };
+
+  const updProfileType = (brandIdx, ptIdx, patch) => {
+    const brand = draft.brands[brandIdx];
+    const profileTypes = [...brand.profileTypes];
+    profileTypes[ptIdx] = { ...profileTypes[ptIdx], ...patch };
+    updBrand(brandIdx, { profileTypes });
+  };
+  const addProfileType = (brandIdx) => {
+    const brand = draft.brands[brandIdx];
+    updBrand(brandIdx, { profileTypes: [...brand.profileTypes, { id: newItemId("prof"), name: "New Profile Type", photos: [], active: true }] });
+  };
+
+  const updHandleType = (brandIdx, htIdx, patch) => {
+    const brand = draft.brands[brandIdx];
+    const handleTypes = [...brand.handleTypes];
+    handleTypes[htIdx] = { ...handleTypes[htIdx], ...patch };
+    updBrand(brandIdx, { handleTypes });
+  };
+  const addHandleType = (brandIdx) => {
+    const brand = draft.brands[brandIdx];
+    updBrand(brandIdx, { handleTypes: [...brand.handleTypes, { id: newItemId("hdl"), name: "New Handle Type", photos: [], active: true, bars: freshBarSet() }] });
+  };
+
+  // ── hinge categories (+ nested brands) ──
+  const updHingeCategory = (catIdx, patch) => {
+    setDraft((d) => { const hingeCategories = [...d.hingeCategories]; hingeCategories[catIdx] = { ...hingeCategories[catIdx], ...patch }; return { ...d, hingeCategories }; });
+    markDirty();
+  };
+  const addHingeCategory = () => {
+    setDraft((d) => ({ ...d, hingeCategories: [...d.hingeCategories, { id: newItemId("cat"), name: "New Category", brands: [] }] }));
+    markDirty();
+  };
+  const updHingeCategoryBrand = (catIdx, brandIdx, patch) => {
+    const cat = draft.hingeCategories[catIdx];
+    const brands = [...cat.brands];
+    brands[brandIdx] = { ...brands[brandIdx], ...patch };
+    updHingeCategory(catIdx, { brands });
+  };
+  const addHingeCategoryBrand = (catIdx) => {
+    const cat = draft.hingeCategories[catIdx];
+    updHingeCategory(catIdx, { brands: [...cat.brands, { id: newItemId("hb"), name: "New Brand", rate: 0, active: true }] });
+  };
+
+  // ── lift-up hydraulic systems ──
+  const updHydraulic = (i, patch) => {
+    setDraft((d) => { const hydraulicSystems = [...d.liftUp.hydraulicSystems]; hydraulicSystems[i] = { ...hydraulicSystems[i], ...patch }; return { ...d, liftUp: { ...d.liftUp, hydraulicSystems } }; });
+    markDirty();
+  };
+  const addHydraulic = () => {
+    setDraft((d) => ({ ...d, liftUp: { ...d.liftUp, hydraulicSystems: [...d.liftUp.hydraulicSystems, { id: newItemId("lift"), name: "New Hydraulic System", rate: 0, active: true }] } }));
+    markDirty();
   };
 
   const save = async () => {
@@ -249,46 +442,105 @@ function CatalogueSection({ catalog, onSaved }) {
   return (
     <div>
       <div className="hm-section-title">Catalogue</div>
-      <div className="hm-section-sub">Profiles, colours, glass, and add-ons. Photo uploads happen immediately; text/rate/active edits save with the button below.</div>
+      <div className="hm-section-sub">Brands, profile types, handle types, colours, glass, add-ons, hinge categories, and lift-up systems. Photo uploads happen immediately; every other edit saves with the button below.</div>
 
-      {CATALOG_TYPES.map(({ key, label, hasRate, hasPhotos }) => (
+      <div className="hm-plate" style={{ marginBottom: 14 }}>
+        <div className="hm-plate-hd">
+          <span className="hm-plate-title">Brands</span>
+          <span className="hm-plate-sub"><button className="hm-btn hm-btn-ghost hm-btn-sm" onClick={addBrand}>+ Add Brand</button></span>
+        </div>
+        <div className="hm-plate-body">
+          {draft.brands.map((brand, brandIdx) => (
+            <div className="hm-catalog-item" key={brand.id}>
+              <div className="hm-catalog-item-hd">
+                <input className="hm-input" style={{ maxWidth: 240 }} value={brand.name} onChange={(e) => updBrand(brandIdx, { name: e.target.value })} />
+                <label style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
+                  <input type="checkbox" checked={brand.active !== false} onChange={(e) => updBrand(brandIdx, { active: e.target.checked })} /> Active
+                </label>
+                <span style={{ fontSize: 10, color: "#6b6d76", marginLeft: "auto" }}>{brand.id}</span>
+              </div>
+
+              <div style={{ marginTop: 10 }}>
+                <div className="hm-detail-block-hd">Profile Types <button className="hm-btn hm-btn-ghost hm-btn-sm" style={{ marginLeft: 8 }} onClick={() => addProfileType(brandIdx)}>+ Add</button></div>
+                {brand.profileTypes.map((pt, ptIdx) => (
+                  <div className="hm-catalog-item" key={pt.id} style={{ marginLeft: 14 }}>
+                    <div className="hm-catalog-item-hd">
+                      <input className="hm-input" style={{ maxWidth: 240 }} value={pt.name} onChange={(e) => updProfileType(brandIdx, ptIdx, { name: e.target.value })} />
+                      <label style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
+                        <input type="checkbox" checked={pt.active !== false} onChange={(e) => updProfileType(brandIdx, ptIdx, { active: e.target.checked })} /> Active
+                      </label>
+                      <span style={{ fontSize: 10, color: "#6b6d76", marginLeft: "auto" }}>{pt.id}</span>
+                    </div>
+                    <PhotoEditor
+                      photos={pt.photos}
+                      uploading={uploadingKey === `pt-${brandIdx}-${ptIdx}`}
+                      onUpload={async (files) => {
+                        const photos = await uploadPhotos("profileTypes", `${brand.id}_${pt.id}`, pt.photos, files, `pt-${brandIdx}-${ptIdx}`);
+                        if (photos) updProfileType(brandIdx, ptIdx, { photos });
+                      }}
+                      onRemove={(url) => updProfileType(brandIdx, ptIdx, { photos: (pt.photos || []).filter((p) => p !== url) })}
+                    />
+                  </div>
+                ))}
+                {brand.profileTypes.length === 0 && <div className="hm-sched-empty">No profile types yet.</div>}
+              </div>
+
+              <div style={{ marginTop: 14 }}>
+                <div className="hm-detail-block-hd">Handle Types <button className="hm-btn hm-btn-ghost hm-btn-sm" style={{ marginLeft: 8 }} onClick={() => addHandleType(brandIdx)}>+ Add</button></div>
+                {brand.handleTypes.map((ht, htIdx) => (
+                  <div className="hm-catalog-item" key={ht.id} style={{ marginLeft: 14 }}>
+                    <div className="hm-catalog-item-hd">
+                      <input className="hm-input" style={{ maxWidth: 240 }} value={ht.name} onChange={(e) => updHandleType(brandIdx, htIdx, { name: e.target.value })} />
+                      <label style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
+                        <input type="checkbox" checked={ht.active !== false} onChange={(e) => updHandleType(brandIdx, htIdx, { active: e.target.checked })} /> Active
+                      </label>
+                      <span style={{ fontSize: 10, color: "#6b6d76", marginLeft: "auto" }}>{ht.id}</span>
+                    </div>
+                    <PhotoEditor
+                      photos={ht.photos}
+                      uploading={uploadingKey === `ht-${brandIdx}-${htIdx}`}
+                      onUpload={async (files) => {
+                        const photos = await uploadPhotos("handleTypes", `${brand.id}_${ht.id}`, ht.photos, files, `ht-${brandIdx}-${htIdx}`);
+                        if (photos) updHandleType(brandIdx, htIdx, { photos });
+                      }}
+                      onRemove={(url) => updHandleType(brandIdx, htIdx, { photos: (ht.photos || []).filter((p) => p !== url) })}
+                    />
+                  </div>
+                ))}
+                {brand.handleTypes.length === 0 && <div className="hm-sched-empty">No handle types yet.</div>}
+              </div>
+            </div>
+          ))}
+          {draft.brands.length === 0 && <div className="hm-sched-empty">No brands yet.</div>}
+        </div>
+      </div>
+
+      {FLAT_CATALOG_TYPES.map(({ key, label, hasRate, hasPhotos }) => (
         <div className="hm-plate" key={key} style={{ marginBottom: 14 }}>
           <div className="hm-plate-hd">
             <span className="hm-plate-title">{label}</span>
-            <span className="hm-plate-sub"><button className="hm-btn hm-btn-ghost hm-btn-sm" onClick={() => addItem(key, hasRate)}>+ Add</button></span>
+            <span className="hm-plate-sub"><button className="hm-btn hm-btn-ghost hm-btn-sm" onClick={() => addFlatItem(key, hasRate)}>+ Add</button></span>
           </div>
           <div className="hm-plate-body">
             {draft[key].map((item) => (
               <div className="hm-catalog-item" key={item.id}>
                 <div className="hm-catalog-item-hd">
-                  <input className="hm-input" style={{ maxWidth: 240 }} value={item.name} onChange={(e) => updItem(key, item.id, { name: e.target.value })} />
-                  {hasRate && <input className="hm-input" style={{ maxWidth: 100 }} type="number" value={item.rate} onChange={(e) => updItem(key, item.id, { rate: Number(e.target.value) })} placeholder="₹ rate" />}
+                  <input className="hm-input" style={{ maxWidth: 240 }} value={item.name} onChange={(e) => updFlatItem(key, item.id, { name: e.target.value })} />
+                  {hasRate && <input className="hm-input" style={{ maxWidth: 100 }} type="number" value={item.rate} onChange={(e) => updFlatItem(key, item.id, { rate: Number(e.target.value) })} placeholder="₹ rate" />}
                   {"active" in item && (
                     <label style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
-                      <input type="checkbox" checked={item.active !== false} onChange={(e) => updItem(key, item.id, { active: e.target.checked })} /> Active
+                      <input type="checkbox" checked={item.active !== false} onChange={(e) => updFlatItem(key, item.id, { active: e.target.checked })} /> Active
                     </label>
                   )}
                   <span style={{ fontSize: 10, color: "#6b6d76", marginLeft: "auto" }}>{item.id}</span>
                 </div>
                 {hasPhotos && (
-                  <>
-                    <div className="hm-photo-row">
-                      {(item.photos || []).map((url) => (
-                        <div className="hm-photo-thumb" key={url}>
-                          <img src={url} alt="" />
-                          <button className="hm-photo-rm" onClick={() => removePhoto(key, item.id, url)}>×</button>
-                        </div>
-                      ))}
-                    </div>
-                    <label className="hm-btn hm-btn-ghost hm-btn-sm" style={{ display: "inline-block", marginTop: 8, cursor: "pointer" }}>
-                      {uploadingKey === `${key}-${item.id}` ? "Uploading…" : "+ Photo"}
-                      <input
-                        type="file" accept="image/*" multiple style={{ display: "none" }}
-                        disabled={uploadingKey === `${key}-${item.id}`}
-                        onChange={(e) => { if (e.target.files?.length) handlePhotoUpload(key, item.id, e.target.files); e.target.value = ""; }}
-                      />
-                    </label>
-                  </>
+                  <PhotoEditor
+                    photos={item.photos}
+                    uploading={uploadingKey === `flat-${key}-${item.id}`}
+                    onUpload={(files) => handleFlatPhotoUpload(key, item.id, files)}
+                    onRemove={(url) => removeFlatPhoto(key, item.id, url)}
+                  />
                 )}
               </div>
             ))}
@@ -296,6 +548,48 @@ function CatalogueSection({ catalog, onSaved }) {
           </div>
         </div>
       ))}
+
+      <div className="hm-plate" style={{ marginBottom: 14 }}>
+        <div className="hm-plate-hd"><span className="hm-plate-title">Hinge Categories</span><span className="hm-plate-sub"><button className="hm-btn hm-btn-ghost hm-btn-sm" onClick={addHingeCategory}>+ Add Category</button></span></div>
+        <div className="hm-plate-body">
+          {draft.hingeCategories.map((cat, catIdx) => (
+            <div className="hm-catalog-item" key={cat.id}>
+              <div className="hm-catalog-item-hd">
+                <input className="hm-input" style={{ maxWidth: 240 }} value={cat.name} onChange={(e) => updHingeCategory(catIdx, { name: e.target.value })} />
+                <span style={{ fontSize: 10, color: "#6b6d76", marginLeft: "auto" }}>{cat.id}</span>
+              </div>
+              <div className="hm-detail-block-hd" style={{ marginTop: 8 }}>Brands <button className="hm-btn hm-btn-ghost hm-btn-sm" style={{ marginLeft: 8 }} onClick={() => addHingeCategoryBrand(catIdx)}>+ Add</button></div>
+              {cat.brands.map((b, brandIdx) => (
+                <div className="hm-catalog-item-hd" key={b.id} style={{ marginLeft: 14, marginBottom: 6 }}>
+                  <input className="hm-input" style={{ maxWidth: 200 }} value={b.name} onChange={(e) => updHingeCategoryBrand(catIdx, brandIdx, { name: e.target.value })} />
+                  <label style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
+                    <input type="checkbox" checked={b.active !== false} onChange={(e) => updHingeCategoryBrand(catIdx, brandIdx, { active: e.target.checked })} /> Active
+                  </label>
+                  <span style={{ fontSize: 10, color: "#6b6d76" }}>rate set in Rate List</span>
+                </div>
+              ))}
+              {cat.brands.length === 0 && <div className="hm-sched-empty">No brands yet.</div>}
+            </div>
+          ))}
+          {draft.hingeCategories.length === 0 && <div className="hm-sched-empty">No hinge categories yet.</div>}
+        </div>
+      </div>
+
+      <div className="hm-plate" style={{ marginBottom: 14 }}>
+        <div className="hm-plate-hd"><span className="hm-plate-title">Lift-Up Hydraulic Systems</span><span className="hm-plate-sub"><button className="hm-btn hm-btn-ghost hm-btn-sm" onClick={addHydraulic}>+ Add</button></span></div>
+        <div className="hm-plate-body">
+          {draft.liftUp.hydraulicSystems.map((h, i) => (
+            <div className="hm-catalog-item-hd" key={h.id} style={{ marginBottom: 6 }}>
+              <input className="hm-input" style={{ maxWidth: 240 }} value={h.name} onChange={(e) => updHydraulic(i, { name: e.target.value })} />
+              <label style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
+                <input type="checkbox" checked={h.active !== false} onChange={(e) => updHydraulic(i, { active: e.target.checked })} /> Active
+              </label>
+              <span style={{ fontSize: 10, color: "#6b6d76" }}>rate set in Rate List</span>
+            </div>
+          ))}
+          {draft.liftUp.hydraulicSystems.length === 0 && <div className="hm-sched-empty">Nothing here yet.</div>}
+        </div>
+      </div>
 
       <div className="hm-save-bar">
         <button className="hm-btn hm-btn-acc" disabled={!dirty || saving} onClick={save}>{saving ? "Saving…" : "Save Catalogue"}</button>
@@ -556,13 +850,13 @@ function OrdersSection({ catalog }) {
                 {(selected.cabinets || []).map((c, i) => (
                   <tr key={i}>
                     <td>{i + 1}</td>
-                    <td>{c.profileId}</td>
+                    <td>{c.brandId} / {c.profileTypeId}</td>
                     <td>{c.glassId}</td>
                     <td>{c.shutterW}×{c.shutterH}mm</td>
                     <td>{c.qty}</td>
                     <td>{c.totalShutters}</td>
-                    <td>{c.barLabel}{!c.barOk && " ⚠"}</td>
-                    <td>{fmtINR(c.cabinetTotal)}</td>
+                    <td>{c.regularBar?.label}{!c.regularBar?.ok && " ⚠"}{c.handleBar && ` + ${c.handleBar.label}${!c.handleBar.ok ? " ⚠" : ""}`}</td>
+                    <td>{fmtINR(c.indicativeTotal)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -604,10 +898,15 @@ function OrdersSection({ catalog }) {
             </div>
           )}
 
-          {/* Online orders wait on Razorpay capture — Block 4, not built yet. */}
+          {/* Online payment is parked (TODO(block4-payment) — no gateway
+              wired up yet; the microsite currently only lets a customer
+              submit "cod"). An order sitting here would be stuck with no
+              way forward until a future block reconciles it — shouldn't
+              occur in practice today, but the banner stays honest rather
+              than implying an automatic resolution that doesn't exist. */}
           {selected.status === "new" && selected.paymentStatus === "pending_payment" && (
             <div className="hm-error-banner" style={{ marginBottom: 16, background: "#fff7ed", borderColor: "#f59e0b", color: "#92400e" }}>
-              Awaiting online payment capture. TODO(block4-razorpay): this order advances automatically once payment is confirmed — no admin action available here yet.
+              Awaiting online payment. Online payment isn't wired up yet (TODO(block4-payment)) — no admin action is available for this order.
             </div>
           )}
 
@@ -659,8 +958,8 @@ function ChitModal({ kind, order, catalog, onClose }) {
 
         {kind === "production" && data.cabinets.map((c) => (
           <div key={c.index} style={{ marginBottom: 14, borderBottom: "1px solid var(--hm-line)", paddingBottom: 10 }}>
-            <div style={{ fontWeight: 700 }}>Cabinet {c.index} — {c.profileName} / {c.colourName} / {c.glassName}</div>
-            <div style={{ fontSize: 12 }}>Shutter {c.shutterSize} · {c.totalShutters} shutters · qty {c.qty} · Bar: {c.barLabel}{!c.barOk && " (custom cut needed)"}</div>
+            <div style={{ fontWeight: 700 }}>Cabinet {c.index} — {c.brandName} {c.profileName} / {c.colourName} / {c.glassName}</div>
+            <div style={{ fontSize: 12 }}>Shutter {c.shutterSize} · {c.totalShutters} shutters · qty {c.qty} · Bar: {c.barLabel}{!c.barOk && " (custom cut needed)"}{c.handleBarLabel && ` · Handle bar: ${c.handleBarLabel}${!c.handleBarOk ? " (custom cut needed)" : ""}`}</div>
             <ul style={{ marginLeft: 18, fontSize: 12 }}>
               {c.pieces.map((p, i) => <li key={i}>{p.qty} × {p.label} — {p.lengthMm}mm</li>)}
             </ul>
@@ -669,7 +968,7 @@ function ChitModal({ kind, order, catalog, onClose }) {
 
         {kind === "profile" && data.lines.map((l) => (
           <div key={l.index} style={{ marginBottom: 14, borderBottom: "1px solid var(--hm-line)", paddingBottom: 10 }}>
-            <div style={{ fontWeight: 700 }}>Cabinet {l.index} — {l.profileName} / {l.colourName}</div>
+            <div style={{ fontWeight: 700 }}>Cabinet {l.index} — {l.brandName} {l.profileName} / {l.colourName}</div>
             <ul style={{ marginLeft: 18, fontSize: 12 }}>
               {l.pieces.map((p, i) => <li key={i}>{p.qty} × {p.label} — {p.lengthMm}mm</li>)}
             </ul>

@@ -97,8 +97,8 @@ export async function approveAndAssignOrder(order, { profileVendor, glassVendor 
     vendorName: profileVendor.name,
     region: profileVendor.region || "",
     items: order.cabinets.map((c) => ({
-      profileId: c.profileId, colourId: c.colourId, shutterW: c.shutterW, shutterH: c.shutterH,
-      totalShutters: c.totalShutters, barLabel: c.barLabel,
+      brandId: c.brandId, profileTypeId: c.profileTypeId, colourId: c.colourId, shutterW: c.shutterW, shutterH: c.shutterH,
+      totalShutters: c.totalShutters, barLabel: c.regularBar?.label, handleBarLabel: c.handleBar?.label,
     })),
     status: "to_send",
     createdAt: serverTimestamp(),
