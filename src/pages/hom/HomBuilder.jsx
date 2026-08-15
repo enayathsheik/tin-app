@@ -1,10 +1,15 @@
-// HOM Systems — the customer-facing cabinet builder (Block 2).
-// All prices shown here come from src/utils/homPricing.js reading the live
-// homConfig/catalog doc — nothing in this file hardcodes a rate.
-import { useMemo, useState } from "react";
-import { priceCabinet, priceOrder } from "../../utils/homPricing";
+// HOM Systems — the customer-facing cabinet builder (rate-list + optimiser
+// overhaul). All prices shown here come from src/utils/homPricing.js reading
+// the live homConfig/catalog doc — nothing in this file hardcodes a rate.
+// The live per-cabinet preview uses estimateCabinet (priced as if this
+// cabinet were the whole order — indicative, since adding more cabinets can
+// change the pooled bar allocation); the sticky quote panel uses priceOrder
+// over the WHOLE schedule, so it always shows the real pooled total.
+import { useEffect, useMemo, useState } from "react";
+import { priceOrder, estimateCabinet } from "../../utils/homPricing";
 import { submitHomOrder, uploadHomOrderFiles } from "../../utils/homOrder";
-import { ShutterTypeDiagram, ShuttersPerCabDiagram } from "./homDiagrams";
+import { ShuttersPerCabDiagram } from "./homDiagrams";
+import { HomAuthGate } from "./HomAuthGate";
 
 const MAX_FILE_MB = 15;
 const ACCEPTED_FILE_TYPES = ["image/", "application/pdf"];
@@ -17,8 +22,14 @@ function isAcceptedFile(file) {
   return ACCEPTED_FILE_TYPES.some((t) => file.type.startsWith(t));
 }
 
-// Photo gallery used by the profile/finish/glass tiles — prev/next through
-// photos[], or a clean placeholder frame when the catalog entry has none.
+function active(list) {
+  return (list || []).filter((item) => item.active !== false);
+}
+
+// Photo gallery used by every tile — prev/next through photos[], or a clean
+// placeholder frame when the catalog entry has none (brands, hinge
+// categories/brands, and lift-up systems never carry photos, so this is
+// their normal state, not an error state).
 function PhotoGallery({ photos }) {
   const [idx, setIdx] = useState(0);
   const list = photos || [];
@@ -86,25 +97,31 @@ function Stepper({ value, min = 1, max = 99, onChange }) {
 }
 
 const emptyBuilder = (catalog) => ({
-  profileId: null,
+  brandId: null,
+  profileTypeId: null,
   colourId: null,
+  fourthSide: "none",
   glassId: null,
   addons: [],
-  withHandle: false,
-  hingeId: catalog.hinges?.[0]?.id || null,
+  liftUp: false,
+  hydraulicId: null,
+  hingeCategoryId: catalog.hingeCategories?.[0]?.id || null,
+  hingeBrandId: null,
   shuttersPerCab: 2,
   hingesPerShutter: 2,
   cabW: "",
   cabH: "",
   qty: 1,
+  projectLabel: "",
 });
 
-export function HomBuilder({ catalog, onPlaceOrder }) {
-  const profiles = (catalog.profiles || []).filter((p) => p.active !== false);
-  const colours = (catalog.colours || []).filter((c) => c.active !== false);
-  const glasses = (catalog.glasses || []).filter((g) => g.active !== false);
+export function HomBuilder({ catalog, onPlaceOrder, authUser, onAuthed }) {
+  const brands = active(catalog.brands);
+  const colours = active(catalog.colours);
+  const glasses = active(catalog.glasses);
   const addons = catalog.addons || [];
-  const hinges = catalog.hinges || [];
+  const hingeCategories = catalog.hingeCategories || [];
+  const hydraulics = active(catalog.liftUp?.hydraulicSystems);
 
   const [builder, setBuilder] = useState(() => emptyBuilder(catalog));
   const [editingId, setEditingId] = useState(null);
@@ -117,18 +134,49 @@ export function HomBuilder({ catalog, onPlaceOrder }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [touched, setTouched] = useState(false);
+  // Block 5 — login gate: shown only when "Place Order" is clicked with no
+  // signed-in user (see placeOrder below). Never blocks browsing/building.
+  const [showAuthGate, setShowAuthGate] = useState(false);
+
+  // Prefills from the logged-in account WITHOUT clobbering anything the
+  // customer already typed — only fills fields that are still blank, and
+  // only once real values arrive (covers both "already logged in on page
+  // load" and "just completed the auth gate").
+  useEffect(() => {
+    if (!authUser) return;
+    setCustomer((c) => ({
+      ...c,
+      name: c.name || authUser.name || "",
+      phone: c.phone || authUser.phone || "",
+    }));
+  }, [authUser]);
 
   const upd = (patch) => setBuilder((b) => ({ ...b, ...patch }));
+
+  const selectedBrand = brands.find((b) => b.id === builder.brandId) || null;
+  const profileTypes = active(selectedBrand?.profileTypes);
+  const handleTypes = active(selectedBrand?.handleTypes);
+  const fourthSideOptions = [{ id: "none", name: "Handle-less", photos: [] }, ...handleTypes];
+
+  const selectBrand = (brandId) => upd({ brandId, profileTypeId: null, fourthSide: "none" });
+
+  const selectedHingeCategory = hingeCategories.find((c) => c.id === builder.hingeCategoryId) || null;
+  const hingeBrands = active(selectedHingeCategory?.brands);
+  const selectHingeCategory = (hingeCategoryId) => upd({ hingeCategoryId, hingeBrandId: null });
 
   const cabWNum = Number(builder.cabW);
   const cabHNum = Number(builder.cabH);
   const dimsValid = builder.cabW !== "" && builder.cabH !== "" && cabWNum > 0 && cabHNum > 0;
-  const canPreview = builder.profileId && builder.colourId && builder.glassId && builder.hingeId && dimsValid;
+  const canPreview =
+    builder.brandId && builder.profileTypeId && builder.colourId && builder.glassId
+    && builder.hingeCategoryId && builder.hingeBrandId
+    && (!builder.liftUp || builder.hydraulicId)
+    && dimsValid;
 
   const preview = useMemo(() => {
     if (!canPreview) return null;
     try {
-      return priceCabinet(catalog, { ...builder, cabW: cabWNum, cabH: cabHNum });
+      return estimateCabinet(catalog, { ...builder, cabW: cabWNum, cabH: cabHNum });
     } catch {
       return null;
     }
@@ -142,7 +190,7 @@ export function HomBuilder({ catalog, onPlaceOrder }) {
 
   const addCabinet = () => {
     if (!canPreview || !preview) return;
-    const row = { id: editingId || `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, input: { ...builder, cabW: cabWNum, cabH: cabHNum }, priced: preview };
+    const row = { id: editingId || `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, input: { ...builder, cabW: cabWNum, cabH: cabHNum } };
     setSchedule((s) => (editingId ? s.map((r) => (r.id === editingId ? row : r)) : [...s, row]));
     setEditingId(null);
     setBuilder(emptyBuilder(catalog));
@@ -173,20 +221,47 @@ export function HomBuilder({ catalog, onPlaceOrder }) {
   const removeFile = (idx) => setFiles((f) => f.filter((_, i) => i !== idx));
 
   const pincodeValid = /^[0-9]{6}$/.test(address.pincode.trim());
-  const formValid = customer.name.trim().length > 0 && customer.phone.trim().length > 0 && pincodeValid && schedule.length > 0;
+  const computeFormValid = (cust) => cust.name.trim().length > 0 && cust.phone.trim().length > 0 && pincodeValid && schedule.length > 0;
+  const formValid = computeFormValid(customer);
 
-  const placeOrder = async () => {
+  // Opens Razorpay checkout for an already-created order and only calls
+  // onPlaceOrder (the confirmation screen) once the server has verified the
+  // payment. On any failure (cancelled, declined, verification failed), the
+  // order stays exactly as submitHomOrder left it — status "new",
+  // paymentStatus "pending_payment" — and this component stays on the
+  // builder screen showing a retry affordance, never a fake success.
+  // Online payment (Razorpay or another gateway) is parked for a future
+  // block — TODO(block4-payment): wire "online" here once a gateway is
+  // chosen. paymentMethod can only ever be "cod" today (the "online" radio
+  // is rendered disabled below), so this always takes the COD path — the
+  // order itself is the confirmation, no payment step.
+  //
+  // Block 5 — login gate: no uid (from the authUser prop, or from
+  // `overrideUid`/`overrideCustomer` when HomAuthGate's onAuthed hands off
+  // straight into placing the order right after sign-in/signup) means the
+  // customer isn't signed in yet — show the gate and stop, nothing is
+  // written. `overrideCustomer` exists because a freshly-authed name/phone
+  // prefill hasn't round-tripped back down through HomSystemsPage's
+  // authUser state by the time this same click handler needs it — reading
+  // the `customer` state variable here would still see the pre-prefill
+  // values due to React's batching, so the gate passes the prefilled object
+  // straight through instead of relying on the next render.
+  const placeOrder = async (overrideUid, overrideCustomer) => {
     setTouched(true);
-    if (!formValid || submitting) return;
+    const uid = overrideUid || authUser?.uid;
+    if (!uid) { setShowAuthGate(true); return; }
+    const cust = overrideCustomer || customer;
+    if (!computeFormValid(cust) || submitting) return;
     setSubmitting(true);
     setSubmitError("");
     try {
       const { orderId, orderNo, pricing } = await submitHomOrder({
         catalog,
         cabinets: schedule.map((s) => s.input),
-        customer: { ...customer, pincode: address.pincode },
+        customer: { ...cust, pincode: address.pincode },
         address,
         paymentMethod,
+        ownerUid: uid,
       });
 
       let attachmentErrors = null;
@@ -202,8 +277,8 @@ export function HomBuilder({ catalog, onPlaceOrder }) {
         orderId,
         orderNo,
         pricing,
-        customer,
-        email: customer.email,
+        customer: cust,
+        email: cust.email,
         paymentMethod,
         attachmentErrors,
       });
@@ -216,22 +291,66 @@ export function HomBuilder({ catalog, onPlaceOrder }) {
     }
   };
 
+  // HomAuthGate's onAuthed — updates the parent's authUser (so a page
+  // refresh / re-render sees the same signed-in state), prefills
+  // name/phone into a local object it hands straight to placeOrder (see the
+  // race note above), closes the gate, and continues the placement that
+  // triggered it in the first place.
+  const handleGateAuthed = (profile) => {
+    onAuthed?.(profile);
+    const prefilled = { ...customer, name: customer.name || profile.name || "", phone: customer.phone || profile.phone || "" };
+    setCustomer(prefilled);
+    setShowAuthGate(false);
+    placeOrder(profile.uid, prefilled);
+  };
+
+  // Schedule grouped by project/site label — "Unlabeled" catches cabinets
+  // where the customer left the optional label blank.
+  const scheduleGroups = useMemo(() => {
+    const groups = new Map();
+    for (const row of schedule) {
+      const label = (row.input.projectLabel || "").trim() || "Unlabeled";
+      if (!groups.has(label)) groups.set(label, []);
+      groups.get(label).push(row);
+    }
+    return [...groups.entries()];
+  }, [schedule]);
+
   return (
     <div className="hm-shell">
       <div className="hm-main">
-        <Plate no="01" title="Profile">
-          {profiles.length === 0
-            ? <div className="hm-sched-empty">No profiles available right now.</div>
-            : <TileGrid items={profiles} selectedId={builder.profileId} onSelect={(id) => upd({ profileId: id })} />}
+        <Plate no="01" title="Brand">
+          {brands.length === 0
+            ? <div className="hm-sched-empty">No brands available right now.</div>
+            : <TileGrid items={brands} selectedId={builder.brandId} onSelect={selectBrand} />}
         </Plate>
 
-        <Plate no="02" title="Finish">
+        <Plate no="02" title="Profile Type" sub={selectedBrand ? undefined : "Pick a brand first"}>
+          {!selectedBrand
+            ? <div className="hm-sched-empty">Pick a brand above first.</div>
+            : profileTypes.length === 0
+              ? <div className="hm-sched-empty">No profile types available for this brand.</div>
+              : <TileGrid items={profileTypes} selectedId={builder.profileTypeId} onSelect={(id) => upd({ profileTypeId: id })} />}
+        </Plate>
+
+        <Plate no="03" title="Finish">
           {colours.length === 0
             ? <div className="hm-sched-empty">No finishes available right now.</div>
             : <TileGrid items={colours} selectedId={builder.colourId} onSelect={(id) => upd({ colourId: id })} />}
         </Plate>
 
-        <Plate no="03" title="Glass">
+        <Plate no="04" title="Fourth Side" sub={selectedBrand ? undefined : "Pick a brand first"}>
+          {!selectedBrand
+            ? <div className="hm-sched-empty">Pick a brand above first.</div>
+            : <>
+                <TileGrid items={fourthSideOptions} selectedId={builder.fourthSide} onSelect={(id) => upd({ fourthSide: id })} />
+                <div className="hm-section-sub" style={{ marginTop: 10, marginBottom: 0 }}>
+                  Handle-less continues the same profile all the way round. A handle type uses a separate profile for the handle edge, cut and priced separately.
+                </div>
+              </>}
+        </Plate>
+
+        <Plate no="05" title="Glass">
           {glasses.length === 0
             ? <div className="hm-sched-empty">No glass options available right now.</div>
             : <TileGrid items={glasses} selectedId={builder.glassId} onSelect={(id) => upd({ glassId: id })} />}
@@ -247,21 +366,42 @@ export function HomBuilder({ catalog, onPlaceOrder }) {
           )}
         </Plate>
 
-        <Plate no="04" title="Configuration">
+        <Plate no="06" title="Lift-Up">
           <div className="hm-config-row">
-            <div className="hm-config-label">Shutter type</div>
-            <div className="hm-option-row">
-              <div className={`hm-option ${!builder.withHandle ? "on" : ""}`} onClick={() => upd({ withHandle: false })}>
-                <ShutterTypeDiagram withHandle={false} />
-                <span className="hm-option-label">Handle-less</span>
-              </div>
-              <div className={`hm-option ${builder.withHandle ? "on" : ""}`} onClick={() => upd({ withHandle: true })}>
-                <ShutterTypeDiagram withHandle={true} />
-                <span className="hm-option-label">With Handle</span>
-              </div>
-            </div>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+              <input type="checkbox" checked={builder.liftUp} onChange={(e) => upd({ liftUp: e.target.checked, hydraulicId: e.target.checked ? builder.hydraulicId : null })} />
+              <span className="hm-option-label">This cabinet uses a lift-up (hydraulic) shutter</span>
+            </label>
           </div>
+          {builder.liftUp && (
+            hydraulics.length === 0
+              ? <div className="hm-sched-empty">No hydraulic systems available right now.</div>
+              : <TileGrid items={hydraulics} selectedId={builder.hydraulicId} onSelect={(id) => upd({ hydraulicId: id })} />
+          )}
+        </Plate>
 
+        <Plate no="07" title="Hinge">
+          <div className="hm-config-row">
+            <div className="hm-config-label">Category</div>
+            {hingeCategories.length === 0
+              ? <div className="hm-sched-empty">No hinge categories available right now.</div>
+              : <TileGrid items={hingeCategories} selectedId={builder.hingeCategoryId} onSelect={selectHingeCategory} />}
+          </div>
+          {selectedHingeCategory && (
+            <div className="hm-config-row">
+              <div className="hm-config-label">Brand</div>
+              {hingeBrands.length === 0
+                ? <div className="hm-sched-empty">No brands available for this hinge category.</div>
+                : <TileGrid items={hingeBrands} selectedId={builder.hingeBrandId} onSelect={(id) => upd({ hingeBrandId: id })} />}
+            </div>
+          )}
+          <div className="hm-config-row">
+            <div className="hm-config-label">Hinges per shutter</div>
+            <Stepper value={builder.hingesPerShutter} min={1} max={6} onChange={(v) => upd({ hingesPerShutter: v })} />
+          </div>
+        </Plate>
+
+        <Plate no="08" title="Dimensions" sub="mm, outer × outer">
           <div className="hm-config-row">
             <div className="hm-config-label">Shutters per cabinet</div>
             <div className="hm-option-row">
@@ -275,28 +415,10 @@ export function HomBuilder({ catalog, onPlaceOrder }) {
           </div>
 
           <div className="hm-config-row">
-            <div className="hm-config-label">Hinge type</div>
-            <div className="hm-option-row">
-              {hinges.map((h) => (
-                <div key={h.id} className={`hm-option ${builder.hingeId === h.id ? "on" : ""}`} onClick={() => upd({ hingeId: h.id })}>
-                  <span className="hm-option-label">{h.name}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="hm-config-row">
-            <div className="hm-config-label">Hinges per shutter</div>
-            <Stepper value={builder.hingesPerShutter} min={1} max={6} onChange={(v) => upd({ hingesPerShutter: v })} />
-          </div>
-
-          <div className="hm-config-row">
             <div className="hm-config-label">Identical cabinets (qty)</div>
             <Stepper value={builder.qty} min={1} max={50} onChange={(v) => upd({ qty: v })} />
           </div>
-        </Plate>
 
-        <Plate no="05" title="Dimensions" sub="mm, outer × outer">
           <div className="hm-dim-row">
             <div className="hm-dim-field">
               <div className="hm-dim-label">Cabinet Width <span className="hm-dim-line" /></div>
@@ -310,14 +432,22 @@ export function HomBuilder({ catalog, onPlaceOrder }) {
             </div>
           </div>
 
+          <div className="hm-field" style={{ maxWidth: 320, marginTop: 16 }}>
+            <div className="hm-field-label">Project / site label (optional)</div>
+            <input className="hm-input" value={builder.projectLabel} onChange={(e) => upd({ projectLabel: e.target.value })} placeholder="e.g. Kitchen, Utility, Site 2" />
+          </div>
+
           {preview && (
             <div className="hm-readout">
               <div className="hm-readout-item"><span className="hm-readout-label">Shutter size</span><span className="hm-readout-val">{preview.shutterW}×{preview.shutterH}</span></div>
               <div className="hm-readout-item"><span className="hm-readout-label">Total shutters</span><span className="hm-readout-val">{preview.totalShutters}</span></div>
               <div className="hm-readout-item"><span className="hm-readout-label">Glass area</span><span className="hm-readout-val">{preview.glassArea} sqft</span></div>
-              <div className="hm-readout-item"><span className="hm-readout-label">Bar</span><span className="hm-readout-val">{preview.barLabel}</span></div>
-              <div className="hm-readout-item"><span className="hm-readout-label">Cabinet price</span><span className="hm-readout-val acc">{fmtINR(preview.cabinetTotal)}</span></div>
-              {!preview.barOk && <div className="hm-readout-warn">No catalog bar is long enough for this size — our team will confirm a custom cut before manufacturing.</div>}
+              <div className="hm-readout-item"><span className="hm-readout-label">Profile bar</span><span className="hm-readout-val">{preview.regularBar.label || "—"}</span></div>
+              {preview.handleBar && <div className="hm-readout-item"><span className="hm-readout-label">Handle bar</span><span className="hm-readout-val">{preview.handleBar.label || "—"}</span></div>}
+              <div className="hm-readout-item"><span className="hm-readout-label">Cabinet price (indicative)</span><span className="hm-readout-val acc">{fmtINR(preview.indicativeTotal)}</span></div>
+              {(!preview.regularBar.ok || (preview.handleBar && !preview.handleBar.ok)) && (
+                <div className="hm-readout-warn">No catalog bar is long enough for this size — our team will confirm a custom cut before manufacturing.</div>
+              )}
             </div>
           )}
 
@@ -331,29 +461,36 @@ export function HomBuilder({ catalog, onPlaceOrder }) {
           </div>
         </Plate>
 
-        <Plate no="06" title="Schedule" sub={`${schedule.length} cabinet line${schedule.length === 1 ? "" : "s"}`}>
+        <Plate no="09" title="Schedule" sub={`${schedule.length} cabinet line${schedule.length === 1 ? "" : "s"}`}>
           {schedule.length === 0
             ? <div className="hm-sched-empty">No cabinets added yet — configure one above and hit "Add Cabinet".</div>
-            : schedule.map((row) => {
-                const profileName = profiles.find((p) => p.id === row.input.profileId)?.name || row.input.profileId;
-                const glassName = glasses.find((g) => g.id === row.input.glassId)?.name || row.input.glassId;
-                return (
-                  <div key={row.id} className="hm-sched-row">
-                    <div className="hm-sched-main">
-                      <div className="hm-sched-title">{profileName} · {glassName}</div>
-                      <div className="hm-sched-meta">{row.input.cabW}×{row.input.cabH}mm · qty {row.input.qty} · {row.priced.totalShutters} shutters · bar {row.priced.barLabel}</div>
-                    </div>
-                    <div className="hm-sched-price">{fmtINR(row.priced.cabinetTotal)}</div>
-                    <div className="hm-sched-actions">
-                      <button type="button" className="hm-btn hm-btn-ghost hm-btn-sm" onClick={() => editRow(row)}>Edit</button>
-                      <button type="button" className="hm-btn hm-btn-danger hm-btn-sm" onClick={() => removeRow(row.id)}>Remove</button>
-                    </div>
-                  </div>
-                );
-              })}
+            : scheduleGroups.map(([label, rows]) => (
+                <div key={label} style={{ marginBottom: 14 }}>
+                  <div className="hm-detail-block-hd">{label}</div>
+                  {rows.map((row) => {
+                    const brand = brands.find((b) => b.id === row.input.brandId);
+                    const glass = glasses.find((g) => g.id === row.input.glassId);
+                    let est;
+                    try { est = estimateCabinet(catalog, row.input); } catch { est = null; }
+                    return (
+                      <div key={row.id} className="hm-sched-row">
+                        <div className="hm-sched-main">
+                          <div className="hm-sched-title">{brand?.name || row.input.brandId} · {glass?.name || row.input.glassId}</div>
+                          <div className="hm-sched-meta">{row.input.cabW}×{row.input.cabH}mm · qty {row.input.qty} · {est?.totalShutters ?? "—"} shutters</div>
+                        </div>
+                        <div className="hm-sched-price">{fmtINR(est?.indicativeTotal)}</div>
+                        <div className="hm-sched-actions">
+                          <button type="button" className="hm-btn hm-btn-ghost hm-btn-sm" onClick={() => editRow(row)}>Edit</button>
+                          <button type="button" className="hm-btn hm-btn-danger hm-btn-sm" onClick={() => removeRow(row.id)}>Remove</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
         </Plate>
 
-        <Plate no="07" title="Customer & Delivery">
+        <Plate no="10" title="Customer & Delivery">
           <div className="hm-field-grid">
             <div className="hm-field">
               <div className="hm-field-label">Name <span className="req">*</span></div>
@@ -389,6 +526,9 @@ export function HomBuilder({ catalog, onPlaceOrder }) {
               {touched && !pincodeValid && <div className="hm-field-err">Enter a valid 6-digit pincode.</div>}
             </div>
           </div>
+          <div className="hm-section-sub" style={{ marginTop: 10, marginBottom: 0 }}>
+            One delivery address for the whole order today — splitting delivery by project/site is a follow-up.
+          </div>
 
           <div className="hm-config-label" style={{ marginTop: 20, marginBottom: 8 }}>Reference drawings / photos (optional)</div>
           <label className="hm-file-drop">
@@ -412,22 +552,32 @@ export function HomBuilder({ catalog, onPlaceOrder }) {
       <div className="hm-quote">
         <div className="hm-quote-panel">
           <div className="hm-quote-title">Quote</div>
+          {orderTotals.barWarning && (
+            <div className="hm-quote-err" style={{ marginBottom: 10 }}>One or more cabinets need a custom-cut bar our catalog doesn't stock yet — our team will confirm before manufacturing.</div>
+          )}
           <div className="hm-quote-row"><span className="hm-quote-lbl">Basic</span><span>{fmtINR(orderTotals.basic)}</span></div>
           <div className="hm-quote-row"><span className="hm-quote-lbl">GST ({catalog.gstPct}%)</span><span>{fmtINR(orderTotals.gst)}</span></div>
           <div className="hm-quote-row"><span className="hm-quote-lbl">Transport</span><span>{fmtINR(orderTotals.transport)}</span></div>
           <div className="hm-quote-row total"><span className="hm-quote-lbl">Total to pay</span><span className="hm-quote-val">{fmtINR(orderTotals.grand)}</span></div>
 
           <div className="hm-pay-row">
-            <div className={`hm-pay-opt ${paymentMethod === "online" ? "on" : ""}`} onClick={() => setPaymentMethod("online")}>
-              <input type="radio" readOnly checked={paymentMethod === "online"} /> Pay now (online)
+            {/* TODO(block4-payment): online payment is parked for a future
+                block (no gateway chosen yet) — kept visible so customers know
+                it's coming, but not selectable. Cash on delivery is the only
+                payable path today. */}
+            <div className="hm-pay-opt hm-pay-opt-disabled" aria-disabled="true">
+              <input type="radio" readOnly disabled checked={false} /> Pay now (online) <span className="hm-pay-soon">Coming soon</span>
             </div>
             <div className={`hm-pay-opt ${paymentMethod === "cod" ? "on" : ""}`} onClick={() => setPaymentMethod("cod")}>
               <input type="radio" readOnly checked={paymentMethod === "cod"} /> Cash on delivery
             </div>
           </div>
 
-          <button type="button" className="hm-btn hm-btn-acc" style={{ width: "100%" }} disabled={submitting || schedule.length === 0} onClick={placeOrder}>
-            {submitting ? "Placing Order…" : "Place Order"}
+          {authUser && (
+            <div style={{ fontSize: 11, color: "#a8a9b3", marginBottom: 8 }}>Signed in as {authUser.name || authUser.phone || authUser.email || "you"}</div>
+          )}
+          <button type="button" className="hm-btn hm-btn-acc" style={{ width: "100%" }} disabled={submitting || schedule.length === 0} onClick={() => placeOrder()}>
+            {submitting ? "Placing Order…" : authUser ? "Place Order" : "Sign In & Place Order"}
           </button>
 
           {touched && !formValid && (
@@ -441,6 +591,13 @@ export function HomBuilder({ catalog, onPlaceOrder }) {
           {submitError && <div className="hm-quote-err">{submitError}</div>}
         </div>
       </div>
+
+      {showAuthGate && (
+        <HomAuthGate
+          onAuthed={handleGateAuthed}
+          onCancel={() => setShowAuthGate(false)}
+        />
+      )}
     </div>
   );
 }

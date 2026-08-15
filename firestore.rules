@@ -403,44 +403,77 @@ service cloud.firestore {
     }
 
     // ── ORDERS ── (customer-submitted quote/order requests)
-    // Public create, gated on full-shape validation (isValidHomOrder) — the
-    // microsite has no auth, so anyone can submit an order, but only a
-    // well-formed one with real customer contact info, a real pincode, at
-    // least one cabinet, a pricing snapshot, and a recognized payment
-    // method. Read stays admin/hom_admin-only (the Block 3 order queue needs
-    // it): an unauthenticated customer has no uid to scope a read to, so
-    // they can't read even their own just-created order back — let alone
-    // another customer's. Delete stays isAdmin()-only, narrower than the
-    // rest of this block on purpose — nothing in Block 3's hom_admin
+    // Gated on full-shape validation (isValidHomOrder), a real customer
+    // contact/pincode, at least one cabinet, a pricing snapshot, and a
+    // recognized payment method. Delete stays isAdmin()-only, narrower than
+    // the rest of this block on purpose — nothing in Block 3's hom_admin
     // workflow (approve/assign/advance status) ever deletes an order, so
     // there's no reason to hand out that capability.
+    //
+    // BLOCK 5 (additive to Blocks 1-4): browsing/cabinet-building on the
+    // microsite stays fully anonymous — the login gate only appears at
+    // "place order" (see src/pages/hom/HomBuilder.jsx) — but the create
+    // itself now requires a signed-in TIN account (mobile or email, see
+    // src/utils/phoneAuth.js) and stamps request.auth.uid onto the order as
+    // ownerUid. This supersedes the earlier "the microsite has no auth"
+    // read/write reasoning below — every order now has a real owner uid to
+    // scope both a narrower attachments-update and an optional owner read
+    // to. See test/rules/hom-payment.test.js and test/rules/hom.test.js for
+    // the proof.
+    //
+    // BLOCK 4: status becomes "confirmed" either via a COD approval
+    // (canManageHom() staff, below — see src/utils/homAdmin.js's
+    // approveAndAssignOrder) or, in a future block, via a verified online
+    // payment written server-side with the Admin SDK (bypasses these rules
+    // entirely, as every Cloud Function write does) — online payment itself
+    // is parked (TODO(block4-payment), no gateway wired up yet). Either
+    // way, no client-writable path below can set status or paymentStatus at
+    // all: the public branch is hard-scoped to
+    // affectedKeys().hasOnly(['attachments']), and canManageHom() (the only
+    // other write path) is restricted to trusted staff, not the customer
+    // flow. See test/rules/hom-payment.test.js for the proof.
     match /homOrders/{orderId} {
-      allow create: if isValidHomOrder(request.resource.data);
+      // BLOCK 5: ownerUid must be the caller's own uid — a client can never
+      // create an order on someone else's behalf. isValidHomOrder is
+      // unchanged from Block 1 (still validates customer/cabinets/pricing/
+      // paymentMethod); the auth + ownership check is additive alongside it.
+      allow create: if request.auth != null
+        && request.resource.data.get('ownerUid', null) == request.auth.uid
+        && isValidHomOrder(request.resource.data);
       // BLOCK 2 (additive to Block 1): the microsite uploads reference
       // attachments to Storage AFTER the order doc already exists (it needs
       // the real orderId as the storage path), so it must come back and
-      // patch attachments[] onto its own just-created doc — but it's still
-      // unauthenticated, so there is no uid to scope this to the actual
-      // creator. Narrowed instead by what the update can touch and when:
-      // ONLY the attachments key (diff().affectedKeys().hasOnly, per the
-      // project's standing write-scoping convention — see jobListings/
-      // jobApplications above), and ONLY the single transition from empty
-      // to populated (resource.data.get('attachments', []).size() == 0) —
-      // so this path can set attachments exactly once per order and can
-      // never be used to touch pricing/status/customer data on anyone's
-      // order, its own included. BLOCK 3 (additive to Block 2): the
-      // admin/hom_admin branch (canManageHom()) is what actually drives the
-      // order lifecycle — approve/reject, vendor assignment, status
-      // advance — the public-attachments branch alongside it is completely
-      // unchanged from Block 2.
+      // patch attachments[] onto its own just-created doc. BLOCK 5 narrows
+      // this from "anyone" to "the order's own owner" now that every order
+      // has one — request.auth.uid must equal resource.data.ownerUid. Still
+      // scoped to exactly the attachments key
+      // (diff().affectedKeys().hasOnly, per the project's standing
+      // write-scoping convention — see jobListings/jobApplications above),
+      // and to the single transition from empty to populated
+      // (resource.data.get('attachments', []).size() == 0) — so this path
+      // can set attachments exactly once per order, only for its owner, and
+      // can never touch pricing/status/customer data. BLOCK 3 (additive to
+      // Block 2): the admin/hom_admin branch (canManageHom()) is what
+      // actually drives the order lifecycle — approve/reject, vendor
+      // assignment, status advance — the owner-attachments branch alongside
+      // it is otherwise unchanged from Block 2.
       allow update: if canManageHom()
         || (
           resource != null
+          && request.auth != null
+          && request.auth.uid == resource.data.get('ownerUid', null)
           && resource.data.get('attachments', []).size() == 0
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attachments'])
           && request.resource.data.attachments is list
         );
-      allow read: if canManageHom();
+      // BLOCK 5: an owner may also read back their own order (e.g. a future
+      // "my orders" view or the post-purchase confirmation screen) —
+      // resource == null guarded first, same defensive idiom as
+      // canReadBusinessObject above, so a get() on a nonexistent order
+      // resolves to "not found" rather than a rules-evaluation error.
+      // Block 3's admin/hom_admin queue read is unchanged.
+      allow read: if canManageHom()
+        || (resource != null && request.auth != null && resource.data.get('ownerUid', null) == request.auth.uid);
       allow delete: if isAdmin();
     }
 

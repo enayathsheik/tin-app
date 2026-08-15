@@ -1,6 +1,7 @@
 // HOM Systems — order-save + attachment-upload for the public
-// microsite (Block 2). Builds on src/utils/homPricing.js for all math — this
-// file only shapes/writes data, it never computes a price itself.
+// microsite (Block 2, reworked for the rate-list + optimiser overhaul).
+// Builds on src/utils/homPricing.js for all math — this file only shapes/
+// writes data, it never computes a price itself.
 //
 // The homOrders payload below is shaped to satisfy firestore.rules'
 // isValidHomOrder EXACTLY: pincode lives on `customer` (not `address`) and
@@ -9,49 +10,60 @@
 import { addDoc, collection, doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "../firebase/config";
-import { priceCabinet, priceOrder } from "./homPricing";
+import { priceOrder } from "./homPricing";
 
 function makeOrderNo() {
   return "HOM-" + Date.now().toString(36).toUpperCase();
 }
 
-// Freezes exactly the catalog values priceCabinet/priceOrder read, so a
-// later admin edit to homConfig/catalog never reprices an already-placed
-// order. Deliberately excludes profiles/colours/photos — display-only,
-// nothing in homPricing.js reads them.
+// Freezes exactly the catalog values priceOrder reads, so a later admin
+// edit to homConfig/catalog never reprices an already-placed order.
+// Deliberately excludes colours/profileTypes/photos/active flags —
+// display-only, nothing in homPricing.js reads them (colourId/
+// profileTypeId are only ever used as pooling-group keys, never looked up
+// for a name or rate).
 function freezeCatalogRates(catalog) {
   return {
-    bars: catalog.bars,
+    brands: (catalog.brands || []).map((b) => ({
+      id: b.id,
+      name: b.name,
+      regularBars: b.regularBars,
+      handleTypes: (b.handleTypes || []).map((h) => ({ id: h.id, name: h.name, bars: h.bars })),
+    })),
     glasses: catalog.glasses,
     addons: catalog.addons,
-    hinges: catalog.hinges,
-    handleRatePerFt: catalog.handleRatePerFt,
+    hingeCategories: catalog.hingeCategories,
+    liftUp: catalog.liftUp,
     makingPerShutter: catalog.makingPerShutter,
     glassDeductMm: catalog.glassDeductMm,
     gstPct: catalog.gstPct,
     transportFlat: catalog.transportFlat,
+    kerfMm: catalog.kerfMm,
   };
 }
 
-// Prices `cabinets` (raw priceCabinet inputs) via priceOrder and writes the
-// order to Firestore. Throws on any failure — callers must not swallow it
-// and must not clear the customer's form on catch (see HomBuilder.jsx).
-export async function submitHomOrder({ catalog, cabinets, customer, address, paymentMethod }) {
-  // priceCabinet's return value is computed fields ONLY (shutterW,
-  // cabinetTotal, etc.) — it does not echo back profileId/colourId/glassId/
-  // dimensions/etc. Merging raw input + computed result into one flat
-  // object per line is what makes the stored order self-sufficient for
-  // Block 3 (ops needs to know which glass/colour/profile/size, not just
-  // the price). priceOrder still does the actual summing below — passing
-  // it these already-priced lines makes it reuse cabinetTotal rather than
-  // recompute (see priceOrder's typeof check), so there's exactly one
-  // source of pricing math, not two.
-  const cabinetLines = cabinets.map((input) => ({ ...input, ...priceCabinet(catalog, input) }));
-  const priced = priceOrder(catalog, cabinetLines);
+// Prices `cabinets` (raw priceOrder cabinet inputs, each optionally carrying
+// a `projectLabel`) via priceOrder and writes the order to Firestore. Throws
+// on any failure — callers must not swallow it and must not clear the
+// customer's form on catch (see HomBuilder.jsx). priceOrder's cabinets[]
+// already merge each cabinet's raw input with its computed fields
+// (shutterW, indicativeTotal, regularBar/handleBar, etc.) — one source of
+// pricing math, stored whole, not re-derived here.
+//
+// `ownerUid` (Block 5 — login gate): the caller MUST already be signed in
+// before this is called (see HomBuilder.jsx's placeOrder — it shows the
+// auth gate and returns early if there's no user yet) and must pass that
+// user's uid here. firestore.rules' homOrders create rule now REQUIRES
+// request.auth != null && request.resource.data.ownerUid ==
+// request.auth.uid, so an order written without a matching ownerUid is
+// rejected at the rules layer, not just skipped client-side.
+export async function submitHomOrder({ catalog, cabinets, customer, address, paymentMethod, ownerUid }) {
+  const priced = priceOrder(catalog, cabinets);
   const orderNo = makeOrderNo();
 
   const payload = {
     orderNo,
+    ownerUid,
     customer: {
       name: customer.name.trim(),
       phone: customer.phone.trim(),
@@ -76,9 +88,14 @@ export async function submitHomOrder({ catalog, cabinets, customer, address, pay
     },
     catalogSnapshot: freezeCatalogRates(catalog),
     paymentMethod,
-    // Block 4 (Razorpay) reconciles "online" orders and flips this status;
-    // "cod" orders wait on admin approval in Block 3.
-    // TODO(block4-razorpay): capture payment, verify webhook, flip to "paid".
+    // "online" is parked — HomBuilder.jsx currently only ever sends "cod"
+    // (the "Pay now" radio is rendered disabled). This branch and the
+    // "pending_payment" status are kept intact as the seam for whichever
+    // payment gateway a future block wires up.
+    // TODO(block4-payment): reconcile "online" orders server-side once a
+    // gateway is chosen; flip paymentStatus to "paid" only after a verified
+    // payment, never on the client's say-so. "cod" orders wait on admin
+    // approval (Block 3's Approve/Reject, wired end-to-end in Block 4).
     paymentStatus: paymentMethod === "online" ? "pending_payment" : "cod_pending_approval",
     status: "new",
     createdAt: serverTimestamp(),

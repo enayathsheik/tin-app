@@ -18,9 +18,12 @@ const ADMIN_EMAIL = "enayathsheik@gmail.com";
 
 let testEnv;
 
+const ORDER_OWNER_UID = "orderOwnerUid";
+
 function validOrderPayload(overrides = {}) {
   return {
     orderNo: "HOM-TEST1",
+    ownerUid: ORDER_OWNER_UID,
     customer: { name: "Test Customer", phone: "9998887776", pincode: "560001" },
     cabinets: [{ profileId: "KP-WIDE", cabW: 600, cabH: 482, qty: 1 }],
     pricingSnapshot: { basic: 4276, gst: 769.68, transport: 300, grand: 5345.68 },
@@ -80,6 +83,9 @@ function adminDb() {
 }
 function publicDb() {
   return testEnv.unauthenticatedContext().firestore();
+}
+function orderOwnerDb() {
+  return testEnv.authenticatedContext(ORDER_OWNER_UID, { email: "orderowner@example.com" }).firestore();
 }
 
 describe("HOM Systems Block 3 — hom_admin scoped role", () => {
@@ -141,8 +147,16 @@ describe("HOM Systems Block 3 — hom_admin scoped role", () => {
     await assertSucceeds(getDoc(doc(publicDb(), "homConfig", "catalog")));
   });
 
-  it("12. public can still create a valid order", async () => {
-    await assertSucceeds(setDoc(doc(publicDb(), "homOrders", "publicOrder1"), validOrderPayload({ orderNo: "HOM-PUB1" })));
+  // Block 5 (login gate): create now requires a signed-in owner whose uid
+  // matches ownerUid — the full create/attachments/ownerUid-spoofing matrix
+  // is test/rules/hom.test.js's job (see this file's header comment); these
+  // two just confirm the admin-surface test fixtures reflect the new rule.
+  it("12. an authenticated customer (matching ownerUid) can create a valid order", async () => {
+    await assertSucceeds(setDoc(doc(orderOwnerDb(), "homOrders", "ownedOrder1"), validOrderPayload({ orderNo: "HOM-OWNED1" })));
+  });
+
+  it("12a. public (unauthenticated) order create is now DENIED", async () => {
+    await assertFails(setDoc(doc(publicDb(), "homOrders", "publicOrder1"), validOrderPayload({ orderNo: "HOM-PUB1" })));
   });
 
   it("13. public cannot read another customer's order", async () => {

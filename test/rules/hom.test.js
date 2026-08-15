@@ -1,8 +1,11 @@
-// HOM Systems Block 1 — permission proof. The microsite has
-// no auth: it publicly reads the catalog and creates orders, and nothing
-// else. Everything else (vendors, order read/update/delete, supplier
-// orders, catalog write) stays behind the existing isAdmin() email check.
-// Run against the Firestore emulator only — never production:
+// HOM Systems Block 1 (+ Block 5 login gate) — permission proof. The
+// microsite reads the catalog with no auth at all, but placing an order now
+// requires a signed-in TIN account (mobile or email — see
+// src/utils/phoneAuth.js and src/pages/hom/HomAuthGate.jsx) whose uid must
+// match the order's ownerUid. Everything else (vendors, order read/update/
+// delete, supplier orders, catalog write) stays behind the existing
+// isAdmin() email check. Run against the Firestore emulator only — never
+// production:
 //   firebase emulators:exec --only firestore "npx vitest run --no-file-parallelism"
 import { readFileSync } from "fs";
 import { beforeAll, afterAll, describe, it } from "vitest";
@@ -15,11 +18,14 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 
 const PROJECT_ID = "hom-rules-test";
 const ADMIN_EMAIL = "enayathsheik@gmail.com";
+const OWNER_UID = "customerUid1";
+const OTHER_UID = "customerUid2";
 
 let testEnv;
 
 function validOrderPayload(overrides = {}) {
   return {
+    ownerUid: OWNER_UID,
     customer: { name: "Test Customer", phone: "9998887776", pincode: "560001" },
     cabinets: [{ profileId: "KP-WIDE", cabW: 600, cabH: 482, qty: 1 }],
     pricingSnapshot: { basic: 4276, gst: 769.68, transport: 300, grand: 5345.68 },
@@ -28,6 +34,13 @@ function validOrderPayload(overrides = {}) {
     createdAt: new Date(),
     ...overrides,
   };
+}
+
+function ownerDb() {
+  return testEnv.authenticatedContext(OWNER_UID, { email: "owner@example.com" }).firestore();
+}
+function otherDb() {
+  return testEnv.authenticatedContext(OTHER_UID, { email: "other@example.com" }).firestore();
 }
 
 beforeAll(async () => {
@@ -87,41 +100,45 @@ describe("HOM Systems Block 1 — security rules", () => {
     await assertSucceeds(setDoc(doc(db, "homVendors", "vendor2"), { name: "x" }));
   });
 
-  it("6. unauthenticated user can create a valid order", async () => {
-    const db = testEnv.unauthenticatedContext().firestore();
-    await assertSucceeds(setDoc(doc(db, "homOrders", "newOrder1"), validOrderPayload()));
+  // ── Block 5: login gate — order create now requires a signed-in owner ──
+  it("6. a signed-in customer can create a valid order with ownerUid == their own uid", async () => {
+    await assertSucceeds(setDoc(doc(ownerDb(), "homOrders", "newOrder1"), validOrderPayload()));
   });
 
-  it("7. invalid order create is denied — malformed pincode", async () => {
+  it("6a. an unauthenticated (anonymous) create is now DENIED — the login gate can't be bypassed", async () => {
     const db = testEnv.unauthenticatedContext().firestore();
+    await assertFails(setDoc(doc(db, "homOrders", "anonOrder1"), validOrderPayload()));
+  });
+
+  it("6b. a signed-in user cannot create an order claiming someone else's uid as ownerUid", async () => {
+    await assertFails(setDoc(doc(ownerDb(), "homOrders", "spoofedOwnerOrder"), validOrderPayload({ ownerUid: OTHER_UID })));
+  });
+
+  it("7. invalid order create is denied — malformed pincode (even for the correct owner)", async () => {
     await assertFails(
       setDoc(
-        doc(db, "homOrders", "badOrder1"),
+        doc(ownerDb(), "homOrders", "badOrder1"),
         validOrderPayload({ customer: { name: "X", phone: "999", pincode: "12" } })
       )
     );
   });
 
-  it("8. invalid order create is denied — no cabinets", async () => {
-    const db = testEnv.unauthenticatedContext().firestore();
-    await assertFails(setDoc(doc(db, "homOrders", "badOrder2"), validOrderPayload({ cabinets: [] })));
+  it("8. invalid order create is denied — no cabinets (even for the correct owner)", async () => {
+    await assertFails(setDoc(doc(ownerDb(), "homOrders", "badOrder2"), validOrderPayload({ cabinets: [] })));
   });
 
-  it("9. invalid order create is denied — unrecognized payment method", async () => {
-    const db = testEnv.unauthenticatedContext().firestore();
-    await assertFails(setDoc(doc(db, "homOrders", "badOrder3"), validOrderPayload({ paymentMethod: "cheque" })));
+  it("9. invalid order create is denied — unrecognized payment method (even for the correct owner)", async () => {
+    await assertFails(setDoc(doc(ownerDb(), "homOrders", "badOrder3"), validOrderPayload({ paymentMethod: "cheque" })));
   });
 
-  it("10. invalid order create is denied — missing pricing snapshot", async () => {
-    const db = testEnv.unauthenticatedContext().firestore();
-    await assertFails(setDoc(doc(db, "homOrders", "badOrder4"), validOrderPayload({ pricingSnapshot: null })));
+  it("10. invalid order create is denied — missing pricing snapshot (even for the correct owner)", async () => {
+    await assertFails(setDoc(doc(ownerDb(), "homOrders", "badOrder4"), validOrderPayload({ pricingSnapshot: null })));
   });
 
-  it("11. invalid order create is denied — missing customer name/phone", async () => {
-    const db = testEnv.unauthenticatedContext().firestore();
+  it("11. invalid order create is denied — missing customer name/phone (even for the correct owner)", async () => {
     await assertFails(
       setDoc(
-        doc(db, "homOrders", "badOrder5"),
+        doc(ownerDb(), "homOrders", "badOrder5"),
         validOrderPayload({ customer: { name: "", phone: "", pincode: "560001" } })
       )
     );
@@ -130,6 +147,14 @@ describe("HOM Systems Block 1 — security rules", () => {
   it("12. an unauthenticated customer cannot read any order, including one that already exists", async () => {
     const db = testEnv.unauthenticatedContext().firestore();
     await assertFails(getDoc(doc(db, "homOrders", "orderExisting")));
+  });
+
+  it("12a. the order's own owner CAN read it back", async () => {
+    await assertSucceeds(getDoc(doc(ownerDb(), "homOrders", "orderExisting")));
+  });
+
+  it("12b. a different signed-in user cannot read someone else's order", async () => {
+    await assertFails(getDoc(doc(otherDb(), "homOrders", "orderExisting")));
   });
 
   it("13. admin can read, update, and delete orders", async () => {
@@ -141,6 +166,10 @@ describe("HOM Systems Block 1 — security rules", () => {
   it("14. unauthenticated user cannot update an existing order", async () => {
     const db = testEnv.unauthenticatedContext().firestore();
     await assertFails(setDoc(doc(db, "homOrders", "orderExisting"), { status: "hacked" }, { merge: true }));
+  });
+
+  it("14a. the order's own owner cannot update status either — only canManageHom() can", async () => {
+    await assertFails(setDoc(doc(ownerDb(), "homOrders", "orderExisting"), { status: "hacked" }, { merge: true }));
   });
 
   it("15. unauthenticated user cannot read or write supplier orders", async () => {
@@ -155,44 +184,61 @@ describe("HOM Systems Block 1 — security rules", () => {
     await assertSucceeds(setDoc(doc(db, "homSupplierOrders", "po2"), { vendorId: "vendor1", items: [] }));
   });
 
-  // ── Block 2: the public attachments-only update path ──
-  it("17. an unauthenticated client can set attachments once on an order that has none yet", async () => {
-    const db = testEnv.unauthenticatedContext().firestore();
+  // ── Block 2 (narrowed in Block 5 to the order's own owner) ──
+  it("17. the order's own owner can set attachments once on an order that has none yet", async () => {
     await assertSucceeds(
       setDoc(
-        doc(db, "homOrders", "orderNoAttachments"),
+        doc(ownerDb(), "homOrders", "orderNoAttachments"),
         { attachments: [{ name: "photo.jpg", url: "https://example.com/photo.jpg" }] },
         { merge: true }
       )
     );
   });
 
-  it("18. a second unauthenticated attachments update on the same order is denied (already non-empty)", async () => {
+  it("17a. an unauthenticated client can no longer set attachments at all — Block 5 requires the owner", async () => {
     const db = testEnv.unauthenticatedContext().firestore();
     await assertFails(
       setDoc(
-        doc(db, "homOrders", "orderAttachmentsAlreadySet"),
+        doc(db, "homOrders", "orderForTypeCheck"),
+        { attachments: [{ name: "anon.jpg", url: "https://example.com/anon.jpg" }] },
+        { merge: true }
+      )
+    );
+  });
+
+  it("17b. a different signed-in user (not the owner) cannot set attachments on someone else's order", async () => {
+    await assertFails(
+      setDoc(
+        doc(otherDb(), "homOrders", "orderForTypeCheck"),
+        { attachments: [{ name: "intruder.jpg", url: "https://example.com/intruder.jpg" }] },
+        { merge: true }
+      )
+    );
+  });
+
+  it("18. a second attachments update by the owner on the same order is denied (already non-empty)", async () => {
+    await assertFails(
+      setDoc(
+        doc(ownerDb(), "homOrders", "orderAttachmentsAlreadySet"),
         { attachments: [{ name: "second.jpg", url: "https://example.com/second.jpg" }] },
         { merge: true }
       )
     );
   });
 
-  it("19. an unauthenticated update touching any field besides attachments is denied, even on a fresh order", async () => {
-    const db = testEnv.unauthenticatedContext().firestore();
+  it("19. an owner update touching any field besides attachments is denied, even on a fresh order", async () => {
     await assertFails(
       setDoc(
-        doc(db, "homOrders", "orderNoAttachments"),
+        doc(ownerDb(), "homOrders", "orderNoAttachments"),
         { status: "hacked", attachments: [{ name: "x.jpg", url: "https://example.com/x.jpg" }] },
         { merge: true }
       )
     );
   });
 
-  it("20. an unauthenticated update setting attachments to a non-list is denied", async () => {
-    const db = testEnv.unauthenticatedContext().firestore();
+  it("20. an owner update setting attachments to a non-list is denied", async () => {
     await assertFails(
-      setDoc(doc(db, "homOrders", "orderForTypeCheck"), { attachments: "not-a-list" }, { merge: true })
+      setDoc(doc(ownerDb(), "homOrders", "orderForTypeCheck"), { attachments: "not-a-list" }, { merge: true })
     );
   });
 });
