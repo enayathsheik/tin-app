@@ -6,6 +6,7 @@ import { auth, db, getUserProfile, updateUserStats } from "./firebase/config";
 import { MOCK_STORES } from "./data/constants";
 import { G } from "./data/globalStyles";
 import { Toast } from "./components/shared/Toast";
+import { DiwaliIntro } from "./components/shared/DiwaliIntro";
 import { AdminLoginPage } from "./pages/AdminLoginPage";
 import { LoginPage } from "./pages/LoginPage";
 import { RetailerDashboard } from "./pages/RetailerDashboard";
@@ -405,6 +406,7 @@ export default function App() {
         </div>
         <Toast {...toast} />
       </div>
+      {location.pathname === "/" && <DiwaliIntro />}
     </>
   );
 }
