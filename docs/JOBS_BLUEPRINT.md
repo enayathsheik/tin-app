@@ -451,8 +451,16 @@ match /notifications/{id} {
   even `updatedAt`). Fixed in Phase 3 (§5.3).
 - **Self-verification:** users could set their own `verificationStatus` / `storeId`.
   Fixed in Phase 3 (§5.3b).
-- **Store verified badge:** `stores` may still be updated by their `contributorId`
-  (the person who added them), including `verificationStatus`. Not jobs-related;
-  flagged for a separate fix.
+- **Store verified badge:** whoever added a store (`contributorId`) could set its
+  `verificationStatus`, and anyone could create a store already marked verified.
+  Fixed separately after Phase 3: only the admin sets `verificationStatus` /
+  `verifiedAt` / `verifiedBy`, and `contributorId` can't be changed by the contributor
+  (`test/rules/stores-verification.test.js`).
+- **GST Verified badge (future fix):** `AddPage.jsx` sets `gstVerified` (the store page's
+  "🏛 GST Verified" badge) and `gstVerifiedData` from the browser after its own GST
+  lookup, so the badge can be faked by writing those fields directly. Fix: move the GST
+  check to the server (a Cloud Function that looks up the GSTIN and writes
+  `gstVerified` / `gstVerifiedData` with the Admin SDK), then make both fields
+  admin/server-only in `firestore.rules`. Not started.
 - **Pay parsing:** `salaryParser.js` reads "₹25k" as ₹25 for JSON-LD `baseSalary`. Phase 2
   moves JSON-LD onto `normaliseJob()`, which treats shorthand as unreadable.
