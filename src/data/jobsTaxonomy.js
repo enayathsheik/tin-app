@@ -237,6 +237,33 @@ export const LANES = [
   { key: "skilled", label: "Skilled workforce" },
 ];
 
+// ── Industry prefill (decision D2, owner-approved in Phase 3) ──
+// TIN business type (stores.businessType, see BUSINESS_TYPES in
+// constants.js) → INDUSTRIES key. Exact table; anything not listed means
+// the poster picks. The prefill is always editable.
+export const BUSINESS_TYPE_INDUSTRY = {
+  Retailer: "retail_distribution",
+  Distributor: "retail_distribution",
+  Wholesaler: "retail_distribution",
+  Manufacturer: "manufacturers",
+  Contractor: "contractors",
+  Architect: "architects_interior_firms",
+  Designer: "architects_interior_firms",
+  Consultant: "consultants",
+};
+// TIN account role (ROLES in constants.js) → INDUSTRIES key, for accounts
+// with no linked store. Only roles that name a business type map.
+export const ROLE_INDUSTRY = {
+  retailer: "retail_distribution",
+  manufacturer: "manufacturers",
+  contractor: "contractors",
+  architect: "architects_interior_firms",
+};
+// Linked store's businessType wins; else the account role; else null.
+export function industryPrefill({ businessType, role } = {}) {
+  return BUSINESS_TYPE_INDUSTRY[businessType] || ROLE_INDUSTRY[role] || null;
+}
+
 // ── Helpers ──────────────────────────────────────────────────
 export const keysOf = (list) => list.map(o => o.key);
 export const isKey = (list, key) => typeof key === "string" && list.some(o => o.key === key);

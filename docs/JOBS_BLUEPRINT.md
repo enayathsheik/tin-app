@@ -113,7 +113,7 @@ to differ from this document, update this document first, in the same commit.
 | **1 Foundation** | This blueprint, `jobsTaxonomy.js`, `jobModel.js` (`normaliseJob`), unit tests. No UI, rules or data changes. | No |
 | **CV privacy fix** (between 1 and 2) | Storage rule: a CV can only be opened by its owner or the poster of a job they applied to; existing CVs keep working for their employers. Own plan, own commit, storage rules only. | No (security only) |
 | **2 Find work** | Lanes landing (`/jobs`), lane pages (`/jobs/professional`, `/jobs/skilled`, `/jobs/needed-now`), saved jobs (`/jobs/saved`), new filters, extended job detail, save job, report job. All via `normaliseJob()`, old jobs included. Paged feed (30 at a time) needing index `jobListings: status, jobStatus, createdAt desc`. | Yes |
-| **3 Post a job wizard** (additions from Phase 2) | Browse by industry (after D2), open jobs on the store profile (needs a store link on the job). | Yes |
+| **3 Post a job wizard** (shipped) | `/jobs/post` + `/jobs/{id}/edit` (5 steps, replaces PostJobModal; per-device autosave), industry (D2) + Browse by industry + Industry filter, Open jobs on the store page, users-record security fix, admin review card shows full new-job content. Store linking stays admin-only (one-off script until a Phase 7 admin tool). | Yes |
 | **3 Post a job wizard** | 5-step wizard writing the new shape (§3) plus the legacy fields; drafts; edit vacancy (rules change §5.3). | Yes |
 | **4 Candidate profile + apply + My Applications** | Profile (public + private docs), one-tap apply with snapshot, application stages, My Applications tracker with milestones, interview/offer replies, withdraw, saved jobs list. CV storage move. | Yes |
 | **5 Employer Desk + messaging** | Vacancies, pipeline board, list + bulk, application drawer, find candidates, team (existing org roles), recruitment details. Messaging = TIN Conversations with the job linked via `LINKABLE_ENTITY_COLLECTIONS` (no separate chat). | Yes |
@@ -144,6 +144,10 @@ All new fields are **optional and additive**. Existing documents are never rewri
 | `pay` | `{ period, min, max, display, incentives }` | `period` = `PAY_PERIODS` key; `min`/`max` = numbers in ₹ (`max` optional); `display` = `PAY_DISPLAY` key; `incentives` free text. |
 | `benefits` | `{ [BENEFITS key]: details }` | Ticked benefits; details may be `""`. |
 | `evpText` | string | "Write it yourself" alternative to `benefits`. |
+| `industry` | string | `INDUSTRIES` key (decision D2, Phase 3). Prefilled from the linked store's `businessType` or the account role via `BUSINESS_TYPE_INDUSTRY` / `ROLE_INDUSTRY` in `jobsTaxonomy.js`; always editable. Old jobs have none. |
+| `storeId` | string | Only when the poster's account has an **admin-set** store link (`users/{uid}.storeId`); rules enforce it. Drives "Open jobs" on `/store/{id}` and the JSON-LD `hiringOrganization.sameAs`. |
+
+**Hidden pay (owner decision, Phase 3):** when `pay.display` is `negotiable` or `undisclosed`, `pay.min` / `pay.max` are **not saved** (null): job docs are publicly readable. Rules reject hidden pay with amounts.
 
 Fields kept exactly as today: `jobTitle`, `description`, `city`, `state`,
 `pincode`, `businessName`, `contactPhone`, `postedByUid`, `postedByName`,
@@ -296,19 +300,13 @@ match /jobReports/{reportId} {            // id = {jobId}_{uid}: one report per 
 
 Shipped in Phase 2 as above. Reports have no admin screen until Phase 7 (read them in the Firebase console meanwhile).
 
-### 5.2 Phase 3: create with new fields (validation only)
+### 5.2 Phase 3: create with new fields (shipped)
 
-Add to the existing `jobListings` create rule (the existing clauses stay):
+The create rule keeps "pending, or approved only for a verified account" and adds `jobFieldsOk()` (lane is professional/skilled; headcount is an int ≥ 1; hidden pay carries no amounts) and `jobStoreIdOk()` (a `storeId` must equal the poster's admin-set `users/{uid}.storeId`). Every field read uses `.get(field, default)`. See `firestore.rules` and `test/rules/jobs-post.test.js`.
 
-```
-&& request.resource.data.get("lane", "professional") in ["professional", "skilled"]
-&& request.resource.data.get("headcount", 1) is int
-&& request.resource.data.get("headcount", 1) >= 1
-```
+### 5.3 Phase 3: poster may edit content of their own listing (shipped)
 
-### 5.3 Phase 3: poster may edit content of their own listing
-
-Replace the poster branch of the `jobListings` update rule (admin branch unchanged):
+Shipped as below, plus: `industry`, `storeId` and `notAgencyDeclaration` in the allowed keys; `jobStatus` limited to live/filled/closed; `jobFieldsOk()` on every edit; `jobStoreIdOk()` when `storeId` changes. **Owner decisions:** an unverified poster's content edit sends a live job back to pending; Live/Filled/Closed-only changes don't; a verified poster's edit stays live. (The old poster rule allowed only `jobStatus`, so My Jobs' Live/Filled/Closed — which also sends `updatedAt` — was failing for posters; fixed.) Original sketch:
 
 ```
 || (request.auth != null
@@ -329,8 +327,23 @@ Replace the poster branch of the `jobListings` update rule (admin branch unchang
         || request.resource.data.get("status", "") == "pending"))
 ```
 
-Also: `jobStatus` gains `"paused"` and `"draft"` (Employer Desk tabs). The public
+Also: `jobStatus` gains `"paused"` and `"draft"` (Employer Desk tabs, Phase 5 — the Phase 3 rule still allows only live/filled/closed). The public
 feed query (`status == approved && jobStatus == live`) already excludes them.
+
+### 5.3b Phase 3: users record — verification and store link are admin-only (shipped)
+
+```
+match /users/{userId} {
+  allow create: if request.auth != null && request.auth.uid == userId
+    && request.resource.data.get("verificationStatus", "pending") in ["pending", "unverified"]
+    && request.resource.data.get("storeId", null) == null;
+  allow update: if isAdmin()
+    || (request.auth != null && request.auth.uid == userId
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(["verificationStatus", "storeId"]));
+}
+```
+
+Before this, anyone could set their own `verificationStatus` to "verified" (jobs go live without review) or a `storeId`. No app code writes either field from the client.
 
 ### 5.4 Phase 4: candidate profiles
 
@@ -421,7 +434,8 @@ match /notifications/{id} {
 | # | Decision | Needed by | Notes |
 |---|---|---|---|
 | D1 | **Email service for Phase 6** | Phase 6 | **Open.** TIN has no email sending today. Options to compare when Phase 6 is planned: a transactional email API (e.g. Resend, SendGrid, Amazon SES) called from Cloud Functions, or Firebase's "Trigger Email" extension writing to a `mail` collection. Needs: the sending domain (tinit.in) verified by the owner, monthly cost at expected volume, and Hindi/English templates. The owner decides; nothing is sent until then. |
-| D2 | Prototype industries vs TIN business types | Phase 3 | `INDUSTRIES` (11) vs TIN's `BUSINESS_TYPES` (8). Decide whether the wizard reads the store's existing business type or asks for an industry. "Browse by industry" on the Jobs home waits for this. |
+| D2 | Prototype industries vs TIN business types | Phase 3 | **Decided (Phase 3):** prefill from the linked store's business type, else the account role, via the fixed table in `jobsTaxonomy.js` (Retailer/Distributor/Wholesaler → Retailers, Distributors & Dealers; Manufacturer → Manufacturers; Contractor → General & Specialist Contractors; Architect/Designer → Architects & Interior Design Firms; Consultant → Consultants); otherwise the poster picks. Always editable. |
+| D7 | Admin tool to link an account to its store | Phase 7 | Store linking (`users/{uid}.storeId`) is admin-only. Until an admin tool exists, links are made with a one-off script on request. |
 | D3 | Candidate work-type preferences | Phase 4 | The prototype's candidate form uses a different 10-item list ("Contractual", "Internship / apprenticeship") from the job `TYPES` list. Decide: reuse `TYPES` keys (recommended, so matching works) or add a separate list. |
 | D4 | City list | Phase 2 | The prototype's 8 cities are sample data. TIN's existing `CITIES` list stays unless decided otherwise. |
 | D5 | Job view counts | Phase 5 | The prototype shows views and view→apply rate. Counting views needs a write from every visitor. Decide between a Cloud Function counter or leaving views out. |
@@ -433,7 +447,12 @@ match /notifications/{id} {
   link. The fix is scheduled right after Phase 1 (§2).
 - **Apply:** the `jobApplications` create rule doesn't check that the job exists, is live,
   or that the status starts as "new". Fixed in Phase 4 (§5.5).
-- **Editing:** posters can't edit job content today (rules allow `jobStatus` only).
-  Fixed in Phase 3 (§5.3).
+- **Editing:** posters couldn't edit job content (rules allowed `jobStatus` only, and not
+  even `updatedAt`). Fixed in Phase 3 (§5.3).
+- **Self-verification:** users could set their own `verificationStatus` / `storeId`.
+  Fixed in Phase 3 (§5.3b).
+- **Store verified badge:** `stores` may still be updated by their `contributorId`
+  (the person who added them), including `verificationStatus`. Not jobs-related;
+  flagged for a separate fix.
 - **Pay parsing:** `salaryParser.js` reads "₹25k" as ₹25 for JSON-LD `baseSalary`. Phase 2
   moves JSON-LD onto `normaliseJob()`, which treats shorthand as unreadable.

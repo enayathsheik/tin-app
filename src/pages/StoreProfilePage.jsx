@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase/config";
+import { StoreOpenJobs } from "../components/jobs/StoreOpenJobs";
 
 const SITE_URL = "https://tinit.in";
 const truncate = (str, len) => (str && str.length > len ? str.slice(0, len - 1).trimEnd() + "…" : str || "");
@@ -70,6 +71,8 @@ export function StoreProfilePage() {
   const ogImage = store.logo || `${SITE_URL}/og-image.png`;
 
   return (
+    // Own scroll area: the app shell (.page) hides overflow on desktop.
+    <div style={{ height: "100%", width: "100%", overflowY: "auto" }}>
     <div style={{ maxWidth: 720, margin: "0 auto", padding: "16px 16px 100px" }}>
       <Helmet>
         <title>{pageTitle}</title>
@@ -152,6 +155,9 @@ export function StoreProfilePage() {
         {/* OWNER */}
         {store.ownerName && <div style={{ fontSize: 13, color: "#080808" }}>👤 Owner: <strong>{store.ownerName}</strong></div>}
       </div>
+
+      <StoreOpenJobs storeId={store.id} storeName={store.storeName} />
+    </div>
     </div>
   );
 }

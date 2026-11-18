@@ -50,6 +50,7 @@ export function buildJobPostingJsonLd(rawJob) {
     hiringOrganization: {
       "@type": "Organization",
       name: job.businessName || job.postedByName,
+      ...(job.storeId ? { sameAs: `https://tinit.in/store/${job.storeId}` } : {}),
     },
     jobLocation: {
       "@type": "Place",
@@ -79,6 +80,7 @@ export function buildJobPostingJsonLd(rawJob) {
     };
   }
 
+  if (job.industryLabel) jsonLd.industry = job.industryLabel;
   if (job.headcount) jsonLd.totalJobOpenings = job.headcount;
   if (job.experience) jsonLd.experienceRequirements = job.experience;
   if (job.education) jsonLd.educationRequirements = job.education;

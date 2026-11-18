@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { collection, doc, getDocs, query, serverTimestamp, updateDoc, where } from "firebase/firestore";
 import { db } from "../firebase/config";
-import { PostJobModal } from "../components/shared/PostJobModal";
+import { Link } from "react-router-dom";
+import { PostJobButton } from "../components/jobs/PostJobButton";
 
 const JOB_STATUS_OPTIONS = [["live", "Live"], ["filled", "Filled"], ["closed", "Closed"]];
 const APPLICANT_STATUS_OPTIONS = [["new", "New"], ["shortlisted", "Shortlisted"], ["rejected", "Rejected"], ["hired", "Hired"]];
@@ -61,9 +62,12 @@ export function RetailerJobsPage({ user }) {
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "16px 16px 100px", position: "relative", minHeight: "60vh" }}>
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 800, fontSize: 24, color: "var(--t1)" }}>My Jobs</div>
-        <div style={{ fontSize: 13, color: "var(--t3)" }}>Manage your job listings and review applicants</div>
+      <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 800, fontSize: 24, color: "var(--t1)" }}>My Jobs</div>
+          <div style={{ fontSize: 13, color: "var(--t3)" }}>Manage your job listings and review applicants</div>
+        </div>
+        <Link to="/jobs/post" style={{ padding: "8px 14px", borderRadius: 8, background: "#e85a2a", color: "white", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>+ Post a job</Link>
       </div>
 
       {myJobs === null ? (
@@ -86,7 +90,13 @@ export function RetailerJobsPage({ user }) {
                 <div style={{ fontWeight: 700, fontSize: 15, color: "var(--t1)" }}>{j.jobTitle}</div>
                 <span style={{ fontSize: 10, fontWeight: 700, color: statusColor, background: statusBg, border: `1px solid ${statusColor}30`, borderRadius: 10, padding: "2px 8px", textTransform: "capitalize", whiteSpace: "nowrap" }}>{j.status}</span>
               </div>
-              <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 10 }}>{j.city} · {j.jobType} · {j.category}</div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+                <div style={{ fontSize: 12, color: "var(--t3)" }}>{j.city} · {j.jobType} · {j.category}</div>
+                <span style={{ display: "flex", gap: 10 }}>
+                  <Link to={`/jobs/${j.id}`} style={{ fontSize: 12, fontWeight: 700, color: "var(--t2)", textDecoration: "none" }}>View</Link>
+                  <Link to={`/jobs/${j.id}/edit`} style={{ fontSize: 12, fontWeight: 700, color: "var(--acc)", textDecoration: "none" }}>✎ Edit</Link>
+                </span>
+              </div>
 
               {j.status === "approved" ? (
                 <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
@@ -136,7 +146,7 @@ export function RetailerJobsPage({ user }) {
         })
       )}
 
-      <PostJobModal user={user} onPosted={load} />
+      <PostJobButton />
     </div>
   );
 }

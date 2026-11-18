@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { collection, doc, getDocs, query, updateDoc, where } from "firebase/firestore";
 import { db } from "../../firebase/config";
+import { normaliseJob } from "../../utils/jobModel.js";
 
 export function JobsReviewSection() {
   const [pending, setPending] = useState([]);
@@ -54,8 +55,27 @@ export function JobsReviewSection() {
         </span>
       </div>
       <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 2 }}>{j.businessName || j.postedByName} · {j.city} · {j.jobType} · {j.category}</div>
-      {j.salaryRange && <div style={{ fontSize: 12, fontWeight: 600, color: "var(--acc)", marginTop: 4 }}>{j.salaryRange}</div>}
-      <div style={{ fontSize: 12, color: "var(--t2)", marginTop: 6 }}>{j.description}</div>
+      {(() => {
+        // New wizard jobs keep their content in responsibilities/skills/pay
+        // (description is empty) — show it all so the admin sees what they approve.
+        const n = normaliseJob(j);
+        return <>
+          {n.payText && <div style={{ fontSize: 12, fontWeight: 600, color: "var(--acc)", marginTop: 4 }}>{n.payText}{n.pay?.incentives ? ` · ${n.pay.incentives}` : ""}</div>}
+          {(n.industryLabel || n.lane === "skilled" || n.headcount > 1) && (
+            <div style={{ fontSize: 11, color: "var(--t3)", marginTop: 4 }}>
+              {[n.lane === "skilled" ? `Skilled${n.tradeLabel ? ` · ${n.tradeLabel}` : ""}` : null, n.industryLabel, n.headcount > 1 ? `${n.headcount} people` : null].filter(Boolean).join(" · ")}
+            </div>
+          )}
+          {n.description && <div style={{ fontSize: 12, color: "var(--t2)", marginTop: 6 }}>{n.description}</div>}
+          {n.responsibilities.length > 0 && (
+            <ul style={{ fontSize: 12, color: "var(--t2)", margin: "6px 0 0", paddingLeft: 16 }}>
+              {n.responsibilities.map((r, i) => <li key={i}>{r}</li>)}
+            </ul>
+          )}
+          {n.skills.length > 0 && <div style={{ fontSize: 11, color: "var(--t3)", marginTop: 4 }}>Skills: {n.skills.join(", ")}</div>}
+          {n.evpText && <div style={{ fontSize: 11, color: "var(--t3)", marginTop: 4 }}>Why join: {n.evpText}</div>}
+        </>;
+      })()}
       <div style={{ fontSize: 11, color: "var(--t3)", marginTop: 6 }}>Contact: {j.contactPhone}</div>
       <div style={{ fontSize: 11, marginTop: 6, color: j.notAgencyDeclaration ? "#16a34a" : "#dc2626", fontWeight: 600 }}>
         {j.notAgencyDeclaration ? "✓ Confirmed not an agency" : "⚠ Agency declaration missing"}

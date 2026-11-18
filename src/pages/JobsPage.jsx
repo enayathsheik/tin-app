@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { FUNCS, TRADES } from "../data/jobsTaxonomy.js";
+import { FUNCS, INDUSTRIES, TRADES, labelOf } from "../data/jobsTaxonomy.js";
 import { JOBS_HOME_META } from "../data/jobsLanes.js";
 import { jobMatchesFilters } from "../utils/jobFilters.js";
 import { useJobsFeed } from "../hooks/useJobsFeed";
@@ -9,7 +9,7 @@ import { useJobApply } from "../hooks/useJobApply";
 import { JobRow } from "../components/jobs/JobRow";
 import { JobsStyles, LaneMarker } from "../components/jobs/jobsUi";
 import { LANE_COLOR, btnOutline, card, chip, heading, payLine } from "../components/jobs/jobsStyle";
-import { PostJobModal } from "../components/shared/PostJobModal";
+import { PostJobButton } from "../components/jobs/PostJobButton";
 import { JobApplyModal } from "../components/shared/JobApplyModal";
 
 const SITE_URL = "https://tinit.in";
@@ -20,10 +20,11 @@ const SAMPLE_TRADES = ["mason", "electrician", "carpenter", "plumber", "tile_lay
 // /jobs — Jobs home: search, the two lane cards, the Needed Now strip, open
 // roles with lane tabs, and browse by function. ("Browse by industry" waits
 // for Phase 3 / decision D2 — jobs don't record an industry yet.)
-export function JobsPage({ user, isGuest, onRequireLogin, toast }) {
+export function JobsPage({ user, isGuest, onRequireLogin }) {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const q = params.get("q") || "";
+  const ind = INDUSTRIES.some(o => o.key === params.get("ind")) ? params.get("ind") : "";
   const [qInput, setQInput] = useState(q);
   const [tab, setTab] = useState("");
 
@@ -32,7 +33,15 @@ export function JobsPage({ user, isGuest, onRequireLogin, toast }) {
   const { appliedJobIds, openApply } = applyState;
 
   const neededNow = useMemo(() => feed.jobs.filter(j => j.isNeededNow).slice(0, 10), [feed.jobs]);
-  const openRoles = useMemo(() => feed.jobs.filter(j => jobMatchesFilters(j, { lane: tab, q })), [feed.jobs, tab, q]);
+  const openRoles = useMemo(() => feed.jobs.filter(j => jobMatchesFilters(j, { lane: tab, q, ind })), [feed.jobs, tab, q, ind]);
+  // Carry the home search + industry into "see all" lane links.
+  const laneQuery = (() => { const p = new URLSearchParams(); if (q) p.set("q", q); if (ind) p.set("ind", ind); const t = p.toString(); return t ? `?${t}` : ""; })();
+  const pickIndustry = (key) => {
+    const next = new URLSearchParams(params);
+    if (key) next.set("ind", key); else next.delete("ind");
+    setParams(next, { replace: true });
+    document.getElementById("tj-open-roles")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const submitSearch = (e) => {
     e.preventDefault();
@@ -129,17 +138,17 @@ export function JobsPage({ user, isGuest, onRequireLogin, toast }) {
       {/* OPEN ROLES */}
       <section id="tj-open-roles" style={{ marginBottom: 22, scrollMarginTop: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-          <h2 style={{ ...heading, fontSize: 20, margin: 0 }}>Open roles{q ? ` for "${q}"` : ""}</h2>
+          <h2 style={{ ...heading, fontSize: 20, margin: 0 }}>Open roles{q ? ` for "${q}"` : ""}{ind ? ` · ${labelOf(INDUSTRIES, ind)}` : ""}</h2>
           <div className="nav-tabs" role="tablist">
             {TABS.map(([k, label]) => (
               <button key={k || "all"} role="tab" aria-selected={tab === k} className={`ntab${tab === k ? " on" : ""}`} onClick={() => setTab(k)}>{label}</button>
             ))}
           </div>
         </div>
-        {q && (
+        {(q || ind) && (
           <button onClick={() => { setQInput(""); setParams(new URLSearchParams(), { replace: true }); }}
             style={{ background: "none", border: "none", color: "var(--acc)", fontSize: 12, fontWeight: 700, cursor: "pointer", padding: 0, marginBottom: 8 }}>
-            ✕ Clear search
+            ✕ Clear {q && ind ? "search and industry" : q ? "search" : "industry"}
           </button>
         )}
         {feed.error ? (
@@ -161,16 +170,33 @@ export function JobsPage({ user, isGuest, onRequireLogin, toast }) {
           </div>
         )}
         <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", marginTop: 12 }}>
-          {tab && <Link to={`/jobs/${tab}${q ? `?q=${encodeURIComponent(q)}` : ""}`} style={{ ...btnOutline, textDecoration: "none" }}>See all {tab === "skilled" ? "skilled" : "professional"} roles →</Link>}
+          {tab && <Link to={`/jobs/${tab}${laneQuery}`} style={{ ...btnOutline, textDecoration: "none" }}>See all {tab === "skilled" ? "skilled" : "professional"} roles →</Link>}
           {!tab && openRoles.length > OPEN_ROLES_SHOWN && (
-            <Link to={`/jobs/professional${q ? `?q=${encodeURIComponent(q)}` : ""}`} style={{ ...btnOutline, textDecoration: "none" }}>More professional roles →</Link>
+            <Link to={`/jobs/professional${laneQuery}`} style={{ ...btnOutline, textDecoration: "none" }}>More professional roles →</Link>
           )}
           {!tab && openRoles.length > OPEN_ROLES_SHOWN && (
-            <Link to={`/jobs/skilled${q ? `?q=${encodeURIComponent(q)}` : ""}`} style={{ ...btnOutline, textDecoration: "none" }}>More skilled roles →</Link>
+            <Link to={`/jobs/skilled${laneQuery}`} style={{ ...btnOutline, textDecoration: "none" }}>More skilled roles →</Link>
           )}
           {openRoles.length <= OPEN_ROLES_SHOWN && !feed.done && !feed.error && (
             <button onClick={feed.loadMore} disabled={feed.loading} style={btnOutline}>{feed.loading ? "Loading…" : "Load more jobs"}</button>
           )}
+        </div>
+      </section>
+
+      {/* BROWSE BY INDUSTRY (decision D2, Phase 3). Old jobs have no
+          industry, so they only appear with no industry picked. */}
+      <section style={{ marginBottom: 22 }}>
+        <h2 style={{ ...heading, fontSize: 20, margin: "0 0 8px" }}>Browse by industry</h2>
+        <div className="tj-tiles">
+          {INDUSTRIES.map(o => {
+            const on = ind === o.key;
+            return (
+              <button key={o.key} className="tj-tile" aria-pressed={on} onClick={() => pickIndustry(on ? "" : o.key)}
+                style={{ ...card, padding: "10px 12px", fontSize: 12, fontWeight: 600, color: "var(--t1)", borderColor: on ? "var(--acc)" : "var(--b2)" }}>
+                {on ? "✓ " : ""}{o.label}
+              </button>
+            );
+          })}
         </div>
       </section>
 
@@ -187,7 +213,7 @@ export function JobsPage({ user, isGuest, onRequireLogin, toast }) {
         </div>
       </section>
 
-      <PostJobModal user={user} isGuest={isGuest} onRequireLogin={onRequireLogin} onPosted={(_id, status) => { if (status === "approved") window.location.reload(); }} toast={toast} />
+      <PostJobButton />
       <JobApplyModal {...applyState} />
     </div>
     </div>

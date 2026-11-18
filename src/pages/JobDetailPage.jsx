@@ -99,7 +99,11 @@ export function JobDetailPage({ user, isGuest, onRequireLogin, toast }) {
     createdAtISO: job.raw.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
   });
 
-  const cardLink = posterLink.jobId === jobId ? posterLink.link : null;
+  // A job carrying a storeId links straight to that store (only an
+  // admin-linked account can set it); otherwise the poster's public profile.
+  const cardLink = job.storeId
+    ? { href: `/store/${job.storeId}`, label: "View store profile" }
+    : (posterLink.jobId === jobId ? posterLink.link : null);
   const sa = job.shortAssignment;
   const pay = payLine(job);
   const location = [job.city, job.state].filter(Boolean).join(", ");
@@ -216,6 +220,11 @@ export function JobDetailPage({ user, isGuest, onRequireLogin, toast }) {
             <button disabled style={{ padding: "10px 18px", borderRadius: 8, background: "var(--s2)", border: "1px solid var(--b2)", color: "var(--t3)", fontSize: 13, fontWeight: 700, cursor: "default" }}>
               This is your listing
             </button>
+          ) : null}
+          {isOwnListing ? (
+            <Link to={`/jobs/${job.id}/edit`} style={{ padding: "10px 18px", borderRadius: 8, background: "transparent", border: "1px solid var(--b3)", color: "var(--t1)", fontSize: 13, fontWeight: 700, textDecoration: "none" }}>
+              ✎ Edit job
+            </Link>
           ) : alreadyApplied ? (
             <button disabled style={{ padding: "10px 18px", borderRadius: 8, background: "var(--s2)", border: "1px solid var(--b2)", color: "var(--t3)", fontSize: 13, fontWeight: 700, cursor: "default" }}>
               ✓ Applied
@@ -237,7 +246,7 @@ export function JobDetailPage({ user, isGuest, onRequireLogin, toast }) {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 14, color: "var(--t1)" }}>{orgName}</div>
           <div style={{ fontSize: 12, color: "var(--t3)" }}>
-            {job.postedByType === "verified_business" ? "✓ TIN verified business" : "Posted on TIN"}
+            {[job.postedByType === "verified_business" ? "✓ TIN verified business" : "Posted on TIN", job.industryLabel].filter(Boolean).join(" · ")}
           </div>
         </div>
         {cardLink && (

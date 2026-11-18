@@ -10,7 +10,7 @@
 // Vite bundle, the Node prerender/sitemap scripts and unit tests.
 import { parseSalaryRange } from "./salaryParser.js";
 import {
-  FUNCS, TYPES, SHORT_TYPES, TRADES, BENEFITS, PAY_PERIODS, PAY_DISPLAY, URGENCY, LANES,
+  FUNCS, TYPES, SHORT_TYPES, TRADES, BENEFITS, PAY_PERIODS, PAY_DISPLAY, URGENCY, LANES, INDUSTRIES,
   isKey, keyForLabel, labelOf,
 } from "../data/jobsTaxonomy.js";
 
@@ -193,6 +193,8 @@ export function normaliseJob(raw) {
     state: str(raw.state),
     pincode: str(raw.pincode),
 
+    industry: isKey(INDUSTRIES, raw.industry) ? raw.industry : null,
+    storeId: str(raw.storeId) || null,
     businessName: str(raw.businessName),
     postedByName: str(raw.postedByName),
     postedByUid: raw.postedByUid ?? null,
@@ -209,6 +211,7 @@ export function normaliseJob(raw) {
   job.payText = formatPay(job.pay);
   job.functionLabels = job.functions.map(k => labelOf(FUNCS, k));
   job.workTypeLabels = job.workTypes.map(k => labelOf(TYPES, k));
+  job.industryLabel = job.industry ? labelOf(INDUSTRIES, job.industry) : null;
   job.tradeLabel = job.trade ? labelOf(TRADES, job.trade) : null;
   job.tradeLabelHi = job.trade ? TRADES.find(t => t.key === job.trade).labelHi : null;
   return job;

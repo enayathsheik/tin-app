@@ -65,7 +65,11 @@ export function RetailerDashboard({ user, stores, onNavigate }) {
   const saveProfile = async () => {
     try {
       if (user.uid) {
-        await updateDoc(doc(db, "users", user.uid), { ...storeProfile, locations, customEvents: events });
+        // verificationStatus is shown here but set only by the admin
+        // (firestore.rules users/{uid}) — never save it from the client.
+        // eslint-disable-next-line no-unused-vars
+        const { verificationStatus, ...profileToSave } = storeProfile;
+        await updateDoc(doc(db, "users", user.uid), { ...profileToSave, locations, customEvents: events });
       }
       setSaved(true);
       setEditing(false);

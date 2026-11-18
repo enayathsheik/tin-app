@@ -5,9 +5,21 @@ service cloud.firestore {
     // ── USERS ──────────────────────────────────────────────
     match /users/{userId} {
       allow read: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null && request.auth.uid == userId;
-      allow update: if request.auth != null &&
-        (request.auth.uid == userId || isAdmin());
+      // verificationStatus decides whether a user's jobs go live without
+      // review, and storeId which store page their jobs show on — so only the
+      // admin may set them (Jobs redesign phase 3). Everything else on the
+      // doc stays self-editable exactly as before.
+      allow create: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.get("verificationStatus", "pending") in ["pending", "unverified"]
+        && request.resource.data.get("storeId", null) == null;
+      // Self-setting verificationStatus is allowed only to "pending" /
+      // "unverified" (older RetailerDashboard builds re-save it as "pending")
+      // — never to "verified".
+      allow update: if isAdmin()
+        || (request.auth != null && request.auth.uid == userId
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(["storeId"])
+            && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(["verificationStatus"])
+                || request.resource.data.get("verificationStatus", "") in ["pending", "unverified"]));
       allow delete: if isAdmin();
 
       // ── SAVED JOBS ── (Jobs redesign phase 2, see docs/JOBS_BLUEPRINT.md §5.1)
@@ -128,21 +140,58 @@ service cloud.firestore {
         || isAdmin()
         || resource.data.postedByUid == request.auth.uid;
       allow create: if request.auth != null
-        && request.resource.data.postedByUid == request.auth.uid
+        && request.resource.data.get("postedByUid", "") == request.auth.uid
         && (
-          request.resource.data.status == "pending"
-          || (request.resource.data.status == "approved"
-              && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.verificationStatus == "verified")
-        );
-      // The poster may flip jobStatus (live/filled/closed) on their own listing —
-      // but nothing else on this doc; moderation status/content stays admin-only.
+          request.resource.data.get("status", "") == "pending"
+          || (request.resource.data.get("status", "") == "approved" && jobPosterIsVerified())
+        )
+        && jobFieldsOk(request.resource.data)
+        && jobStoreIdOk(request.resource.data);
+      // Jobs redesign phase 3 (docs/JOBS_BLUEPRINT.md §5.3): the poster may
+      // edit the content of their own listing and flip jobStatus. Moderation
+      // stays admin-only — status can only stay the same or drop back to
+      // "pending" — and an unverified poster's content edit must go back to
+      // pending (owner decision). Live/Filled/Closed-only changes never do.
       allow update: if isAdmin()
         || (
           request.auth != null
-          && resource.data.postedByUid == request.auth.uid
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["jobStatus"])
+          && resource.data.get("postedByUid", "") == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+               "jobStatus", "updatedAt", "status",
+               "jobTitle", "description", "city", "state", "pincode", "businessName",
+               "contactPhone", "category", "jobType", "salaryRange", "notAgencyDeclaration",
+               "lane", "trade", "functions", "workTypes", "headcount", "experience",
+               "education", "workingHours", "responsibilities", "skills",
+               "shortAssignment", "pay", "benefits", "evpText", "industry", "storeId"])
+          && request.resource.data.get("jobStatus", "live") in ["live", "filled", "closed"]
+          && (request.resource.data.get("status", "") == resource.data.get("status", "")
+              || request.resource.data.get("status", "") == "pending")
+          && (request.resource.data.diff(resource.data).affectedKeys().hasOnly(["jobStatus", "updatedAt"])
+              || request.resource.data.get("status", "") == "pending"
+              || jobPosterIsVerified())
+          && jobFieldsOk(request.resource.data)
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(["storeId"])
+              || jobStoreIdOk(request.resource.data))
         );
       allow delete: if isAdmin();
+
+      function jobPosterIsVerified() {
+        return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get("verificationStatus", "") == "verified";
+      }
+      // Lane / headcount sanity, and hidden pay ("Negotiable" / "Don't
+      // disclose") must not carry amounts — job docs are publicly readable.
+      function jobFieldsOk(data) {
+        return data.get("lane", "professional") in ["professional", "skilled"]
+          && data.get("headcount", 1) is int
+          && data.get("headcount", 1) >= 1
+          && (!(data.get("pay", {}).get("display", "") in ["negotiable", "undisclosed"])
+              || (data.get("pay", {}).get("min", null) == null && data.get("pay", {}).get("max", null) == null));
+      }
+      // A job may carry a storeId only if it's the poster's admin-set store link.
+      function jobStoreIdOk(data) {
+        return data.get("storeId", null) == null
+          || data.get("storeId", null) == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get("storeId", "__no_linked_store__");
+      }
     }
 
     // ══ NEW: JOB APPLICATIONS ═══════════════════════════════

@@ -102,7 +102,7 @@ export function jobMatchesSearch(job, q) {
   if (!needle) return true;
   const hay = [
     job.title, job.businessName, job.postedByName, job.city, job.state,
-    job.description, job.legacyCategory, job.tradeLabel, job.tradeLabelHi,
+    job.description, job.legacyCategory, job.tradeLabel, job.tradeLabelHi, job.industryLabel,
     ...(job.skills || []), ...(job.functionLabels || []),
   ].map(lc).join(" ");
   return needle.split(/\s+/).every(w => hay.includes(w));
@@ -115,12 +115,14 @@ export function jobInLane(job, lane) {
   return job.lane === lane;
 }
 
-// f = { lane, q, fn, trade, type, city, exp, pay } — empty values mean "Any".
+// f = { lane, q, fn, trade, ind, type, city, exp, pay } — empty values mean "Any".
+// Old jobs have no industry, so they only match when `ind` is empty.
 export function jobMatchesFilters(job, f = {}) {
   if (!jobInLane(job, f.lane)) return false;
   if (!jobMatchesSearch(job, f.q)) return false;
   if (f.fn && !(job.functions || []).includes(f.fn)) return false;
   if (f.trade && job.trade !== f.trade) return false;
+  if (f.ind && job.industry !== f.ind) return false;
   if (f.type && !(job.workTypes || []).includes(f.type)) return false;
   if (f.city && !lc(job.city).includes(lc(f.city).trim())) return false;
   if (!jobMatchesExperience(job, f.exp)) return false;
@@ -128,8 +130,8 @@ export function jobMatchesFilters(job, f = {}) {
   return true;
 }
 
-// Filter keys that live in the URL query string (?q=&fn=&trade=&type=&city=&exp=&pay=).
-export const FILTER_KEYS = ["q", "fn", "trade", "type", "city", "exp", "pay"];
+// Filter keys that live in the URL query string (?q=&fn=&trade=&ind=&type=&city=&exp=&pay=).
+export const FILTER_KEYS = ["q", "fn", "trade", "ind", "type", "city", "exp", "pay"];
 
 export function filtersFromSearchParams(params) {
   const f = {};

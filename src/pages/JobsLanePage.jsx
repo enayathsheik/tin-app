@@ -10,7 +10,7 @@ import { JobRow } from "../components/jobs/JobRow";
 import { JobFilters } from "../components/jobs/JobFilters";
 import { JobsStyles, LaneMarker } from "../components/jobs/jobsUi";
 import { LANE_COLOR, btnOutline, card, heading } from "../components/jobs/jobsStyle";
-import { PostJobModal } from "../components/shared/PostJobModal";
+import { PostJobButton } from "../components/jobs/PostJobButton";
 import { JobApplyModal } from "../components/shared/JobApplyModal";
 
 const SITE_URL = "https://tinit.in";
@@ -18,7 +18,7 @@ const SITE_URL = "https://tinit.in";
 // /jobs/professional · /jobs/skilled · /jobs/needed-now
 // Filters live in the URL (?q=&fn=&trade=&type=&city=&exp=&pay=) so a
 // filtered list can be shared and opened directly.
-export function JobsLanePage({ slug, user, isGuest, onRequireLogin, toast }) {
+export function JobsLanePage({ slug, user, isGuest, onRequireLogin }) {
   const meta = laneBySlug(slug);
   const [params, setParams] = useSearchParams();
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -123,7 +123,7 @@ export function JobsLanePage({ slug, user, isGuest, onRequireLogin, toast }) {
         </div>
       </div>
 
-      <PostJobModal user={user} isGuest={isGuest} onRequireLogin={onRequireLogin} toast={toast} />
+      <PostJobButton />
       <JobApplyModal {...applyState} />
     </div>
     </div>

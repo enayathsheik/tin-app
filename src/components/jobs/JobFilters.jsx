@@ -1,5 +1,5 @@
 import { CITIES } from "../../data/constants";
-import { FUNCS, TRADES, TYPES } from "../../data/jobsTaxonomy.js";
+import { FUNCS, INDUSTRIES, TRADES, TYPES } from "../../data/jobsTaxonomy.js";
 import { EXPERIENCE_BANDS, PAY_BANDS } from "../../utils/jobFilters.js";
 import { card, fieldLabel } from "./jobsStyle";
 
@@ -39,6 +39,13 @@ export function JobFilters({ lane, f, onChange, onClear, open }) {
         </label>
       )}
       <label>
+        <div style={fieldLabel}>Industry</div>
+        <select className="fi" value={f.ind || ""} onChange={set("ind")}>
+          <option value="">All industries</option>
+          {INDUSTRIES.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+        </select>
+      </label>
+      <label>
         <div style={fieldLabel}>Work type</div>
         <select className="fi" value={f.type || ""} onChange={set("type")}>
           <option value="">Any work type</option>
@@ -65,7 +72,7 @@ export function JobFilters({ lane, f, onChange, onClear, open }) {
         </select>
       </label>
       <div style={{ fontSize: 11, color: "var(--t3)", lineHeight: 1.4 }}>
-        Jobs with negotiable, hidden or unclear pay or experience show only under "Any".
+        Jobs with negotiable, hidden or unclear pay or experience, and older jobs with no industry, show only under "Any" / "All".
       </div>
       {active && (
         <button onClick={onClear} style={{ alignSelf: "flex-start", background: "none", border: "none", color: "var(--acc)", fontSize: 12, fontWeight: 700, cursor: "pointer", padding: 0 }}>
