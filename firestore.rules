@@ -210,19 +210,88 @@ service cloud.firestore {
     // Read restricted to the applicant themselves or the poster of the
     // job being applied to (looked up via the application's jobId).
     match /jobApplications/{applicationId} {
+      // Jobs redesign phase 4 (docs/JOBS_BLUEPRINT.md §5.5/§5.6).
       // Document ID is deterministic (`${jobId}_${applicantUid}`) — !exists() blocks
-      // a second apply attempt at the rules layer, not just the UI.
+      // a second apply attempt at the rules layer, not just the UI. The job
+      // must exist and be approved + live, and not be the applicant's own.
+      // Old clients (no stage, applicantStatus "new") still pass during rollout.
       allow create: if request.auth != null
-        && request.resource.data.applicantUid == request.auth.uid
-        && !exists(/databases/$(database)/documents/jobApplications/$(applicationId));
+        && request.resource.data.get("applicantUid", "") == request.auth.uid
+        && applicationId == request.resource.data.get("jobId", "") + "_" + request.auth.uid
+        && !exists(/databases/$(database)/documents/jobApplications/$(applicationId))
+        && exists(/databases/$(database)/documents/jobListings/$(request.resource.data.get("jobId", "")))
+        && get(/databases/$(database)/documents/jobListings/$(request.resource.data.get("jobId", ""))).data.get("status", "") == "approved"
+        && get(/databases/$(database)/documents/jobListings/$(request.resource.data.get("jobId", ""))).data.get("jobStatus", "") == "live"
+        && get(/databases/$(database)/documents/jobListings/$(request.resource.data.get("jobId", ""))).data.get("postedByUid", "") != request.auth.uid
+        && request.resource.data.get("stage", "submitted") == "submitted"
+        && request.resource.data.get("applicantStatus", "new") == "new"
+        && request.resource.data.get("stageHistory", []).size() <= 1
+        && !("currentPay" in request.resource.data)
+        && (request.resource.data.get("resumePath", "") == ""
+            || request.resource.data.get("resumePath", "").matches("resumes/" + request.auth.uid + "/" + request.resource.data.get("jobId", "") + "/[^/]+"));
       allow read: if request.auth != null
-        && (resource.data.applicantUid == request.auth.uid
-            || get(/databases/$(database)/documents/jobListings/$(resource.data.jobId)).data.postedByUid == request.auth.uid);
-      // The job's poster may set applicantStatus (new/shortlisted/rejected/hired) —
-      // and nothing else on this doc; the applicant can't edit their own application after submit.
-      allow update: if request.auth != null
-        && get(/databases/$(database)/documents/jobListings/$(resource.data.jobId)).data.postedByUid == request.auth.uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["applicantStatus"]);
+        && (resource.data.get("applicantUid", "") == request.auth.uid
+            || isAdmin()
+            || get(/databases/$(database)/documents/jobListings/$(resource.data.get("jobId", ""))).data.get("postedByUid", "") == request.auth.uid);
+      allow update: if request.auth != null && !(appStage(resource.data) in ["not_shortlisted", "offer_accepted", "offer_declined", "not_selected", "withdrawn", "closed"]) && (
+        // ── Candidate: withdraw; accept an interview (only from invited /
+        //    rescheduled); answer an offer (only from offer_sent); or send a
+        //    reschedule note without changing the stage.
+        (resource.data.get("applicantUid", "") == request.auth.uid
+          && (
+            (request.resource.data.diff(resource.data).affectedKeys().hasOnly(["interviewResponse", "updatedAt"])
+              && appStage(resource.data) in ["int_invited", "int_rescheduled"])
+            || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(["stage", "stageHistory", "updatedAt", "interviewResponse"])
+              && stageHistoryGrewByOne()
+              && (request.resource.data.get("stage", "") == "withdrawn"
+                  || (request.resource.data.get("stage", "") == "int_scheduled"
+                      && appStage(resource.data) in ["int_invited", "int_rescheduled"])
+                  || (request.resource.data.get("stage", "") in ["offer_accepted", "offer_declined"]
+                      && appStage(resource.data) == "offer_sent")))
+          ))
+        ||
+        // ── Employer (poster of the job): employer stages only, timeline
+        //    grows by one. Older My Jobs builds that only change
+        //    applicantStatus keep working.
+        (get(/databases/$(database)/documents/jobListings/$(resource.data.get("jobId", ""))).data.get("postedByUid", "") == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["applicantStatus", "stage", "stageHistory", "updatedAt", "interview"])
+          && (request.resource.data.diff(resource.data).affectedKeys().hasOnly(["applicantStatus"])
+              || (request.resource.data.get("stage", "") in ["review", "shortlisted", "not_shortlisted", "contacted", "int_done", "info_req", "assess_req", "selected", "offer_sent", "not_selected", "closed", "app_viewed", "profile_viewed", "int_invited", "int_rescheduled"]
+                  && stageHistoryGrewByOne())))
+      );
+
+      // Current stage: the new field, else the old applicantStatus through
+      // the approved mapping (new→submitted, shortlisted, rejected→
+      // not_shortlisted, hired→offer_accepted).
+      function appStage(d) {
+        return d.get("stage", "") != "" ? d.get("stage", "")
+          : d.get("applicantStatus", "new") == "shortlisted" ? "shortlisted"
+          : d.get("applicantStatus", "new") == "rejected" ? "not_shortlisted"
+          : d.get("applicantStatus", "new") == "hired" ? "offer_accepted"
+          : "submitted";
+      }
+      // Each stage change appends exactly one timeline entry for that stage.
+      function stageHistoryGrewByOne() {
+        return request.resource.data.get("stageHistory", []).size() == resource.data.get("stageHistory", []).size() + 1
+          && request.resource.data.get("stageHistory", [])[request.resource.data.get("stageHistory", []).size() - 1].get("stage", "") == request.resource.data.get("stage", "");
+      }
+    }
+
+    // ── CANDIDATE JOB PROFILES ── (Jobs redesign phase 4, §4.1 / §5.4)
+    // Shareable part: owner writes; never carries private fields. Readable
+    // by the owner, admin, or signed-in users unless "not discoverable".
+    match /jobProfiles/{uid} {
+      allow read: if request.auth != null && (
+           request.auth.uid == uid || isAdmin()
+        || (resource != null && resource.data.get("visibility", "not_discoverable") != "not_discoverable"));
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && !request.resource.data.keys().hasAny(["phone", "email", "currentPay", "expectedPay", "cv"])
+        && request.resource.data.get("lane", "professional") in ["professional", "skilled"];
+      allow delete: if request.auth != null && (request.auth.uid == uid || isAdmin());
+    }
+    // Private part (phone, email, pay, CV details): the candidate only.
+    match /jobProfilesPrivate/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
     }
     // ══ END NEW ═════════════════════════════════════════════
 

@@ -3,9 +3,9 @@ import { collection, doc, getDocs, query, serverTimestamp, updateDoc, where } fr
 import { db } from "../firebase/config";
 import { Link } from "react-router-dom";
 import { PostJobButton } from "../components/jobs/PostJobButton";
+import { ApplicantCard } from "../components/jobs/ApplicantCard";
 
 const JOB_STATUS_OPTIONS = [["live", "Live"], ["filled", "Filled"], ["closed", "Closed"]];
-const APPLICANT_STATUS_OPTIONS = [["new", "New"], ["shortlisted", "Shortlisted"], ["rejected", "Rejected"], ["hired", "Hired"]];
 
 export function RetailerJobsPage({ user }) {
   const [myJobs, setMyJobs] = useState(null); // null = loading
@@ -45,20 +45,6 @@ export function RetailerJobsPage({ user }) {
     }
   };
 
-  const setApplicantStatus = async (jobId, appId, applicantStatus) => {
-    const prev = applicantsByJob;
-    setApplicantsByJob(m => ({
-      ...m,
-      [jobId]: (m[jobId] || []).map(a => a.id === appId ? { ...a, applicantStatus } : a),
-    }));
-    try {
-      await updateDoc(doc(db, "jobApplications", appId), { applicantStatus });
-    } catch (e) {
-      console.error("[retailer-jobs] Failed to update applicant status:", e);
-      alert("Could not update applicant status: " + e.message);
-      setApplicantsByJob(prev);
-    }
-  };
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "16px 16px 100px", position: "relative", minHeight: "60vh" }}>
@@ -124,23 +110,7 @@ export function RetailerJobsPage({ user }) {
               <div style={{ fontSize: 12, fontWeight: 700, color: "var(--t2)", marginBottom: applicants.length ? 6 : 0 }}>
                 {applicants.length} applicant{applicants.length === 1 ? "" : "s"}
               </div>
-              {applicants.map(a => (
-                <div key={a.id} style={{ background: "var(--s2)", borderRadius: 8, padding: "10px 12px", marginTop: 6 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--t1)" }}>{a.applicantName} · {a.applicantPhone}</div>
-                    <select value={a.applicantStatus || "new"} onChange={e => setApplicantStatus(j.id, a.id, e.target.value)}
-                      style={{ fontSize: 11, fontWeight: 700, padding: "3px 6px", borderRadius: 6, border: "1px solid var(--b2)", background: "var(--s1)", color: "var(--t1)", cursor: "pointer" }}>
-                      {APPLICANT_STATUS_OPTIONS.map(([val, label]) => <option key={val} value={val}>{label}</option>)}
-                    </select>
-                  </div>
-                  {a.message && <div style={{ fontSize: 12, color: "var(--t2)", marginTop: 4 }}>{a.message}</div>}
-                  {a.resumeUrl && (
-                    <a href={a.resumeUrl} target="_blank" rel="noreferrer" style={{ display: "inline-block", fontSize: 12, fontWeight: 700, color: "#1D4ED8", textDecoration: "none", marginTop: 4 }}>
-                      📄 View Resume{a.resumeFileName ? ` (${a.resumeFileName})` : ""}
-                    </a>
-                  )}
-                </div>
-              ))}
+              {applicants.map(a => <ApplicantCard key={a.id} app={a} employerUid={user.uid} />)}
             </div>
           );
         })

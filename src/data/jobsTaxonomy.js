@@ -229,6 +229,26 @@ export const MILESTONES = [
   ["Offer", ["offer_sent", "offer_accepted"]],
 ];
 
+// Phase 4: who may set which stage (docs/JOBS_BLUEPRINT.md §4.4; mirrored
+// in firestore.rules). Employers: EMP_SET + the automatic "viewed" stages +
+// interview invite / reschedule. Candidates: withdraw, accept an interview,
+// answer an offer.
+export const EMPLOYER_STAGES = [...EMP_SET, "app_viewed", "profile_viewed", "int_invited", "int_rescheduled"];
+export const CANDIDATE_STAGES = ["withdrawn", "int_scheduled", "offer_accepted", "offer_declined"];
+// Old applicantStatus values → stage (owner-approved mapping).
+export const LEGACY_APPLICANT_STATUS = {
+  new: "submitted",
+  shortlisted: "shortlisted",
+  rejected: "not_shortlisted",
+  hired: "offer_accepted",
+};
+
+// Work types offered to the skilled lane (owner decision, Phase 4); the
+// professional lane gets the full TYPES list.
+export const SKILLED_WORK_TYPES = ["daily_wage", "project_based", "full_time", "temporary", "fixed_term", "on_call"];
+export const workTypesForLane = (lane) =>
+  lane === "skilled" ? TYPES.filter(t => SKILLED_WORK_TYPES.includes(t.key)) : TYPES;
+
 // ── Lanes ────────────────────────────────────────────────────
 // Only two lanes are stored. "Needed Now" is derived (short work type or a
 // duration set) — see isNeededNow() in src/utils/jobModel.js.

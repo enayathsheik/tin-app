@@ -89,9 +89,45 @@ service firebase.storage {
       return request.auth != null && request.auth.token.email == "enayathsheik@gmail.com";
     }
 
+    // ── CVs: per job + saved profile CV ── (Jobs redesign phase 4)
+    // New CVs live in the job's folder so access can be checked LIVE against
+    // that job's application: the candidate, the TIN admin, or the poster of
+    // that job while the application exists and isn't withdrawn. No
+    // permanent download link is created or saved by the app. (Old flat
+    // resumes/{uid}/{fileName} files above keep their saved links.)
+    match /resumes/{uid}/{jobId}/{fileName} {
+      allow read: if request.auth != null
+        && (request.auth.uid == uid || isTinAdmin() || employerCanReadCv(uid, jobId));
+      allow write: if cvUploadOk(uid);
+    }
+    // The candidate's saved CV (resumes/{uid}/profile/…): owner + admin only
+    // (the employer check above can't match "profile" — there's no
+    // application with that id).
+    match /resumes/{uid}/profile/{fileName} {
+      allow read: if request.auth != null && (request.auth.uid == uid || isTinAdmin());
+      allow write: if cvUploadOk(uid);
+    }
+
+    function cvUploadOk(uid) {
+      return request.auth != null
+        && request.auth.uid == uid
+        && request.resource.size < 5 * 1024 * 1024
+        && (
+          request.resource.contentType.matches('application/pdf')
+          || request.resource.contentType.matches('application/msword')
+          || request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        );
+    }
+    // Owner decision: the employer loses access when the candidate withdraws.
+    function employerCanReadCv(uid, jobId) {
+      return firestore.exists(/databases/(default)/documents/jobApplications/$(jobId + "_" + uid))
+        && firestore.get(/databases/(default)/documents/jobApplications/$(jobId + "_" + uid)).data.get("stage", "submitted") != "withdrawn"
+        && firestore.get(/databases/(default)/documents/jobListings/$(jobId)).data.get("postedByUid", "") == request.auth.uid;
+    }
+
     // Mirrors firestore.rules' isAdmin() (the TIN admin account).
     function isTinAdmin() {
-      return request.auth != null && request.auth.token.email == "enayathsheik@gmail.com";
+      return request.auth != null && request.auth.token.get("email", "") == "enayathsheik@gmail.com";
     }
 
     // Mirrors firestore.rules' canManageHom() (isAdmin() OR a `role: 'hom_admin'`

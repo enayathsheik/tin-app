@@ -77,9 +77,11 @@ export function JobsPage({ user, isGuest, onRequireLogin }) {
           <input className="fi" placeholder="Search role, company, skill or city" value={qInput} onChange={e => setQInput(e.target.value)} aria-label="Search jobs" />
           <button type="submit" className="btn btn-primary" style={{ whiteSpace: "nowrap" }}>Search</button>
         </form>
-        {!isGuest && (
-          <Link to="/jobs/saved" style={{ display: "inline-block", marginTop: 10, fontSize: 12, fontWeight: 700, color: "var(--acc)", textDecoration: "none" }}>★ Saved jobs →</Link>
-        )}
+        <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 10 }}>
+          <Link to="/jobs/profile" style={{ fontSize: 12, fontWeight: 700, color: "var(--acc)", textDecoration: "none" }}>👤 My job profile · <span lang="hi">मेरी प्रोफ़ाइल</span> →</Link>
+          {!isGuest && <Link to="/jobs/applications" style={{ fontSize: 12, fontWeight: 700, color: "var(--acc)", textDecoration: "none" }}>📋 My applications →</Link>}
+          {!isGuest && <Link to="/jobs/saved" style={{ fontSize: 12, fontWeight: 700, color: "var(--acc)", textDecoration: "none" }}>★ Saved jobs →</Link>}
+        </div>
       </div>
 
       {/* LANE CARDS */}

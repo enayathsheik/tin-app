@@ -115,7 +115,8 @@ to differ from this document, update this document first, in the same commit.
 | **2 Find work** | Lanes landing (`/jobs`), lane pages (`/jobs/professional`, `/jobs/skilled`, `/jobs/needed-now`), saved jobs (`/jobs/saved`), new filters, extended job detail, save job, report job. All via `normaliseJob()`, old jobs included. Paged feed (30 at a time) needing index `jobListings: status, jobStatus, createdAt desc`. | Yes |
 | **3 Post a job wizard** (shipped) | `/jobs/post` + `/jobs/{id}/edit` (5 steps, replaces PostJobModal; per-device autosave), industry (D2) + Browse by industry + Industry filter, Open jobs on the store page, users-record security fix, admin review card shows full new-job content. Store linking stays admin-only (one-off script until a Phase 7 admin tool). | Yes |
 | **3 Post a job wizard** | 5-step wizard writing the new shape (§3) plus the legacy fields; drafts; edit vacancy (rules change §5.3). | Yes |
-| **4 Candidate profile + apply + My Applications** | Profile (public + private docs), one-tap apply with snapshot, application stages, My Applications tracker with milestones, interview/offer replies, withdraw, saved jobs list. CV storage move. | Yes |
+| **4 Candidate profile + apply + My Applications** (shipped) | `/jobs/profile` (4 steps; steps 3–4 optional, "save & finish later"; skilled lane bilingual with trade tiles), one-tap apply when name + mobile + trade/role + city are known (else a 4-field form that also fills the profile), CV optional (no CV → printable "TIN Profile" card for the employer), per-job CVs with live access checks (no saved download links; employer loses access on withdrawal), `stage` + `stageHistory`, `/jobs/applications` with the 6-milestone tracker and interview/offer replies, employer stage moves + interview invite in My Jobs and the Profile page. | Yes |
+| **4b AI profile helper** (design only, §8) | Callable function: ~5 plain-language questions (Hindi/English/mixed) → profile draft → candidate reviews and saves. | Yes |
 | **5 Employer Desk + messaging** | Vacancies, pipeline board, list + bulk, application drawer, find candidates, team (existing org roles), recruitment details. Messaging = TIN Conversations with the job linked via `LINKABLE_ENTITY_COLLECTIONS` (no separate chat). | Yes |
 | **6 Emails + notifications** | In-app notifications collection, email sending per `ST[stage].email`, per-person preferences, 10-minute de-duplication. | Yes |
 | **7 Admin + career pathway** | Admin alerts, analytics, tables, audit log; career pathway + Career Score. | Yes |
@@ -353,7 +354,7 @@ match /jobProfiles/{uid} {
        request.auth.uid == uid || isAdmin()
     || (resource != null && resource.data.get("visibility", "not_discoverable") != "not_discoverable"));
   allow create, update: if request.auth != null && request.auth.uid == uid
-    && request.resource.data.keys().hasNone(["phone", "email", "currentPay", "expectedPay", "cv"]);
+    && !request.resource.data.keys().hasAny(["phone", "email", "currentPay", "expectedPay", "cv"]);
   allow delete: if request.auth != null && (request.auth.uid == uid || isAdmin());
 }
 match /jobProfilesPrivate/{uid} {
@@ -376,7 +377,7 @@ allow create: if request.auth != null
   && get(/databases/$(database)/documents/jobListings/$(request.resource.data.jobId)).data.get("postedByUid", "") != request.auth.uid
   && request.resource.data.get("stage", "submitted") == "submitted"
   && request.resource.data.get("applicantStatus", "new") == "new"
-  && request.resource.data.keys().hasNone(["currentPay"]);
+  && !("currentPay" in request.resource.data);
 ```
 
 The `.get` defaults keep today's apply flow (no `stage` field) working during rollout.
@@ -436,16 +437,19 @@ match /notifications/{id} {
 | D1 | **Email service for Phase 6** | Phase 6 | **Open.** TIN has no email sending today. Options to compare when Phase 6 is planned: a transactional email API (e.g. Resend, SendGrid, Amazon SES) called from Cloud Functions, or Firebase's "Trigger Email" extension writing to a `mail` collection. Needs: the sending domain (tinit.in) verified by the owner, monthly cost at expected volume, and Hindi/English templates. The owner decides; nothing is sent until then. |
 | D2 | Prototype industries vs TIN business types | Phase 3 | **Decided (Phase 3):** prefill from the linked store's business type, else the account role, via the fixed table in `jobsTaxonomy.js` (Retailer/Distributor/Wholesaler → Retailers, Distributors & Dealers; Manufacturer → Manufacturers; Contractor → General & Specialist Contractors; Architect/Designer → Architects & Interior Design Firms; Consultant → Consultants); otherwise the poster picks. Always editable. |
 | D7 | Admin tool to link an account to its store | Phase 7 | Store linking (`users/{uid}.storeId`) is admin-only. Until an admin tool exists, links are made with a one-off script on request. |
-| D3 | Candidate work-type preferences | Phase 4 | The prototype's candidate form uses a different 10-item list ("Contractual", "Internship / apprenticeship") from the job `TYPES` list. Decide: reuse `TYPES` keys (recommended, so matching works) or add a separate list. |
+| D3 | Candidate work-type preferences | Phase 4 | **Decided (Phase 4):** reuse the job `TYPES` keys. The skilled lane sees only Daily-wage, Project-based, Full-time, Temporary, Fixed-term contractual and On-call (`SKILLED_WORK_TYPES`); the professional lane sees the full list. |
 | D4 | City list | Phase 2 | The prototype's 8 cities are sample data. TIN's existing `CITIES` list stays unless decided otherwise. |
 | D5 | Job view counts | Phase 5 | The prototype shows views and view→apply rate. Counting views needs a write from every visitor. Decide between a Cloud Function counter or leaving views out. |
 | D6 | Vacancy expiry | Phase 5 | The prototype expires vacancies after 30 days, with "Extend 30 days". Needs an `expiresAt` field and a decision on what happens at expiry. |
 
 ## 7. Known gaps in today's live code (for the record)
 
-- **CVs:** any signed-in user can read any file under `resumes/` with its
-  link. The fix is scheduled right after Phase 1 (§2).
-- **Apply:** the `jobApplications` create rule doesn't check that the job exists, is live,
+- **CVs:** any signed-in user could read any file under `resumes/`. Fixed after Phase 1
+  (owner + admin only; old saved links kept working). Phase 4 closes the forwarded-link
+  gap for **new** CVs: they live in `resumes/{uid}/{jobId}/`, open only through a live
+  rules check (candidate, admin, or that job's employer while the application isn't
+  withdrawn), and no download link is saved. Old CVs keep their saved links.
+- **Apply (fixed in Phase 4):** the `jobApplications` create rule didn't check that the job exists, is live,
   or that the status starts as "new". Fixed in Phase 4 (§5.5).
 - **Editing:** posters couldn't edit job content (rules allowed `jobStatus` only, and not
   even `updatedAt`). Fixed in Phase 3 (§5.3).
@@ -464,3 +468,63 @@ match /notifications/{id} {
   admin/server-only in `firestore.rules`. Not started.
 - **Pay parsing:** `salaryParser.js` reads "₹25k" as ₹25 for JSON-LD `baseSalary`. Phase 2
   moves JSON-LD onto `normaliseJob()`, which treats shorthand as unreadable.
+
+## 8. Phase 4b — AI profile helper (design only, not built)
+
+**Goal:** a mason or helper who finds forms hard can answer about five simple
+questions — typed or dictated, in Hindi, English or a mix — and get a profile
+draft to check and save. **Suggest, then confirm:** nothing is ever saved
+without the candidate pressing Save on the review screen.
+
+**Flow (in `/jobs/profile`, "Fill it for me" button):**
+1. Five short questions, shown one at a time, bilingual, each with an example:
+   1. "What work do you do?" · "आप कौन सा काम करते हैं?"
+   2. "How many years have you done this work?" · "कितने साल से यह काम कर रहे हैं?"
+   3. "What kind of work have you done? (sites, buildings, shops…)" · "आपने कहाँ-कहाँ, कैसा काम किया है?"
+   4. "Which areas can you work in, and which languages do you speak?" · "किन इलाकों में काम करेंगे, कौन सी भाषा बोलते हैं?"
+   5. "What kind of work do you want, and when can you start?" · "कैसा काम चाहिए, कब से शुरू कर सकते हैं?"
+2. The answers go to a callable Cloud Function, which returns a **draft** in the
+   profile shape (taxonomy keys only).
+3. The wizard opens with the draft filled in and every AI-filled field marked
+   "suggested". The candidate edits anything, then presses **Save**, the normal
+   `saveJobProfile` path and rules.
+
+**Cloud Function `suggestJobProfile`** (`functions/ai.js`, same setup as today):
+- `onCall({ region: "asia-south1", secrets: [OPENAI_API_KEY], enforceAppCheck: false, cors: true })`,
+  requiring `request.auth`.
+- Input: `{ answers: string[5], lane?: "professional" | "skilled" }`. Each answer is
+  trimmed to 500 characters, and the request is rejected if the total is over 2,500.
+- **Privacy:** only these five work answers are sent to OpenAI. The function
+  never reads `jobProfilesPrivate` or `users/{uid}`, and never sends a name,
+  phone, email or pay. Answers are also scrubbed of anything that looks like a
+  phone number or email before sending (regex), and are not stored.
+- Model: `gpt-4o-mini` (the `fast` tier in `packages/ai-foundation`), with
+  `response_format: json_schema`. The schema allows only fields of the profile,
+  with `trades` / `functions` / `workTypePrefs` / `availability` / `education`
+  restricted to taxonomy keys (enum) and `experienceYears` a number 0–60.
+- The server validates the output again through `splitProfile()`-style
+  filtering (unknown keys dropped), so the AI can never add fields or invent
+  options. Fields it isn't sure of come back empty, never guessed.
+- Returns `{ draft, notes }`. `notes` is one plain-language line per field it
+  couldn't fill ("Experience not mentioned"). Nothing is written to Firestore.
+
+**Rate limits:**
+- **Per user:** at most 5 calls per day and 20 per month, counted in
+  `aiUsage/{uid}` (written only by the function with the Admin SDK; rules deny
+  client writes).
+- **Global:** at most 2,000 calls per day across TIN (`aiUsage/_global`), with
+  a clear "try again tomorrow" message when reached.
+- The client button is disabled while a call is running; OpenAI's timeout is 20 s.
+
+**Cost per profile (estimate, prices to be re-checked before building):**
+- About 1,200 input tokens (instructions + schema + answers) and 350 output
+  tokens per call.
+- At gpt-4o-mini list prices (about $0.15 per million input tokens and $0.60 per
+  million output tokens), that's about $0.0004 per call, or roughly **₹0.04 per
+  profile**. Even at the 5-calls-a-day cap, it's under ₹0.20 per person per day.
+- 10,000 profiles ≈ ₹400. Cloud Functions invocation cost is negligible at this volume.
+
+**Tests when built:** emulator test that the function refuses unauthenticated
+calls; unit tests that the output filter drops unknown keys and non-taxonomy
+values, that phone/email scrubbing works, and that the rate-limit counter
+blocks call 6 of the day. A manual check with mixed Hindi–English answers.

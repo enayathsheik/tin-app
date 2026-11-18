@@ -5,6 +5,7 @@ import { CONTRIBUTOR_LEVELS, ROLES } from "../data/constants";
 import { getLevel } from "../utils/helpers";
 import { canChangeHandle, checkHandleAvailable, claimHandle, isReservedHandle, isValidHandleFormat } from "../utils/handles";
 import { CreateOrganizationSection } from "../components/profile/CreateOrganizationSection";
+import { ApplicantCard } from "../components/jobs/ApplicantCard";
 
 export function ProfilePage({ user, onUpdateUser, showJobPosts = true }) {
   const lv = getLevel(user.points);
@@ -288,17 +289,7 @@ export function ProfilePage({ user, onUpdateUser, showJobPosts = true }) {
                   <div style={{ fontSize: 12, fontWeight: 700, color: "var(--t2)", marginBottom: applicants.length ? 6 : 0 }}>
                     {applicants.length} applicant{applicants.length === 1 ? "" : "s"}
                   </div>
-                  {applicants.map(a => (
-                    <div key={a.id} style={{ background: "var(--s2)", borderRadius: 8, padding: "8px 10px", marginTop: 6 }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--t1)" }}>{a.applicantName} · {a.applicantPhone}</div>
-                      {a.message && <div style={{ fontSize: 12, color: "var(--t2)", marginTop: 2 }}>{a.message}</div>}
-                      {a.resumeUrl && (
-                        <a href={a.resumeUrl} target="_blank" rel="noreferrer" style={{ display: "inline-block", fontSize: 12, fontWeight: 700, color: "#1D4ED8", textDecoration: "none", marginTop: 4 }}>
-                          📄 View Resume{a.resumeFileName ? ` (${a.resumeFileName})` : ""}
-                        </a>
-                      )}
-                    </div>
-                  ))}
+                  {applicants.map(a => <ApplicantCard key={a.id} app={a} employerUid={user.uid} />)}
                 </div>
               );
             })
