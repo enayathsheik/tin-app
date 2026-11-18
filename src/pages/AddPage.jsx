@@ -4,6 +4,7 @@ import { db, updateUserStats } from "../firebase/config";
 import { BUSINESS_TYPES, CITIES, STATES, STORE_CHECKLIST, INDIVIDUAL_CHECKLIST } from "../data/constants";
 import { validatePincode, getLevel } from "../utils/helpers";
 import { MultiCategorySelector } from "../components/shared/MultiCategorySelector";
+import { submitStore } from "../lib/submitStore";
 
 export function AddPage({ user, onSubmit, toast }) {
   if (!user) return null;
@@ -15,6 +16,7 @@ export function AddPage({ user, onSubmit, toast }) {
   const [locating, setLocating] = useState(false);
   const [checklist, setChecklist] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [gstStatus, setGstStatus] = useState(null); // null | "checking" | "verified" | "invalid" | "error"
   const [gstData, setGstData] = useState(null);
   const [form, setForm] = useState({
@@ -67,46 +69,47 @@ export function AddPage({ user, onSubmit, toast }) {
   const handleSubmit = async () => {
     if (!form.storeName || !form.phone || !form.city) return;
     setSubmitting(true);
-    try {
-      // Build clean store object - no undefined values
-      const storeData = {
-        storeName: form.storeName || "",
-        phone: form.phone || "",
-        whatsapp: form.whatsapp || "",
-        instagram: form.instagram || "",
-        facebook: form.facebook || "",
-        address: form.address || "",
-        city: form.city || "",
-        state: form.state || "",
-        pincode: form.pincode || "",
-        businessType: form.businessType || "",
-        ownerName: form.ownerName || "",
-        email: form.email || "",
-        personalEmail: form.personalEmail || "",
-        gst: form.gst || "",
-        brands: form.brands || "",
-        website: form.website || "",
-        lat: form.lat || null,
-        lng: form.lng || null,
-        categories: selectedCategories || [],
-        checklist: checklist || [],
-        type: recType,
-        contributorId: user.uid || user.email || "anonymous",
-        contributorEmail: user.email || "",
-        verificationStatus: "community_added",
-        gstVerified: gstStatus === "verified",
-        gstVerifiedData: gstData ? { legalName: gstData.lgnm, status: gstData.sts, registrationDate: gstData.rgdt, constitutionOfBusiness: gstData.ctb } : null,
-        pointsAwarded: gstStatus === "verified" ? 20 : 10,
-        confidence: gstStatus === "verified" ? 85 : 20,
-        createdAt: serverTimestamp(),
-      };
+    setSaveError("");
+    // Build clean store object - no undefined values
+    const storeData = {
+      storeName: form.storeName || "",
+      phone: form.phone || "",
+      whatsapp: form.whatsapp || "",
+      instagram: form.instagram || "",
+      facebook: form.facebook || "",
+      address: form.address || "",
+      city: form.city || "",
+      state: form.state || "",
+      pincode: form.pincode || "",
+      businessType: form.businessType || "",
+      ownerName: form.ownerName || "",
+      email: form.email || "",
+      personalEmail: form.personalEmail || "",
+      gst: form.gst || "",
+      brands: form.brands || "",
+      website: form.website || "",
+      lat: form.lat || null,
+      lng: form.lng || null,
+      categories: selectedCategories || [],
+      checklist: checklist || [],
+      type: recType,
+      contributorId: user.uid || user.email || "anonymous",
+      contributorEmail: user.email || "",
+      verificationStatus: "community_added",
+      gstVerified: gstStatus === "verified",
+      gstVerifiedData: gstData ? { legalName: gstData.lgnm, status: gstData.sts, registrationDate: gstData.rgdt, constitutionOfBusiness: gstData.ctb } : null,
+      pointsAwarded: gstStatus === "verified" ? 20 : 10,
+      confidence: gstStatus === "verified" ? 85 : 20,
+      createdAt: serverTimestamp(),
+    };
 
-      // Save to Firestore
-      const docRef = await addDoc(collection(db, "stores"), storeData);
-      console.log("Store saved:", docRef.id);
-
+    // The store counts as added only if the Firestore save succeeds. On
+    // failure the user stays on the form with everything they typed and sees
+    // why — never a fake "saved locally" success (src/lib/submitStore.js).
+    const result = await submitStore({
+      save: async () => (await addDoc(collection(db, "stores"), storeData)).id,
       // Update contributor points — 20 pts for GST verified, 10 for community
-      if (user.uid && user.uid !== "admin") {
+      awardPoints: user.uid && user.uid !== "admin" ? async () => {
         const awarded = gstStatus === "verified" ? 20 : 10;
         const newPoints = (user.points || 0) + awarded;
         await updateUserStats(user.uid, {
@@ -114,16 +117,19 @@ export function AddPage({ user, onSubmit, toast }) {
           storesAdded: increment(1),
           level: getLevel(newPoints).name,
         });
-      }
-
-      onSubmit({ ...storeData, id: docRef.id, createdAt: new Date().toISOString() });
-    } catch(err) {
-      console.error("Store save error:", err.message);
-      // Still submit locally so user flow continues
-      onSubmit({ ...form, categories: selectedCategories, checklist, type: recType, contributorId: user.email, verificationStatus: "community_added", pointsAwarded: 10, createdAt: new Date().toISOString(), confidence: 20, id: Date.now().toString() });
-      showToast("Saved locally — sync error: " + err.message, "err");
-    }
+      } : null,
+      onSaved: (id) => onSubmit({ ...storeData, id, createdAt: new Date().toISOString() }),
+    });
     setSubmitting(false);
+
+    if (!result.ok) {
+      console.error("[add-store] Store save failed:", result.error);
+      setSaveError(result.error);
+      toast?.("Store not saved — see the message above the button.", "err");
+      return;
+    }
+    if (result.pointsError) console.warn("[add-store] Store saved, but points update failed:", result.pointsError);
+    console.log("Store saved:", result.id);
     setForm({ storeName: "", phone: "", address: "", city: "", state: "", pincode: "",  businessType: "", ownerName: "", email: "", personalEmail: "", gst: "", brands: "", whatsapp: "", instagram: "", website: "", lat: null, lng: null, linkedIn: "", facebook: "", specialization: "", firmName: "" });
     setChecklist([]);
   };
@@ -322,6 +328,11 @@ export function AddPage({ user, onSubmit, toast }) {
           </div>
         </div>
 
+        {saveError && (
+          <div role="alert" style={{ fontSize: 13, color: "#b91c1c", background: "#fff0f0", border: "1px solid #fecaca", borderRadius: "var(--r)", padding: "10px 14px", marginTop: 8 }}>
+            <strong>⚠ Your store wasn't saved.</strong> {saveError} Everything you typed is still here.
+          </div>
+        )}
         <button className="btn btn-primary" style={{ width: "100%", padding: "14px", fontSize: "15px", borderRadius: "var(--r)", marginTop: 8 }} onClick={handleSubmit} disabled={!canSubmit}>
           {submitting ? "Submitting..." : `Submit ${recType === "store" ? "Store" : "Profile"}  +10 pts →`}
         </button>
