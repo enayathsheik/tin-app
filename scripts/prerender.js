@@ -13,7 +13,7 @@
 // `firebase deploy`. See scripts/firebaseAdmin.js for one-time credential setup.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
-import { initAdmin } from "./firebaseAdmin.js";
+import { initAdmin, requireServiceAccountPath } from "./firebaseAdmin.js";
 import { buildJobPostingJsonLd } from "../src/utils/jobJsonLd.js";
 import { normaliseJob } from "../src/utils/jobModel.js";
 import { JOBS_HOME_META, JOB_LANE_PAGES } from "../src/data/jobsLanes.js";
@@ -22,11 +22,8 @@ const SITE_URL = "https://tinit.in";
 const DIST_DIR = "dist";
 const META_REGION = /<!--SEO-META-START-->[\s\S]*?<!--SEO-META-END-->/;
 
-const SERVICE_ACCOUNT_PATH = process.env.SERVICE_ACCOUNT_PATH || "./serviceAccountKey.json";
-if (!existsSync(SERVICE_ACCOUNT_PATH)) {
-  console.warn(`[prerender] Missing service account key at "${SERVICE_ACCOUNT_PATH}" — skipping prerender.`);
-  process.exit(0);
-}
+// Fails the build if no key is found (unless SKIP_SEO_PAGES=1) — see scripts/firebaseAdmin.js.
+requireServiceAccountPath("prerender");
 
 const truncate = (str, len) => (str && str.length > len ? str.slice(0, len - 1).trimEnd() + "…" : str || "");
 const escapeHtml = (str) => String(str || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
