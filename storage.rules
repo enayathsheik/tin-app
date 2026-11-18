@@ -14,8 +14,14 @@ service firebase.storage {
     }
 
     // ── JOB APPLICATION RESUMES ─────────────────────────────────
+    // Read/list: only the CV's owner and the TIN admin. Employers open a CV
+    // through the download link saved on the jobApplications doc they can
+    // read (applicant or job poster only, see firestore.rules) — download
+    // links carry their own token and don't go through these rules, so
+    // CVs already sent to employers keep opening exactly as before.
     match /resumes/{uid}/{fileName} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null
+        && (request.auth.uid == uid || isTinAdmin());
       allow write: if request.auth != null
         && request.auth.uid == uid
         && request.resource.size < 5 * 1024 * 1024
@@ -80,6 +86,11 @@ service firebase.storage {
     // catalogue-management access Block 3 actually asks for, without
     // touching Block 2's order-attachment behavior at all.
     function isHomAdmin() {
+      return request.auth != null && request.auth.token.email == "enayathsheik@gmail.com";
+    }
+
+    // Mirrors firestore.rules' isAdmin() (the TIN admin account).
+    function isTinAdmin() {
       return request.auth != null && request.auth.token.email == "enayathsheik@gmail.com";
     }
 
