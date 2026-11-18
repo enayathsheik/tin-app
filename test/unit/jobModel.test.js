@@ -47,12 +47,31 @@ describe("normaliseJob — old-shape jobs", () => {
   });
 
   it("keeps a non-matching legacy category and 'Contract' job type as labels, no guessing", () => {
-    const j = normaliseJob(oldJob({ category: "Site & Skilled Trades", jobType: "Contract" }));
+    const j = normaliseJob(oldJob({ category: "Warehouse & Logistics", jobType: "Contract" }));
     expect(j.functions).toEqual([]);
-    expect(j.legacyCategory).toBe("Site & Skilled Trades");
+    expect(j.legacyCategory).toBe("Warehouse & Logistics");
     expect(j.workTypes).toEqual([]);
     expect(j.legacyJobType).toBe("Contract");
     expect(j.lane).toBe("professional");
+  });
+
+  it("approved exception: legacy category exactly 'Site & Skilled Trades' → skilled lane, no trade", () => {
+    const j = normaliseJob(oldJob({ category: "Site & Skilled Trades" }));
+    expect(j.lane).toBe("skilled");
+    expect(j.isLegacy).toBe(true);
+    expect(j.trade).toBeNull();
+    expect(j.functions).toEqual([]);
+    expect(j.legacyCategory).toBe("Site & Skilled Trades");
+  });
+
+  it("the exception is exact-match only", () => {
+    expect(normaliseJob(oldJob({ category: "site & skilled trades" })).lane).toBe("professional");
+    expect(normaliseJob(oldJob({ category: "Skilled Trades" })).lane).toBe("professional");
+    expect(normaliseJob(oldJob({ category: " Site & Skilled Trades " })).lane).toBe("skilled"); // surrounding spaces only
+  });
+
+  it("a stored lane always wins over the legacy exception", () => {
+    expect(normaliseJob(oldJob({ category: "Site & Skilled Trades", lane: "professional" })).lane).toBe("professional");
   });
 
   it("reads pay from salaryRange and keeps the original text", () => {
@@ -103,6 +122,14 @@ describe("normaliseJob — old-shape jobs", () => {
 });
 
 describe("normaliseJob — new-shape jobs", () => {
+  it("keeps a valid trade key with its English + Hindi labels; drops an unknown one", () => {
+    const j = normaliseJob(newJob({ trade: "mason" }));
+    expect(j.trade).toBe("mason");
+    expect(j.tradeLabel).toBe("Mason");
+    expect(j.tradeLabelHi).toBe("राजमिस्त्री");
+    expect(normaliseJob(newJob({ trade: "wizard" })).trade).toBeNull();
+  });
+
   it("keeps lane, keys and structured fields", () => {
     const j = normaliseJob(newJob());
     expect(j.isLegacy).toBe(false);

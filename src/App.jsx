@@ -26,6 +26,8 @@ import { AdminDashboard } from "./pages/AdminDashboard";
 import { InspiPage } from "./pages/InspiPage";
 import { JobsPage } from "./pages/JobsPage";
 import { JobDetailPage } from "./pages/JobDetailPage";
+import { JobsLanePage } from "./pages/JobsLanePage";
+import { SavedJobsPage } from "./pages/SavedJobsPage";
 import { StoreProfilePage } from "./pages/StoreProfilePage";
 import { PublicProfilePage } from "./pages/PublicProfilePage";
 import { ConversationsPage } from "./pages/ConversationsPage";
@@ -393,7 +395,11 @@ export default function App() {
               {page === "homSystems" && <HomAdminTab user={user} />}
             </>} />
             <Route path="/jobs" element={<JobsPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath("/jobs"); setShowLoginPage(true); }} toast={showToast} />} />
-            <Route path="/jobs/:jobId" element={<JobDetailPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath(location.pathname); setShowLoginPage(true); }} />} />
+            <Route path="/jobs/professional" element={<JobsLanePage key="professional" slug="professional" user={user} isGuest={!user} onRequireLogin={() => { setPendingPath(location.pathname + location.search); setShowLoginPage(true); }} toast={showToast} />} />
+            <Route path="/jobs/skilled" element={<JobsLanePage key="skilled" slug="skilled" user={user} isGuest={!user} onRequireLogin={() => { setPendingPath(location.pathname + location.search); setShowLoginPage(true); }} toast={showToast} />} />
+            <Route path="/jobs/needed-now" element={<JobsLanePage key="needed-now" slug="needed-now" user={user} isGuest={!user} onRequireLogin={() => { setPendingPath(location.pathname + location.search); setShowLoginPage(true); }} toast={showToast} />} />
+            <Route path="/jobs/saved" element={<SavedJobsPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath("/jobs/saved"); setShowLoginPage(true); }} />} />
+            <Route path="/jobs/:jobId" element={<JobDetailPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath(location.pathname); setShowLoginPage(true); }} toast={showToast} />} />
             <Route path="/store/:storeId" element={<StoreProfilePage />} />
             <Route path="/conversations/*" element={<ConversationsPage user={user} />} />
             {/* react-router route segments must be fully static or fully dynamic —

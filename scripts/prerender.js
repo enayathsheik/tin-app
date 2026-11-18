@@ -15,7 +15,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
 import { initAdmin } from "./firebaseAdmin.js";
 import { buildJobPostingJsonLd } from "../src/utils/jobJsonLd.js";
-import { parseSalaryRange } from "../src/utils/salaryParser.js";
+import { normaliseJob } from "../src/utils/jobModel.js";
+import { JOBS_HOME_META, JOB_LANE_PAGES } from "../src/data/jobsLanes.js";
 
 const SITE_URL = "https://tinit.in";
 const DIST_DIR = "dist";
@@ -31,9 +32,11 @@ const truncate = (str, len) => (str && str.length > len ? str.slice(0, len - 1).
 const escapeHtml = (str) => String(str || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 function buildJobMetaBlock(job) {
-  const orgName = job.businessName || job.postedByName || "TIN";
-  const title = escapeHtml(`${job.jobTitle} at ${orgName} | TIN Jobs`);
-  const description = escapeHtml(truncate(job.description, 160));
+  // Old and new job shapes both go through normaliseJob() (same as the page).
+  const n = normaliseJob(job);
+  const orgName = n.businessName || n.postedByName || "TIN";
+  const title = escapeHtml(`${n.title} at ${orgName} | TIN Jobs`);
+  const description = escapeHtml(truncate(n.description || n.responsibilities.join(". "), 160));
   const url = `${SITE_URL}/jobs/${job.id}`;
   const image = `${SITE_URL}/og-image.png`;
   const jsonLd = buildJobPostingJsonLd(job);
@@ -49,6 +52,32 @@ function buildJobMetaBlock(job) {
     <meta name="twitter:card" content="summary_large_image" />
     <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
     <!--SEO-META-END-->`;
+}
+
+// Static <head> for /jobs and the lane pages (/jobs/professional etc.) —
+// same text as the pages' own Helmet tags (src/data/jobsLanes.js).
+function buildStaticMetaBlock({ path: pagePath, title: rawTitle, description: rawDescription }) {
+  const title = escapeHtml(rawTitle);
+  const description = escapeHtml(rawDescription);
+  const url = `${SITE_URL}${pagePath}`;
+  const image = `${SITE_URL}/og-image.png`;
+  return `<!--SEO-META-START-->
+    <title>${title}</title>
+    <meta name="description" content="${description}" />
+    <meta property="og:title" content="${title}" />
+    <meta property="og:description" content="${description}" />
+    <meta property="og:image" content="${image}" />
+    <meta property="og:url" content="${url}" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="canonical" href="${url}" />
+    <!--SEO-META-END-->`;
+}
+
+function writePage(pagePath, html) {
+  const outDir = path.join(DIST_DIR, ...pagePath.split("/").filter(Boolean));
+  mkdirSync(outDir, { recursive: true });
+  writeFileSync(path.join(outDir, "index.html"), html);
 }
 
 function buildStoreMetaBlock(store) {
@@ -83,6 +112,11 @@ async function main() {
     throw new Error(`${templatePath} is missing the <!--SEO-META-START/END--> markers expected by scripts/prerender.js.`);
   }
 
+  // Jobs home + lane pages: static text, no data needed.
+  for (const page of [JOBS_HOME_META, ...JOB_LANE_PAGES]) {
+    writePage(page.path, template.replace(META_REGION, buildStaticMetaBlock(page)));
+  }
+
   const db = initAdmin();
 
   const jobsSnap = await db.collection("jobListings")
@@ -96,8 +130,9 @@ async function main() {
     const createdAtISO = raw.createdAt?.toDate?.()?.toISOString() || new Date().toISOString();
     const job = { id: docSnap.id, ...raw, createdAtISO };
 
-    if (job.salaryRange && !parseSalaryRange(job.salaryRange)) {
-      console.warn(`[prerender] Could not parse salaryRange for job ${job.id}: "${job.salaryRange}"`);
+    const pay = normaliseJob(job).pay;
+    if (pay?.source === "legacy" && pay.min == null) {
+      console.warn(`[prerender] Could not read salaryRange for job ${job.id}: "${job.salaryRange}" (shown as text, no baseSalary)`);
     }
 
     const html = template.replace(META_REGION, buildJobMetaBlock(job));
@@ -118,7 +153,7 @@ async function main() {
     storeCount++;
   }
 
-  console.log(`[prerender] Generated ${jobCount} job page(s) and ${storeCount} store page(s).`);
+  console.log(`[prerender] Generated ${1 + JOB_LANE_PAGES.length} jobs landing/lane page(s), ${jobCount} job page(s) and ${storeCount} store page(s).`);
 }
 
 main().catch(e => { console.error("[prerender] Fatal:", e.message); process.exit(1); });

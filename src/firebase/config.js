@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore, doc, setDoc, getDoc } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+import { getAuth, connectAuthEmulator } from "firebase/auth";
+import { getFirestore, doc, setDoc, getDoc, connectFirestoreEmulator } from "firebase/firestore";
+import { getStorage, connectStorageEmulator } from "firebase/storage";
 import { getFunctions } from "firebase/functions";
 
 export const firebaseConfig = {
@@ -19,6 +19,19 @@ export const auth = getAuth(firebaseApp);
 export const db = getFirestore(firebaseApp);
 export const storage = getStorage(firebaseApp);
 export const functions = getFunctions(firebaseApp, "asia-south1");
+
+// LOCAL DEV ONLY: point the app at the Firebase emulators (seeded test data,
+// never production). Needs BOTH the Vite dev server (import.meta.env.DEV is
+// false in every production build, so this block is dead code there) AND
+// VITE_USE_EMULATORS=true set on the command line, e.g.
+//   VITE_USE_EMULATORS=true npx vite
+// vite.config.js also refuses to build if the variable is set.
+if (import.meta.env.DEV && import.meta.env.VITE_USE_EMULATORS === "true") {
+  connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+  connectFirestoreEmulator(db, "127.0.0.1", 8080);
+  connectStorageEmulator(storage, "127.0.0.1", 9199);
+  console.warn("[firebase] Using local EMULATORS — not production data.");
+}
 
 // Fields that live in users/{uid}/stats/summary instead of the root identity doc
 const STAT_FIELDS = ["points", "storesAdded", "citiesCovered", "level"];

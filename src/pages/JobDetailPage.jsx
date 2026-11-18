@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "../firebase/config";
+import { BENEFITS, URGENCY, labelOf } from "../data/jobsTaxonomy.js";
+import { fetchJob, fetchPosterLink } from "../lib/jobsFeed";
 import { JobApplyModal } from "../components/shared/JobApplyModal";
 import { useJobApply } from "../hooks/useJobApply";
 import { buildJobPostingJsonLd } from "../utils/jobJsonLd.js";
+import { JobsStyles, LaneMarker } from "../components/jobs/jobsUi";
+import { LANE_COLOR, LANE_LABEL, card, chip, heading, payLine } from "../components/jobs/jobsStyle";
+import { ReportJobButton, SaveJobButton } from "../components/jobs/SaveReportButtons";
 
 const SITE_URL = "https://tinit.in";
 const truncate = (str, len) => (str && str.length > len ? str.slice(0, len - 1).trimEnd() + "…" : str || "");
@@ -26,11 +29,25 @@ const STALE_STATIC_META_SELECTOR = [
   'meta[name="twitter:card"]:not([data-rh])',
 ].join(",");
 
-export function JobDetailPage({ user, isGuest, onRequireLogin }) {
+function Fact({ label, children }) {
+  return (
+    <div style={{ background: "var(--s2)", border: "1px solid var(--b1)", borderRadius: "var(--r)", padding: "10px 12px" }}>
+      <div style={{ fontSize: 10, color: "var(--t3)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)" }}>{children}</div>
+    </div>
+  );
+}
+
+const sectionTitle = { fontSize: 12, fontWeight: 700, color: "var(--t2)", textTransform: "uppercase", letterSpacing: ".06em", margin: "18px 0 8px" };
+
+export function JobDetailPage({ user, isGuest, onRequireLogin, toast }) {
   const { jobId } = useParams();
-  const [job, setJob] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
+  // One result per jobId; "loading" = we don't have a result for this id yet.
+  const [result, setResult] = useState({ jobId: null, job: null, notFound: false });
+  const [posterLink, setPosterLink] = useState({ jobId: null, link: null });
+  const loading = result.jobId !== jobId;
+  const job = loading ? null : result.job;
+  const notFound = !loading && result.notFound;
 
   const applyState = useJobApply(user, isGuest, onRequireLogin);
   const { appliedJobIds, openApply } = applyState;
@@ -41,16 +58,13 @@ export function JobDetailPage({ user, isGuest, onRequireLogin }) {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setNotFound(false);
-    getDoc(doc(db, "jobListings", jobId)).then(snap => {
+    fetchJob(jobId).then(j => {
       if (cancelled) return;
-      if (snap.exists()) setJob({ id: snap.id, ...snap.data() });
-      else setNotFound(true);
-      setLoading(false);
+      setResult({ jobId, job: j, notFound: !j });
+      if (j) fetchPosterLink(j.postedByUid).then(link => { if (!cancelled) setPosterLink({ jobId, link }); });
     }).catch(e => {
       console.error("[job-detail] Failed to load job:", e);
-      if (!cancelled) { setNotFound(true); setLoading(false); }
+      if (!cancelled) setResult({ jobId, job: null, notFound: true });
     });
     return () => { cancelled = true; };
   }, [jobId]);
@@ -71,19 +85,39 @@ export function JobDetailPage({ user, isGuest, onRequireLogin }) {
 
   const isOwnListing = !isGuest && job.postedByUid === user?.uid;
   const alreadyApplied = appliedJobIds.has(job.id);
+  const isOpen = job.status === "approved" && job.jobStatus === "live";
+  const lane = job.isNeededNow ? "needed-now" : job.lane;
+  const laneLink = { professional: "/jobs/professional", skilled: "/jobs/skilled", "needed-now": "/jobs/needed-now" }[lane];
 
   const orgName = job.businessName || job.postedByName || "TIN";
-  const pageTitle = `${job.jobTitle} at ${orgName} | TIN Jobs`;
-  const pageDescription = truncate(job.description, 160);
+  const pageTitle = `${job.title} at ${orgName} | TIN Jobs`;
+  const pageDescription = truncate(job.description || job.responsibilities.join(". "), 160);
   const pageUrl = `${SITE_URL}/jobs/${job.id}`;
   const ogImage = `${SITE_URL}/og-image.png`;
   const jsonLd = buildJobPostingJsonLd({
-    ...job,
-    createdAtISO: job.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+    ...job.raw,
+    createdAtISO: job.raw.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
   });
 
+  const cardLink = posterLink.jobId === jobId ? posterLink.link : null;
+  const sa = job.shortAssignment;
+  const pay = payLine(job);
+  const location = [job.city, job.state].filter(Boolean).join(", ");
+  const typeChips = [
+    ...job.workTypeLabels,
+    ...(job.legacyJobType ? [job.legacyJobType] : []),
+  ];
+  const roleChips = [
+    ...(job.tradeLabel ? [`${job.tradeLabel} · ${job.tradeLabelHi}`] : []),
+    ...job.functionLabels,
+    ...(job.legacyCategory ? [job.legacyCategory] : []),
+  ];
+  const benefits = Object.entries(job.benefits);
+
   return (
-    <div style={{ maxWidth: 720, margin: "0 auto", padding: "16px 16px 100px" }}>
+    <div className="tj-scroll">
+    <div className="tj-wrap" style={{ maxWidth: 760 }}>
+      <JobsStyles />
       <Helmet>
         <title>{pageTitle}</title>
         <meta name="description" content={pageDescription} />
@@ -98,43 +132,121 @@ export function JobDetailPage({ user, isGuest, onRequireLogin }) {
         <meta name="twitter:image" content={ogImage} />
         <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
       </Helmet>
-      <Link to="/jobs" style={{ fontSize: 12, color: "var(--t3)", fontWeight: 700, textDecoration: "none", display: "inline-block", marginBottom: 14 }}>← Back to Jobs</Link>
 
-      <div style={{ background: "var(--s1)", border: "1px solid var(--b2)", borderRadius: "var(--r)", padding: 24 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6, gap: 10 }}>
-          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 800, fontSize: 22, color: "var(--t1)" }}>{job.jobTitle}</div>
-          {job.postedByType === "verified_business" && (
-            <span style={{ fontSize: 10, fontWeight: 700, color: "#16a34a", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, padding: "2px 8px", whiteSpace: "nowrap" }}>✓ Verified business</span>
-          )}
+      <div style={{ fontSize: 12, color: "var(--t3)", fontWeight: 700, marginBottom: 12 }}>
+        <Link to="/jobs" style={{ color: "var(--t3)", textDecoration: "none" }}>Jobs</Link>
+        {" / "}
+        <Link to={laneLink} style={{ color: "var(--t3)", textDecoration: "none" }}>{LANE_LABEL[lane]}</Link>
+      </div>
+
+      <div style={{ ...card, padding: 20, borderTop: `3px solid ${LANE_COLOR[lane]}` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--t3)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 4 }}>
+          <LaneMarker lane={lane} /> {LANE_LABEL[lane]}
         </div>
-        <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 12 }}>{job.businessName || job.postedByName || "Individual poster"}</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 4 }}>
+          <h1 style={{ ...heading, fontSize: 24, margin: 0 }}>{job.title}</h1>
+          {job.postedByType === "verified_business" && <span className="badge bv">✓ Verified business</span>}
+        </div>
+        <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 12 }}>{orgName}{location ? ` · 📍 ${location}` : ""}</div>
 
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
-          <span style={{ fontSize: 12, color: "var(--t2)", background: "var(--s2)", borderRadius: 10, padding: "3px 10px" }}>📍 {job.city}{job.state ? `, ${job.state}` : ""}</span>
-          <span style={{ fontSize: 12, color: "var(--t2)", background: "var(--s2)", borderRadius: 10, padding: "3px 10px" }}>{job.jobType}</span>
-          <span style={{ fontSize: 12, color: "var(--t2)", background: "var(--s2)", borderRadius: 10, padding: "3px 10px" }}>{job.category}</span>
+        {!isOpen && (
+          <div style={{ fontSize: 12, color: "#b45309", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>
+            This job isn't taking applications right now.
+          </div>
+        )}
+
+        <div className="tj-facts" style={{ marginBottom: 12 }}>
+          {pay && <Fact label="Pay">{pay}</Fact>}
+          {location && <Fact label="Location">{location}</Fact>}
+          {job.headcount && <Fact label="People needed">{job.headcount}</Fact>}
+          {job.experience && <Fact label="Experience">{job.experience}</Fact>}
+          {job.education && <Fact label="Education">{job.education}</Fact>}
+          {job.workingHours && <Fact label="Working hours">{job.workingHours}</Fact>}
+          {sa?.duration && <Fact label="Duration">{sa.duration}</Fact>}
+          {sa?.startDate && <Fact label="Starts">{sa.startDate}</Fact>}
+          {sa?.urgency && <Fact label="How urgent">{labelOf(URGENCY, sa.urgency)}</Fact>}
+          {sa?.certTools && <Fact label="Certification / tools">{sa.certTools}</Fact>}
         </div>
 
-        {job.salaryRange && <div style={{ fontSize: 14, fontWeight: 700, color: "var(--acc)", marginBottom: 14 }}>{job.salaryRange}</div>}
+        {(typeChips.length > 0 || roleChips.length > 0) && (
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {typeChips.map((c, i) => <span key={`t${i}`} style={{ ...chip, fontSize: 12, padding: "3px 10px" }}>{c}</span>)}
+            {roleChips.map((c, i) => <span key={`r${i}`} style={{ ...chip, fontSize: 12, padding: "3px 10px" }}>{c}</span>)}
+          </div>
+        )}
 
-        <div style={{ fontSize: 14, color: "var(--t2)", lineHeight: 1.6, marginBottom: 20, whiteSpace: "pre-wrap" }}>{job.description}</div>
+        {job.responsibilities.length > 0 && <>
+          <div style={sectionTitle}>What you'll do</div>
+          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, color: "var(--t2)", lineHeight: 1.6 }}>
+            {job.responsibilities.map((r, i) => <li key={i}>{r}</li>)}
+          </ul>
+        </>}
 
-        {isOwnListing ? (
-          <button disabled style={{ padding: "10px 18px", borderRadius: 8, background: "var(--s2)", border: "1px solid var(--b2)", color: "var(--t3)", fontSize: 13, fontWeight: 700, cursor: "default" }}>
-            This is your listing
-          </button>
-        ) : alreadyApplied ? (
-          <button disabled style={{ padding: "10px 18px", borderRadius: 8, background: "var(--s2)", border: "1px solid var(--b2)", color: "var(--t3)", fontSize: 13, fontWeight: 700, cursor: "default" }}>
-            ✓ Applied
-          </button>
-        ) : (
-          <button onClick={() => openApply(job)} style={{ padding: "10px 18px", borderRadius: 8, background: "#e85a2a", border: "none", color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-            Apply
-          </button>
+        {job.skills.length > 0 && <>
+          <div style={sectionTitle}>Skills</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {job.skills.map((s, i) => <span key={i} style={{ ...chip, fontSize: 12, padding: "3px 10px" }}>{s}</span>)}
+          </div>
+        </>}
+
+        {job.description && <>
+          {(job.responsibilities.length > 0 || job.skills.length > 0) && <div style={sectionTitle}>About the job</div>}
+          <div style={{ fontSize: 14, color: "var(--t2)", lineHeight: 1.6, marginTop: job.responsibilities.length || job.skills.length ? 0 : 16, whiteSpace: "pre-wrap" }}>{job.description}</div>
+        </>}
+
+        {(benefits.length > 0 || job.evpText) && (
+          <div style={{ background: "var(--s2)", border: "1px solid var(--b1)", borderRadius: "var(--r)", padding: 14, marginTop: 18 }}>
+            <div style={{ ...sectionTitle, margin: "0 0 8px" }}>Why work with {orgName}</div>
+            {benefits.length > 0 && (
+              <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
+                {benefits.map(([k, details]) => (
+                  <li key={k} style={{ fontSize: 13, color: "var(--t2)" }}>
+                    <span className="badge bv" style={{ marginRight: 6 }}>✓</span>
+                    <b>{labelOf(BENEFITS, k)}</b>{details ? ` — ${details}` : ""}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {job.evpText && <div style={{ fontSize: 13, color: "var(--t2)", lineHeight: 1.6, whiteSpace: "pre-wrap", marginTop: benefits.length ? 10 : 0 }}>{job.evpText}</div>}
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 20 }}>
+          {isOwnListing ? (
+            <button disabled style={{ padding: "10px 18px", borderRadius: 8, background: "var(--s2)", border: "1px solid var(--b2)", color: "var(--t3)", fontSize: 13, fontWeight: 700, cursor: "default" }}>
+              This is your listing
+            </button>
+          ) : alreadyApplied ? (
+            <button disabled style={{ padding: "10px 18px", borderRadius: 8, background: "var(--s2)", border: "1px solid var(--b2)", color: "var(--t3)", fontSize: 13, fontWeight: 700, cursor: "default" }}>
+              ✓ Applied
+            </button>
+          ) : isOpen ? (
+            <button onClick={() => openApply(job.raw)} style={{ padding: "10px 18px", borderRadius: 8, background: "#e85a2a", border: "none", color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+              Apply
+            </button>
+          ) : null}
+          {!isOwnListing && <SaveJobButton jobId={job.id} user={user} isGuest={isGuest} onRequireLogin={onRequireLogin} toast={toast} />}
+          {!isOwnListing && <ReportJobButton jobId={job.id} user={user} isGuest={isGuest} onRequireLogin={onRequireLogin} />}
+        </div>
+        <div style={{ fontSize: 11, color: "var(--t3)", marginTop: 8 }}>Anyone can view this job. Applying needs a free TIN account.</div>
+      </div>
+
+      {/* BUSINESS CARD */}
+      <div style={{ ...card, padding: 16, marginTop: 12, display: "flex", alignItems: "center", gap: 12 }}>
+        <div className="avatar" style={{ width: 40, height: 40, fontSize: 16 }}>{(orgName[0] || "T").toUpperCase()}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: "var(--t1)" }}>{orgName}</div>
+          <div style={{ fontSize: 12, color: "var(--t3)" }}>
+            {job.postedByType === "verified_business" ? "✓ TIN verified business" : "Posted on TIN"}
+          </div>
+        </div>
+        {cardLink && (
+          <Link to={cardLink.href} style={{ fontSize: 12, fontWeight: 700, color: "var(--acc)", textDecoration: "none", whiteSpace: "nowrap" }}>{cardLink.label} →</Link>
         )}
       </div>
 
       <JobApplyModal {...applyState} />
+    </div>
     </div>
   );
 }

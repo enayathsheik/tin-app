@@ -29,7 +29,8 @@ to differ from this document, update this document first, in the same commit.
 
 | Prototype screen | What it does | TIN today | Plan | Phase |
 |---|---|---|---|---|
-| Jobs home (`home`) | Three lane entry points, "Needed Now" strip, recent jobs | `JobsPage.jsx` (single list) | **Extend**: becomes the lanes landing | 2 |
+| Jobs home (`home`) | Three lane entry points, "Needed Now" strip, recent jobs, browse by function | `JobsPage.jsx` (single list) | **Extend**: becomes the lanes landing | 2 |
+| Browse by industry (on Jobs home) | Industry tiles linking to filtered lists | none | **New**. **Deferred to Phase 3** (owner decision, Phase 2): jobs don't record an industry yet; add once D2 is settled and the wizard saves one | 3 |
 | Professional lane (`listing("pro")`) | List + filters: search, function, industry, city, work type | `JobsPage.jsx` filters (category/city/type) | **Extend** | 2 |
 | Skilled Workforce lane (`listing("skill")`) | Trade picker (English + Hindi), filters: search, industry, city, work type | none | **New** (inside the JobsPage family) | 2 |
 | Needed Now (`flexible`) | Short assignments as "tickets": how many, where, how long, pay | none | **New**: derived view, `isNeededNow()` | 2 |
@@ -37,7 +38,7 @@ to differ from this document, update this document first, in the same commit.
 | Save job | Saved list in My TIN | none | **New**: `users/{uid}/savedJobs/{jobId}` | 2 (save) / 4 (list) |
 | Report job | Flags a listing to admin | none | **New**: `jobReports` collection | 2 |
 | Sign-in gate (`gate`) | "Sign in to apply / save" | `onRequireLogin` + LoginPage | **Reuse** | 2 |
-| Public employer page (`company`) | Business profile + its open vacancies | `StoreProfilePage.jsx` | **Extend**: add an "Open jobs" section | 2 |
+| Public employer page (`company`) | Business profile + its open vacancies | `StoreProfilePage.jsx` | **Extend**: add an "Open jobs" section. **Moved to Phase 3**: needs a store link on the job (written by the wizard). Phase 2 links the job page *to* the store / poster profile via `profiles/{uid}` | 3 |
 
 ### Post a job (employer)
 
@@ -111,7 +112,8 @@ to differ from this document, update this document first, in the same commit.
 |---|---|---|
 | **1 Foundation** | This blueprint, `jobsTaxonomy.js`, `jobModel.js` (`normaliseJob`), unit tests. No UI, rules or data changes. | No |
 | **CV privacy fix** (between 1 and 2) | Storage rule: a CV can only be opened by its owner or the poster of a job they applied to; existing CVs keep working for their employers. Own plan, own commit, storage rules only. | No (security only) |
-| **2 Find work** | Lanes landing, Professional + Skilled lists (trade picker), Needed Now, new filters, extended job detail, save job, report job, open jobs on store profile. All via `normaliseJob()`, old jobs included. | Yes |
+| **2 Find work** | Lanes landing (`/jobs`), lane pages (`/jobs/professional`, `/jobs/skilled`, `/jobs/needed-now`), saved jobs (`/jobs/saved`), new filters, extended job detail, save job, report job. All via `normaliseJob()`, old jobs included. Paged feed (30 at a time) needing index `jobListings: status, jobStatus, createdAt desc`. | Yes |
+| **3 Post a job wizard** (additions from Phase 2) | Browse by industry (after D2), open jobs on the store profile (needs a store link on the job). | Yes |
 | **3 Post a job wizard** | 5-step wizard writing the new shape (§3) plus the legacy fields; drafts; edit vacancy (rules change §5.3). | Yes |
 | **4 Candidate profile + apply + My Applications** | Profile (public + private docs), one-tap apply with snapshot, application stages, My Applications tracker with milestones, interview/offer replies, withdraw, saved jobs list. CV storage move. | Yes |
 | **5 Employer Desk + messaging** | Vacancies, pipeline board, list + bulk, application drawer, find candidates, team (existing org roles), recruitment details. Messaging = TIN Conversations with the job linked via `LINKABLE_ENTITY_COLLECTIONS` (no separate chat). | Yes |
@@ -153,6 +155,7 @@ pending/approved/rejected), `jobStatus` (live/filled/closed), `createdAt`,
 
 - **Reading:** `normaliseJob()` handles both shapes (see `src/utils/jobModel.js`):
   - old job → `lane: "professional"`, `isLegacy: true`
+  - **exception (owner decision, Phase 2):** an old job whose `category` is **exactly** "Site & Skilled Trades" → `lane: "skilled"` (exact name match only, same principle as the function mapping). No trade is recorded, so it shows under "All trades" only. A stored `lane` always wins.
   - `category` → `functions` **only on an exact label match** ("Sales & Business Development" → `sales_bd`, "Design & Architecture" → `design_architecture`); otherwise kept as `legacyCategory` for display
   - `jobType` → `workTypes` only on an exact match ("Full-time", "Part-time"); "Contract" stays `legacyJobType`
   - `salaryRange` → `pay` via `salaryParser.js`, with guards: shorthand like "25k" / "3 lakh" is treated as unreadable, a monthly amount under ₹1,000 or a yearly amount under ₹12,000 is treated as unreadable, and weekly pay has no period. The original text is always kept in `pay.text` and shown when numbers can't be read.
@@ -280,13 +283,18 @@ ones in `firestore.rules`.
 match /users/{userId}/savedJobs/{jobId} {
   allow read, write: if request.auth != null && request.auth.uid == userId;
 }
-match /jobReports/{reportId} {
+match /jobReports/{reportId} {            // id = {jobId}_{uid}: one report per person per job
   allow create: if request.auth != null
-    && request.resource.data.reporterUid == request.auth.uid
-    && request.resource.data.keys().hasOnly(["jobId", "reporterUid", "reason", "createdAt"]);
+    && request.resource.data.get("reporterUid", "") == request.auth.uid
+    && reportId == request.resource.data.get("jobId", "") + "_" + request.auth.uid
+    && request.resource.data.keys().hasOnly(["jobId", "reporterUid", "reason", "createdAt"])
+    && request.resource.data.get("reason", "") in ["scam", "asks_money", "misleading", "agency", "other"]
+    && exists(/databases/$(database)/documents/jobListings/$(request.resource.data.get("jobId", "")));
   allow read, update, delete: if isAdmin();
 }
 ```
+
+Shipped in Phase 2 as above. Reports have no admin screen until Phase 7 (read them in the Firebase console meanwhile).
 
 ### 5.2 Phase 3: create with new fields (validation only)
 
@@ -413,7 +421,7 @@ match /notifications/{id} {
 | # | Decision | Needed by | Notes |
 |---|---|---|---|
 | D1 | **Email service for Phase 6** | Phase 6 | **Open.** TIN has no email sending today. Options to compare when Phase 6 is planned: a transactional email API (e.g. Resend, SendGrid, Amazon SES) called from Cloud Functions, or Firebase's "Trigger Email" extension writing to a `mail` collection. Needs: the sending domain (tinit.in) verified by the owner, monthly cost at expected volume, and Hindi/English templates. The owner decides; nothing is sent until then. |
-| D2 | Prototype industries vs TIN business types | Phase 3 | `INDUSTRIES` (11) vs TIN's `BUSINESS_TYPES` (8). Decide whether the wizard reads the store's existing business type or asks for an industry. |
+| D2 | Prototype industries vs TIN business types | Phase 3 | `INDUSTRIES` (11) vs TIN's `BUSINESS_TYPES` (8). Decide whether the wizard reads the store's existing business type or asks for an industry. "Browse by industry" on the Jobs home waits for this. |
 | D3 | Candidate work-type preferences | Phase 4 | The prototype's candidate form uses a different 10-item list ("Contractual", "Internship / apprenticeship") from the job `TYPES` list. Decide: reuse `TYPES` keys (recommended, so matching works) or add a separate list. |
 | D4 | City list | Phase 2 | The prototype's 8 cities are sample data. TIN's existing `CITIES` list stays unless decided otherwise. |
 | D5 | Job view counts | Phase 5 | The prototype shows views and view→apply rate. Counting views needs a write from every visitor. Decide between a Cloud Function counter or leaving views out. |

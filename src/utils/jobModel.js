@@ -10,9 +10,12 @@
 // Vite bundle, the Node prerender/sitemap scripts and unit tests.
 import { parseSalaryRange } from "./salaryParser.js";
 import {
-  FUNCS, TYPES, SHORT_TYPES, BENEFITS, PAY_PERIODS, PAY_DISPLAY, URGENCY, LANES,
+  FUNCS, TYPES, SHORT_TYPES, TRADES, BENEFITS, PAY_PERIODS, PAY_DISPLAY, URGENCY, LANES,
   isKey, keyForLabel, labelOf,
 } from "../data/jobsTaxonomy.js";
+
+// The only legacy category that maps to a lane (approved exception, exact match).
+export const LEGACY_SKILLED_CATEGORY = "Site & Skilled Trades";
 
 const str = (v) => (typeof v === "string" ? v.trim() : "");
 const strOrNull = (v) => str(v) || null;
@@ -153,10 +156,18 @@ export function normaliseJob(raw) {
     else legacyJobType = raw.jobType.trim();
   }
 
+  // Lane: a stored lane wins. Old jobs are professional, except the one
+  // approved exact-name exception: legacy category "Site & Skilled Trades"
+  // → skilled (no trade is recorded, so they show under "All trades").
+  let lane = "professional";
+  if (isKey(LANES, raw.lane)) lane = raw.lane;
+  else if (str(raw.category) === LEGACY_SKILLED_CATEGORY) lane = "skilled";
+
   const job = {
     id: raw.id ?? null,
     isLegacy: raw.lane == null,
-    lane: isKey(LANES, raw.lane) ? raw.lane : "professional",
+    lane,
+    trade: isKey(TRADES, raw.trade) ? raw.trade : null,
 
     title: str(raw.jobTitle),
     description: str(raw.description),
@@ -198,5 +209,7 @@ export function normaliseJob(raw) {
   job.payText = formatPay(job.pay);
   job.functionLabels = job.functions.map(k => labelOf(FUNCS, k));
   job.workTypeLabels = job.workTypes.map(k => labelOf(TYPES, k));
+  job.tradeLabel = job.trade ? labelOf(TRADES, job.trade) : null;
+  job.tradeLabelHi = job.trade ? TRADES.find(t => t.key === job.trade).labelHi : null;
   return job;
 }

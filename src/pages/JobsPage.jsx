@@ -1,124 +1,195 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { db } from "../firebase/config";
-import { JOB_CATEGORIES, JOB_TYPES, CITIES } from "../data/constants";
+import { useMemo, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
+import { FUNCS, TRADES } from "../data/jobsTaxonomy.js";
+import { JOBS_HOME_META } from "../data/jobsLanes.js";
+import { jobMatchesFilters } from "../utils/jobFilters.js";
+import { useJobsFeed } from "../hooks/useJobsFeed";
+import { useJobApply } from "../hooks/useJobApply";
+import { JobRow } from "../components/jobs/JobRow";
+import { JobsStyles, LaneMarker } from "../components/jobs/jobsUi";
+import { LANE_COLOR, btnOutline, card, chip, heading, payLine } from "../components/jobs/jobsStyle";
 import { PostJobModal } from "../components/shared/PostJobModal";
 import { JobApplyModal } from "../components/shared/JobApplyModal";
-import { useJobApply } from "../hooks/useJobApply";
 
+const SITE_URL = "https://tinit.in";
+const OPEN_ROLES_SHOWN = 12;
+const TABS = [["", "All"], ["professional", "Professional"], ["skilled", "Skilled"]];
+const SAMPLE_TRADES = ["mason", "electrician", "carpenter", "plumber", "tile_layer", "painter"];
+
+// /jobs — Jobs home: search, the two lane cards, the Needed Now strip, open
+// roles with lane tabs, and browse by function. ("Browse by industry" waits
+// for Phase 3 / decision D2 — jobs don't record an industry yet.)
 export function JobsPage({ user, isGuest, onRequireLogin, toast }) {
-  const [jobs, setJobs] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const q = params.get("q") || "";
+  const [qInput, setQInput] = useState(q);
+  const [tab, setTab] = useState("");
 
-  const [filterCategory, setFilterCategory] = useState("All");
-  const [filterCity, setFilterCity] = useState("");
-  const [filterJobType, setFilterJobType] = useState("All");
-
+  const feed = useJobsFeed();
   const applyState = useJobApply(user, isGuest, onRequireLogin);
   const { appliedJobIds, openApply } = applyState;
 
-  const loadJobs = async () => {
-    setLoading(true);
-    try {
-      // Public feed: only moderation-approved AND currently live listings.
-      // Filled/closed listings stay visible to their poster (Retailer "My Jobs" view) but drop out here.
-      const snap = await getDocs(query(
-        collection(db, "jobListings"),
-        where("status", "==", "approved"),
-        where("jobStatus", "==", "live")
-      ));
-      const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      all.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-      setJobs(all);
-    } catch (e) {
-      console.error("[jobs] Failed to load listings:", e);
-      setJobs([]);
-    }
-    setLoading(false);
+  const neededNow = useMemo(() => feed.jobs.filter(j => j.isNeededNow).slice(0, 10), [feed.jobs]);
+  const openRoles = useMemo(() => feed.jobs.filter(j => jobMatchesFilters(j, { lane: tab, q })), [feed.jobs, tab, q]);
+
+  const submitSearch = (e) => {
+    e.preventDefault();
+    const next = new URLSearchParams(params);
+    if (qInput.trim()) next.set("q", qInput.trim()); else next.delete("q");
+    setParams(next, { replace: true });
+    document.getElementById("tj-open-roles")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  useEffect(() => { loadJobs(); }, []);
-
-  const filtered = jobs.filter(j => {
-    const mCat = filterCategory === "All" || j.category === filterCategory;
-    const mCity = !filterCity.trim() || (j.city || "").toLowerCase().includes(filterCity.trim().toLowerCase());
-    const mType = filterJobType === "All" || j.jobType === filterJobType;
-    return mCat && mCity && mType;
-  });
-
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto", padding: "16px 16px 100px", position: "relative", minHeight: "60vh" }}>
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 800, fontSize: 24, color: "var(--t1)" }}>Jobs</div>
-        <div style={{ fontSize: 13, color: "var(--t3)" }}>Hiring across building materials, construction, interiors & exteriors</div>
+    <div className="tj-scroll">
+    <div className="tj-wrap">
+      <JobsStyles />
+      <Helmet>
+        <title>{JOBS_HOME_META.title}</title>
+        <meta name="description" content={JOBS_HOME_META.description} />
+        <meta property="og:title" content={JOBS_HOME_META.title} />
+        <meta property="og:description" content={JOBS_HOME_META.description} />
+        <meta property="og:url" content={`${SITE_URL}/jobs`} />
+        <link rel="canonical" href={`${SITE_URL}/jobs`} />
+      </Helmet>
+
+      {/* HERO */}
+      <div style={{ marginBottom: 18 }}>
+        <div className="hero-eyebrow" style={{ marginBottom: 6 }}>TIN Jobs</div>
+        <h1 style={{ ...heading, fontSize: "clamp(26px,5vw,38px)", lineHeight: 1.05, margin: "0 0 6px" }}>
+          Work that builds India — <span style={{ color: "var(--acc)" }}>from one day to a career</span>
+        </h1>
+        <p style={{ fontSize: 13, color: "var(--t3)", margin: "0 0 12px", maxWidth: 620 }}>
+          Hiring across building materials, construction, interiors & exteriors. Free to browse.
+        </p>
+        <form onSubmit={submitSearch} style={{ display: "flex", gap: 8, maxWidth: 560 }}>
+          <input className="fi" placeholder="Search role, company, skill or city" value={qInput} onChange={e => setQInput(e.target.value)} aria-label="Search jobs" />
+          <button type="submit" className="btn btn-primary" style={{ whiteSpace: "nowrap" }}>Search</button>
+        </form>
+        {!isGuest && (
+          <Link to="/jobs/saved" style={{ display: "inline-block", marginTop: 10, fontSize: 12, fontWeight: 700, color: "var(--acc)", textDecoration: "none" }}>★ Saved jobs →</Link>
+        )}
       </div>
 
-      {/* FILTERS */}
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
-        <select className="fi" style={{ maxWidth: 240 }} value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
-          <option value="All">All Categories</option>
-          {JOB_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
-        <input className="fi" style={{ maxWidth: 200 }} list="jobs-cities-list" placeholder="Filter by city" value={filterCity} onChange={e => setFilterCity(e.target.value)} />
-        <datalist id="jobs-cities-list">{CITIES.map(c => <option key={c} value={c} />)}</datalist>
-        <select className="fi" style={{ maxWidth: 180 }} value={filterJobType} onChange={e => setFilterJobType(e.target.value)}>
-          <option value="All">All Job Types</option>
-          {JOB_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-        </select>
+      {/* LANE CARDS */}
+      <div className="tj-lanes" style={{ marginBottom: 22 }}>
+        <Link to="/jobs/professional" className="tj-tile" style={{ ...card, padding: 16, textDecoration: "none", borderTop: `3px solid ${LANE_COLOR.professional}`, display: "block" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+            <LaneMarker lane="professional" /><span style={{ ...heading, fontSize: 20 }}>Professional</span>
+          </div>
+          <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 10 }}>Office, showroom, design, sales, engineering, accounts, management.</div>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--acc)" }}>Browse professional roles →</span>
+        </Link>
+        <Link to="/jobs/skilled" className="tj-tile" style={{ ...card, padding: 16, textDecoration: "none", borderTop: `3px solid ${LANE_COLOR.skilled}`, display: "block" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+            <LaneMarker lane="skilled" /><span style={{ ...heading, fontSize: 20 }}>Skilled workforce</span>
+            <span lang="hi" style={{ fontSize: 13, color: "var(--t3)" }}>कारीगर · मिस्त्री</span>
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+            {TRADES.filter(t => SAMPLE_TRADES.includes(t.key)).map(t => (
+              <span key={t.key} style={chip}>{t.label} · <span lang="hi">{t.labelHi}</span></span>
+            ))}
+          </div>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--acc)" }}>Browse trades →</span>
+        </Link>
       </div>
 
-      {loading ? (
-        <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--t3)" }}>Loading…</div>
-      ) : filtered.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "60px 20px", background: "var(--s1)", border: "1px solid var(--b2)", borderRadius: "var(--r)" }}>
-          <div style={{ fontSize: 36, marginBottom: 10 }}>💼</div>
-          <div style={{ fontWeight: 700, fontSize: 15, color: "var(--t2)", marginBottom: 4 }}>No jobs found</div>
-          <div style={{ fontSize: 13, color: "var(--t3)" }}>{jobs.length === 0 ? "No listings yet — check back soon, or be the first to post one." : "Try adjusting your filters."}</div>
+      {/* NEEDED NOW */}
+      <section style={{ marginBottom: 22 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8, gap: 8 }}>
+          <h2 style={{ ...heading, fontSize: 20, margin: 0, display: "flex", alignItems: "center", gap: 6 }}>
+            <LaneMarker lane="needed-now" /> Needed now
+          </h2>
+          <Link to="/jobs/needed-now" style={{ fontSize: 12, fontWeight: 700, color: "var(--acc)", textDecoration: "none" }}>See all →</Link>
         </div>
-      ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
-          {filtered.map(j => {
-            const isOwnListing = !isGuest && j.postedByUid === user?.uid;
-            const alreadyApplied = appliedJobIds.has(j.id);
-            return (
-              <div key={j.id} style={{ background: "var(--s1)", border: "1px solid var(--b2)", borderRadius: "var(--r)", padding: 16, display: "flex", flexDirection: "column" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
-                  <Link to={`/jobs/${j.id}`} style={{ fontWeight: 700, fontSize: 15, color: "var(--t1)", textDecoration: "none" }}>{j.jobTitle}</Link>
-                  {j.postedByType === "verified_business" && (
-                    <span style={{ fontSize: 10, fontWeight: 700, color: "#16a34a", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, padding: "2px 8px", whiteSpace: "nowrap" }}>✓ Verified business</span>
-                  )}
+        {neededNow.length === 0 ? (
+          <div style={{ ...card, padding: 14, fontSize: 13, color: "var(--t3)" }}>
+            {feed.loading ? "Loading…" : "No short assignments right now. Day work, project crews and temporary roles show up here."}
+          </div>
+        ) : (
+          <div className="tj-strip">
+            {neededNow.map(j => (
+              <Link key={j.id} to={`/jobs/${j.id}`} style={{ ...card, padding: 12, textDecoration: "none", borderTop: `3px solid ${LANE_COLOR["needed-now"]}` }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: "var(--t1)", marginBottom: 2 }}>{j.title}</div>
+                <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 8 }}>{j.businessName || j.postedByName}{j.city ? ` · ${j.city}` : ""}</div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
+                  {j.headcount && <span style={chip}>👥 {j.headcount} {j.headcount > 1 ? "people" : "person"}</span>}
+                  {j.shortAssignment?.duration && <span style={chip}>⏱ {j.shortAssignment.duration}</span>}
+                  {j.shortAssignment?.startDate && <span style={chip}>Starts {j.shortAssignment.startDate}</span>}
                 </div>
-                <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 8 }}>{j.businessName || j.postedByName || "Individual poster"}</div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
-                  <span style={{ fontSize: 11, color: "var(--t2)", background: "var(--s2)", borderRadius: 10, padding: "2px 8px" }}>📍 {j.city}</span>
-                  <span style={{ fontSize: 11, color: "var(--t2)", background: "var(--s2)", borderRadius: 10, padding: "2px 8px" }}>{j.jobType}</span>
-                  <span style={{ fontSize: 11, color: "var(--t2)", background: "var(--s2)", borderRadius: 10, padding: "2px 8px" }}>{j.category}</span>
-                </div>
-                {j.salaryRange && <div style={{ fontSize: 12, fontWeight: 600, color: "var(--acc)", marginBottom: 8 }}>{j.salaryRange}</div>}
-                <div style={{ fontSize: 12, color: "var(--t2)", marginBottom: 12, flex: 1 }}>{j.description}</div>
-                {isOwnListing ? (
-                  <button disabled style={{ padding: "8px 14px", borderRadius: 8, background: "var(--s2)", border: "1px solid var(--b2)", color: "var(--t3)", fontSize: 12, fontWeight: 700, cursor: "default" }}>
-                    This is your listing
-                  </button>
-                ) : alreadyApplied ? (
-                  <button disabled style={{ padding: "8px 14px", borderRadius: 8, background: "var(--s2)", border: "1px solid var(--b2)", color: "var(--t3)", fontSize: 12, fontWeight: 700, cursor: "default" }}>
-                    ✓ Applied
-                  </button>
-                ) : (
-                  <button onClick={() => openApply(j)} style={{ padding: "8px 14px", borderRadius: 8, background: "#e85a2a", border: "none", color: "white", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                    Apply
-                  </button>
-                )}
-              </div>
-            );
-          })}
+                {payLine(j) && <div style={{ fontSize: 13, fontWeight: 700, color: "var(--acc)" }}>{payLine(j)}</div>}
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* OPEN ROLES */}
+      <section id="tj-open-roles" style={{ marginBottom: 22, scrollMarginTop: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+          <h2 style={{ ...heading, fontSize: 20, margin: 0 }}>Open roles{q ? ` for "${q}"` : ""}</h2>
+          <div className="nav-tabs" role="tablist">
+            {TABS.map(([k, label]) => (
+              <button key={k || "all"} role="tab" aria-selected={tab === k} className={`ntab${tab === k ? " on" : ""}`} onClick={() => setTab(k)}>{label}</button>
+            ))}
+          </div>
         </div>
-      )}
+        {q && (
+          <button onClick={() => { setQInput(""); setParams(new URLSearchParams(), { replace: true }); }}
+            style={{ background: "none", border: "none", color: "var(--acc)", fontSize: 12, fontWeight: 700, cursor: "pointer", padding: 0, marginBottom: 8 }}>
+            ✕ Clear search
+          </button>
+        )}
+        {feed.error ? (
+          <div style={{ ...card, padding: 24, textAlign: "center", color: "var(--t3)" }}>Couldn't load jobs right now. Please refresh the page.</div>
+        ) : openRoles.length === 0 ? (
+          <div style={{ ...card, padding: "36px 20px", textAlign: "center" }}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>💼</div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: "var(--t2)", marginBottom: 4 }}>{feed.loading ? "Loading…" : "No jobs found"}</div>
+            {!feed.loading && <div style={{ fontSize: 13, color: "var(--t3)" }}>{feed.jobs.length === 0 ? "No listings yet — check back soon, or be the first to post one." : "Try another search or tab."}</div>}
+          </div>
+        ) : (
+          <div className="tj-rows">
+            {openRoles.slice(0, OPEN_ROLES_SHOWN).map(j => (
+              <JobRow key={j.id} job={j}
+                isOwnListing={!isGuest && j.postedByUid === user?.uid}
+                alreadyApplied={appliedJobIds.has(j.id)}
+                onApply={openApply} />
+            ))}
+          </div>
+        )}
+        <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", marginTop: 12 }}>
+          {tab && <Link to={`/jobs/${tab}${q ? `?q=${encodeURIComponent(q)}` : ""}`} style={{ ...btnOutline, textDecoration: "none" }}>See all {tab === "skilled" ? "skilled" : "professional"} roles →</Link>}
+          {!tab && openRoles.length > OPEN_ROLES_SHOWN && (
+            <Link to={`/jobs/professional${q ? `?q=${encodeURIComponent(q)}` : ""}`} style={{ ...btnOutline, textDecoration: "none" }}>More professional roles →</Link>
+          )}
+          {!tab && openRoles.length > OPEN_ROLES_SHOWN && (
+            <Link to={`/jobs/skilled${q ? `?q=${encodeURIComponent(q)}` : ""}`} style={{ ...btnOutline, textDecoration: "none" }}>More skilled roles →</Link>
+          )}
+          {openRoles.length <= OPEN_ROLES_SHOWN && !feed.done && !feed.error && (
+            <button onClick={feed.loadMore} disabled={feed.loading} style={btnOutline}>{feed.loading ? "Loading…" : "Load more jobs"}</button>
+          )}
+        </div>
+      </section>
 
-      <PostJobModal user={user} isGuest={isGuest} onRequireLogin={onRequireLogin} onPosted={loadJobs} toast={toast} />
+      {/* BROWSE BY FUNCTION */}
+      <section style={{ marginBottom: 22 }}>
+        <h2 style={{ ...heading, fontSize: 20, margin: "0 0 8px" }}>Browse by function</h2>
+        <div className="tj-tiles">
+          {FUNCS.filter(fn => fn.key !== "other").map(fn => (
+            <button key={fn.key} className="tj-tile" onClick={() => navigate(`/jobs/professional?fn=${fn.key}`)}
+              style={{ ...card, padding: "10px 12px", fontSize: 12, fontWeight: 600, color: "var(--t1)" }}>
+              {fn.label}
+            </button>
+          ))}
+        </div>
+      </section>
 
+      <PostJobModal user={user} isGuest={isGuest} onRequireLogin={onRequireLogin} onPosted={(_id, status) => { if (status === "approved") window.location.reload(); }} toast={toast} />
       <JobApplyModal {...applyState} />
+    </div>
     </div>
   );
 }

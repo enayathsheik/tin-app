@@ -4,6 +4,7 @@
 import { existsSync, writeFileSync } from "fs";
 import path from "path";
 import { initAdmin } from "./firebaseAdmin.js";
+import { JOB_LANE_PAGES } from "../src/data/jobsLanes.js";
 
 const SITE_URL = "https://tinit.in";
 const DIST_DIR = "dist";
@@ -39,6 +40,7 @@ async function main() {
   const entries = [
     urlEntry(`${SITE_URL}/`, { priority: 1.0 }),
     urlEntry(`${SITE_URL}/jobs`, { priority: 0.8 }),
+    ...JOB_LANE_PAGES.map(l => urlEntry(`${SITE_URL}${l.path}`, { priority: 0.7 })),
   ];
 
   jobsSnap.docs.forEach(docSnap => {

@@ -10,6 +10,11 @@ service cloud.firestore {
         (request.auth.uid == userId || isAdmin());
       allow delete: if isAdmin();
 
+      // ── SAVED JOBS ── (Jobs redesign phase 2, see docs/JOBS_BLUEPRINT.md §5.1)
+      match /savedJobs/{jobId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
       // ── STATS ──
       match /stats/{document} {
         allow read: if request.auth != null && request.auth.uid == userId;
@@ -159,6 +164,20 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["applicantStatus"]);
     }
     // ══ END NEW ═════════════════════════════════════════════
+
+    // ── JOB REPORTS ── (Jobs redesign phase 2, see docs/JOBS_BLUEPRINT.md §5.1)
+    // One report per person per job (id = {jobId}_{uid}; a repeat is an
+    // update, which only admin may do). Admin-only read — the admin review
+    // screen arrives in Phase 7.
+    match /jobReports/{reportId} {
+      allow create: if request.auth != null
+        && request.resource.data.get("reporterUid", "") == request.auth.uid
+        && reportId == request.resource.data.get("jobId", "") + "_" + request.auth.uid
+        && request.resource.data.keys().hasOnly(["jobId", "reporterUid", "reason", "createdAt"])
+        && request.resource.data.get("reason", "") in ["scam", "asks_money", "misleading", "agency", "other"]
+        && exists(/databases/$(database)/documents/jobListings/$(request.resource.data.get("jobId", "")));
+      allow read, update, delete: if isAdmin();
+    }
 
     // ── HANDLES (tinit ID) ─────────────────────────────────
     match /handles/{handle} {
