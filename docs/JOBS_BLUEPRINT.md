@@ -556,6 +556,27 @@ To switch: edit the one line, then redeploy only that function.
    experience 0–60, phone/email scrubbed, notes instead of guesses. Compare
    speed and cost per call with gpt-4o-mini side by side (same answers).
    Expected: $0.10 / $0.50 per million tokens → about ₹0.02 per call (vs ₹0.03).
+   **✅ Done 2026-11-19** (owner approved; `suggestJobProfile` deployed on
+   gpt-6-luna). Emulator comparison, 5 mixed Hindi–English answer sets × 2
+   runs per model, warm, real key; a direct call confirmed gpt-6-luna with
+   0 reasoning tokens and that it accepts the strict schema (incl. 0–60):
+
+   | | gpt-4o-mini | gpt-6-luna (effort "none") |
+   |---|---|---|
+   | Speed, median (min–max) | 2.09 s (1.41–2.27) | 2.15 s (1.97–5.69, one slow call) |
+   | Tokens per call in / out | 1,717 / 95 | 1,713 / 113 |
+   | Cost per call | $0.000314 ≈ ₹0.028 | $0.000228 ≈ ₹0.021 (−27%) |
+   | Option lists respected | 10/10 | 10/10 |
+   | Phone + email scrubbed | ✅ | ✅ |
+   | "sau saal" (100 yrs) experience | ❌ 0.5 (taken from another answer) | ✅ empty + note |
+   | 3 answers skipped | ✅ 5 notes, no guesses | ✅ 5 notes, no guesses |
+   | "Mumbai aur Pune" → city | guessed Mumbai | left empty (areas filled) |
+   | Company history (Kajaria) | not filled | ✅ filled |
+   | Run-to-run option changes | 2 of 5 cases | 2 of 5 cases |
+
+   The comparison also found that the AI could fill fields the lane's wizard
+   doesn't show (e.g. skills for a skilled worker), saved unseen; fixed first
+   in `applyDraft()` (only fields the lane's wizard shows), commit 549f67c.
 2. **Message classifier after its own check** — same way with
    `AI_CLASSIFIER_MODEL` / `AI_CLASSIFIER_REASONING_EFFORT`, on representative
    conversation messages (intent + suggested action + confidence threshold).
