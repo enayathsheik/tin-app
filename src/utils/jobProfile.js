@@ -3,7 +3,7 @@
 // (jobProfilesPrivate/{uid}: phone, email, pay, CV). Plain functions, zero
 // React/Firebase imports — unit-tested.
 import {
-  AVAIL, EDU, FUNCS, LANES, TRADES, TYPES, VISIBILITY, isKey, labelOf,
+  AVAIL, EDU, FUNCS, LANES, TRADES, TYPES, VISIBILITY, isKey, labelOf, workTypesForLane,
 } from "../data/jobsTaxonomy.js";
 import { isSyntheticPhoneEmail } from "./phoneAuth.js";
 
@@ -151,8 +151,15 @@ export function tinProfileLines(snap = {}) {
 // actually filled are changed; each one is returned in `suggested` so the
 // wizard can mark it "suggested" until the candidate edits it. Nothing is
 // saved here: the candidate still presses Save.
-const DRAFT_TEXT = ["role", "projects", "city", "areas", "languages", "educationText"];
-const DRAFT_LISTS = [["trades", TRADES], ["functions", FUNCS], ["workTypePrefs", TYPES]];
+//
+// Only fields that the lane's wizard SHOWS are filled (JobProfilePage), so
+// the candidate sees and can change everything the AI put in before saving.
+// Anything else in the draft (e.g. skills for a skilled worker) is ignored.
+const DRAFT_FIELDS_COMMON = ["city", "areas", "experienceYears", "languages", "workTypePrefs", "availability"];
+export const DRAFT_FIELDS_BY_LANE = {
+  skilled: [...DRAFT_FIELDS_COMMON, "trades", "projects"],
+  professional: [...DRAFT_FIELDS_COMMON, "role", "functions", "skills", "education", "educationText", "history"],
+};
 
 export function applyDraft(pr, draft) {
   const d = draft && typeof draft === "object" ? draft : {};
@@ -160,16 +167,23 @@ export function applyDraft(pr, draft) {
   const suggested = [];
   const set = (k, v) => { next[k] = v; suggested.push(k); };
   if (!isKey(LANES, pr?.lane) && isKey(LANES, d.lane)) set("lane", d.lane);
-  for (const k of DRAFT_TEXT) if (s(d[k])) set(k, s(d[k]));
-  for (const [k, list] of DRAFT_LISTS) { const v = keys(d[k], list); if (v.length) set(k, v); }
+  const lane = next.lane;
+  const shown = new Set(DRAFT_FIELDS_BY_LANE[lane] || DRAFT_FIELDS_COMMON);
+  const put = (k, v, ok) => { if (shown.has(k) && ok) set(k, v); };
+
+  for (const k of ["role", "projects", "city", "areas", "languages", "educationText"]) put(k, s(d[k]), !!s(d[k]));
+  const trades = keys(d.trades, TRADES); put("trades", trades, trades.length > 0);
+  const funcs = keys(d.functions, FUNCS); put("functions", funcs, funcs.length > 0);
+  // Only work types the lane's picker offers (skilled: the short list).
+  const types = keys(d.workTypePrefs, isKey(LANES, lane) ? workTypesForLane(lane) : TYPES); put("workTypePrefs", types, types.length > 0);
   const yrs = typeof d.experienceYears === "number" && Number.isFinite(d.experienceYears) && d.experienceYears >= 0 && d.experienceYears <= 60 ? d.experienceYears : null;
-  if (yrs != null) set("experienceYears", String(yrs));
+  put("experienceYears", String(yrs), yrs != null);
   const skills = (Array.isArray(d.skills) ? d.skills : []).map(s).filter(Boolean);
-  if (skills.length) set("skills", skills.join(", "));
+  put("skills", skills.join(", "), skills.length > 0);
   const history = (Array.isArray(d.history) ? d.history : []).filter(h => h && typeof h === "object")
     .map(h => ({ role: s(h.role), org: s(h.org), years: s(h.years) })).filter(h => h.role || h.org);
-  if (history.length) set("history", history);
-  if (isKey(EDU, d.education)) set("education", d.education);
-  if (isKey(AVAIL, d.availability)) set("availability", d.availability);
+  put("history", history, history.length > 0);
+  put("education", d.education, isKey(EDU, d.education));
+  put("availability", d.availability, isKey(AVAIL, d.availability));
   return { next, suggested };
 }

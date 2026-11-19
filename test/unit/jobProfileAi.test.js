@@ -6,7 +6,7 @@ import { execFileSync } from "child_process";
 import { readFileSync } from "fs";
 import process from "process";
 import { describe, expect, it } from "vitest";
-import { applyDraft, emptyProfile, splitProfile } from "../../src/utils/jobProfile.js";
+import { DRAFT_FIELDS_BY_LANE, applyDraft, emptyProfile, splitProfile } from "../../src/utils/jobProfile.js";
 import * as tax from "../../src/data/jobsTaxonomy.js";
 
 const base = () => ({ ...emptyProfile({ name: "Ramesh", phone: "9876543210", city: "" }), lane: "" });
@@ -18,8 +18,11 @@ describe("applyDraft", () => {
       projects: "Plaster for 3 towers in Thane", city: "Thane", areas: "Thane, Navi Mumbai", languages: "Hindi, Marathi",
       workTypePrefs: ["daily_wage"], availability: "immediate", functions: [], education: "", educationText: "", history: [],
     });
-    expect(next).toMatchObject({ lane: "skilled", role: "Mason", trades: ["mason", "tile_layer"], experienceYears: "5", skills: "Plaster, Blockwork", city: "Thane", availability: "immediate" });
-    expect(suggested.sort()).toEqual(["areas", "availability", "city", "experienceYears", "lane", "languages", "projects", "role", "skills", "trades", "workTypePrefs"].sort());
+    expect(next).toMatchObject({ lane: "skilled", trades: ["mason", "tile_layer"], experienceYears: "5", city: "Thane", availability: "immediate" });
+    // role and skills aren't on the skilled wizard, so they're not filled
+    expect(next.role).toBe("");
+    expect(next.skills).toBe("");
+    expect(suggested.sort()).toEqual(["areas", "availability", "city", "experienceYears", "lane", "languages", "projects", "trades", "workTypePrefs"].sort());
     expect(next.name).toBe("Ramesh");
     expect(next.phone).toBe("9876543210");
   });
@@ -31,6 +34,46 @@ describe("applyDraft", () => {
     expect(suggested).toEqual([]);
   });
 
+  // Everything the AI fills must be visible in that lane's wizard, so the
+  // candidate can see and change it before saving (JobProfilePage).
+  const FULL_DRAFT = {
+    lane: "", role: "Welder", trades: ["aluminium_fabricator"], functions: ["installation_trades", "sales_bd"],
+    experienceYears: 10, skills: ["Welding", "Drone camera operation"], projects: "Steel grills in Pune societies",
+    history: [{ role: "Sales", org: "Kajaria", years: "2019–2024" }], education: "diploma", educationText: "ITI fitter",
+    city: "Pune", areas: "PCMC", languages: "Marathi, Hindi", workTypePrefs: ["full_time", "internship"], availability: "immediate",
+  };
+
+  it("skilled lane: fills only trades, work done and the common fields — never role, function, skills, education or history", () => {
+    const { next, suggested } = applyDraft({ ...base(), lane: "skilled" }, FULL_DRAFT);
+    expect(suggested.sort()).toEqual(["areas", "availability", "city", "experienceYears", "languages", "projects", "trades", "workTypePrefs"].sort());
+    expect(next).toMatchObject({ role: "", functions: [], skills: "", history: [], education: "", educationText: "" });
+    expect(next.workTypePrefs).toEqual(["full_time"]); // internship isn't offered to the skilled lane
+  });
+
+  it("professional lane: fills role, function, skills, education, history and the common fields — never trades or work done", () => {
+    const { next, suggested } = applyDraft({ ...base(), lane: "professional" }, FULL_DRAFT);
+    expect(suggested.sort()).toEqual(["areas", "availability", "city", "education", "educationText", "experienceYears", "functions", "history", "languages", "role", "skills", "workTypePrefs"].sort());
+    expect(next).toMatchObject({ trades: [], projects: "" });
+    expect(next.workTypePrefs).toEqual(["full_time", "internship"]);
+  });
+
+  it("uses the AI's lane when the candidate had none, and fills that lane's fields", () => {
+    const { next, suggested } = applyDraft(base(), { ...FULL_DRAFT, lane: "skilled" });
+    expect(next.lane).toBe("skilled");
+    expect(suggested).toContain("trades");
+    expect(suggested).not.toContain("skills");
+  });
+
+  it("no lane at all: fills only the common fields", () => {
+    const { suggested } = applyDraft(base(), FULL_DRAFT);
+    expect(suggested.sort()).toEqual(["areas", "availability", "city", "experienceYears", "languages", "workTypePrefs"].sort());
+  });
+
+  it("every field a lane can receive is one that lane's wizard shows", () => {
+    expect(DRAFT_FIELDS_BY_LANE.skilled.sort()).toEqual(["areas", "availability", "city", "experienceYears", "languages", "projects", "trades", "workTypePrefs"].sort());
+    expect(DRAFT_FIELDS_BY_LANE.professional.sort()).toEqual(["areas", "availability", "city", "education", "educationText", "experienceYears", "functions", "history", "languages", "role", "skills", "workTypePrefs"].sort());
+  });
+
   it("keeps the lane the candidate already chose", () => {
     const { next, suggested } = applyDraft({ ...base(), lane: "professional" }, { lane: "skilled" });
     expect(next.lane).toBe("professional");
@@ -38,7 +81,7 @@ describe("applyDraft", () => {
   });
 
   it("drops anything outside the taxonomy (defence in depth) and survives garbage", () => {
-    const { next } = applyDraft(base(), { trades: ["astronaut", "mason"], availability: "tomorrow", experienceYears: 99 });
+    const { next } = applyDraft({ ...base(), lane: "skilled" }, { trades: ["astronaut", "mason"], availability: "tomorrow", experienceYears: 99 });
     expect(next.trades).toEqual(["mason"]);
     expect(next.availability).toBe("");
     expect(next.experienceYears).toBe("");
