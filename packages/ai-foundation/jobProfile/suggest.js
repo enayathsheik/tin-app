@@ -160,7 +160,7 @@ async function suggestJobProfile({ answers, lane }, tax, { timeoutMs = OPENAI_TI
     { systemPrompt: prompt.systemPrompt + optionsText(tax, inLane) },
     { answers, lane: inLane },
     buildProfileSchema(tax, inLane),
-    prompt.modelTier || 'fast',
+    prompt.modelTier || 'profileHelper',
     '',
     { timeoutMs, maxRetries: 0, throwOnError: true, onUsage }
   );

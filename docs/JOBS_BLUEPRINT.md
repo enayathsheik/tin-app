@@ -529,11 +529,38 @@ without the candidate pressing Save on the review screen.
 - 10,000 calls ≈ ₹300 (worst case ≈ ₹420). The global cap of 2,000 calls a day
   limits the worst possible OpenAI spend to about **₹85 a day**.
 - Cloud Functions invocation cost is negligible at this volume.
-- **Watch:** OpenAI's model page marks gpt-4o-mini (and its only snapshot,
-  gpt-4o-mini-2024-07-18) as **deprecated**. It works today; when a shutdown
-  date is announced, switch the `fast` tier with the `AI_FAST_MODEL`
-  setting (`packages/ai-foundation/providers/openai/modelConfig.js`) and re-run
-  the manual check. Note this also changes the model used by `onMessageCreate`.
+
+**⚠ gpt-4o-mini shuts down on Jan 14, 2027** (OpenAI deprecations page,
+notice dated Oct 14, 2026: `gpt-4o-mini-2024-07-18`, its only snapshot;
+recommended replacement **gpt-6-luna**). Both AI features use it today, so
+both must move before that date. Avoid gpt-5-mini / gpt-5-nano (shut down
+Dec 11, 2026) and gpt-4.1-mini (also Jan 14, 2027).
+
+**Model settings (one per feature, `functions/.env`, not secret):**
+
+| Feature | Function | Model | Reasoning effort |
+|---|---|---|---|
+| Message classifier | `onMessageCreate` | `AI_CLASSIFIER_MODEL` | `AI_CLASSIFIER_REASONING_EFFORT` |
+| Profile helper | `suggestJobProfile` | `AI_PROFILE_MODEL` | `AI_PROFILE_REASONING_EFFORT` |
+
+Each prompt names its own setting (`modelTier` in its prompt file), resolved
+by `packages/ai-foundation/providers/openai/modelConfig.js`. Changing one pair
+never changes the other feature. Reasoning effort is sent only when set.
+To switch: edit the one line, then redeploy only that function.
+
+**Switch plan (each step: emulator check → results to owner → OK → deploy that one function):**
+1. **Profile helper first** — `AI_PROFILE_MODEL=gpt-6-luna`,
+   `AI_PROFILE_REASONING_EFFORT=none` (it's a reasoning model; the default
+   "medium" would add billed reasoning tokens and delay). Repeat the emulator
+   check with mixed Hindi–English answers: strict option lists honoured,
+   experience 0–60, phone/email scrubbed, notes instead of guesses. Compare
+   speed and cost per call with gpt-4o-mini side by side (same answers).
+   Expected: $0.10 / $0.50 per million tokens → about ₹0.02 per call (vs ₹0.03).
+2. **Message classifier after its own check** — same way with
+   `AI_CLASSIFIER_MODEL` / `AI_CLASSIFIER_REASONING_EFFORT`, on representative
+   conversation messages (intent + suggested action + confidence threshold).
+3. Target: both switched by **mid-December 2026**, leaving a month of margin.
+   Re-check prices and the deprecations page before each step.
 
 **As built (details the design above didn't fix):**
 - Code: `packages/ai-foundation/jobProfile/suggest.js` (scrub, input checks,

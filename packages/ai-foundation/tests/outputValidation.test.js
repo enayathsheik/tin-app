@@ -5,7 +5,21 @@ const GOOD_SAMPLE = {
   intentConfidence: 0.87,
   suggestedActionType: 'log_ledger_entry',
   suggestedActionConfidence: 0.91,
-  suggestedActionPayload: { amount: 5000, description: 'Advance payment' },
+  // Strict mode (f944624): every payload field is present; the ones that
+  // don't apply to this action type are null.
+  suggestedActionPayload: {
+    amount: 5000,
+    invoiceNumber: null,
+    dueDate: null,
+    description: 'Advance payment',
+    milestoneTitle: null,
+    milestoneDate: null,
+    snagDescription: null,
+    snagSeverity: null,
+    projectName: null,
+    referenceDescription: null,
+    referenceUrl: null,
+  },
   reasoning: 'Sender confirmed an advance payment amount.',
   evidenceMessageId: 'msg_123',
 };
@@ -22,6 +36,12 @@ describe('validateOutput', () => {
     const result = validateOutput(GOOD_SAMPLE);
     expect(result.valid).toBe(true);
     expect(result.value).toEqual(GOOD_SAMPLE);
+  });
+
+  it('rejects a payload that leaves out a field instead of sending null', () => {
+    const { invoiceNumber, ...payload } = GOOD_SAMPLE.suggestedActionPayload; // eslint-disable-line no-unused-vars
+    const result = validateOutput({ ...GOOD_SAMPLE, suggestedActionPayload: payload });
+    expect(result.valid).toBe(false);
   });
 
   it('rejects a known-malformed sample', () => {

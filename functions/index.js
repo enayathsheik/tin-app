@@ -43,7 +43,6 @@ try {
 const PLACES_API_KEY = process.env.PLACES_API_KEY || "AIzaSyDM5HbNqYqNEodGMl0dEYfHK7sV-nlxJMc";
 
 const DELAY_MS       = 300;
-const MAX_PER_QUERY  = 5;
 const sleep          = ms => new Promise(r => setTimeout(r, ms));
 
 // ── PINCODE REGISTRY ─────────────────────────────────────────
