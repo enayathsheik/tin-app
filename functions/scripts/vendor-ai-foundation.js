@@ -37,3 +37,23 @@ function copyDir(src, dest) {
 fs.rmSync(DEST, { recursive: true, force: true });
 copyDir(SRC, DEST);
 console.log(`[vendor-ai-foundation] copied ${SRC} -> ${DEST}`);
+
+// TIN Jobs option lists for the AI profile helper (suggestJobProfile).
+// src/data/jobsTaxonomy.js is an ES module in the web app, outside
+// functions/, so write the lists it needs as plain JSON next to the vendored
+// package. Regenerated on every build, so it can never drift from the app.
+const TAXONOMY_SRC = path.join(__dirname, '..', '..', 'src', 'data', 'jobsTaxonomy.js');
+const TAXONOMY_DEST = path.join(__dirname, '..', 'vendor', 'jobsTaxonomy.json');
+const { pathToFileURL } = require('url');
+import(pathToFileURL(TAXONOMY_SRC).href).then((tax) => {
+  const pick = (list) => list.map(({ key, label, labelHi }) => (labelHi ? { key, label, labelHi } : { key, label }));
+  const out = {
+    TRADES: pick(tax.TRADES), FUNCS: pick(tax.FUNCS), TYPES: pick(tax.TYPES), AVAIL: pick(tax.AVAIL),
+    EDU: pick(tax.EDU), LANES: pick(tax.LANES), SKILLED_WORK_TYPES: [...tax.SKILLED_WORK_TYPES],
+  };
+  fs.writeFileSync(TAXONOMY_DEST, JSON.stringify(out, null, 2) + '\n');
+  console.log(`[vendor-ai-foundation] wrote ${TAXONOMY_DEST}`);
+}).catch((err) => {
+  console.error('[vendor-ai-foundation] could not build jobsTaxonomy.json:', err);
+  process.exit(1);
+});

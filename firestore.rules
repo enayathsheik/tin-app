@@ -293,6 +293,13 @@ service cloud.firestore {
     match /jobProfilesPrivate/{uid} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
+    // AI profile helper rate-limit counters (§8): aiUsage/{uid} and
+    // aiUsage/_global are written only by the suggestJobProfile Cloud
+    // Function (Admin SDK, which bypasses rules). No client reads or writes,
+    // not even the user's own counter or admin.
+    match /aiUsage/{docId} {
+      allow read, write: if false;
+    }
     // ══ END NEW ═════════════════════════════════════════════
 
     // ── JOB REPORTS ── (Jobs redesign phase 2, see docs/JOBS_BLUEPRINT.md §5.1)

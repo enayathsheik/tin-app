@@ -145,3 +145,31 @@ export function tinProfileLines(snap = {}) {
   if (snap.availability) lines.push(["Available", labelOf(AVAIL, snap.availability)]);
   return lines;
 }
+
+// ── AI profile helper (docs/JOBS_BLUEPRINT.md §8) ─────────────
+// Put the server's draft into the editable profile. Only fields the draft
+// actually filled are changed; each one is returned in `suggested` so the
+// wizard can mark it "suggested" until the candidate edits it. Nothing is
+// saved here: the candidate still presses Save.
+const DRAFT_TEXT = ["role", "projects", "city", "areas", "languages", "educationText"];
+const DRAFT_LISTS = [["trades", TRADES], ["functions", FUNCS], ["workTypePrefs", TYPES]];
+
+export function applyDraft(pr, draft) {
+  const d = draft && typeof draft === "object" ? draft : {};
+  const next = { ...pr };
+  const suggested = [];
+  const set = (k, v) => { next[k] = v; suggested.push(k); };
+  if (!isKey(LANES, pr?.lane) && isKey(LANES, d.lane)) set("lane", d.lane);
+  for (const k of DRAFT_TEXT) if (s(d[k])) set(k, s(d[k]));
+  for (const [k, list] of DRAFT_LISTS) { const v = keys(d[k], list); if (v.length) set(k, v); }
+  const yrs = typeof d.experienceYears === "number" && Number.isFinite(d.experienceYears) && d.experienceYears >= 0 && d.experienceYears <= 60 ? d.experienceYears : null;
+  if (yrs != null) set("experienceYears", String(yrs));
+  const skills = (Array.isArray(d.skills) ? d.skills : []).map(s).filter(Boolean);
+  if (skills.length) set("skills", skills.join(", "));
+  const history = (Array.isArray(d.history) ? d.history : []).filter(h => h && typeof h === "object")
+    .map(h => ({ role: s(h.role), org: s(h.org), years: s(h.years) })).filter(h => h.role || h.org);
+  if (history.length) set("history", history);
+  if (isKey(EDU, d.education)) set("education", d.education);
+  if (isKey(AVAIL, d.availability)) set("availability", d.availability);
+  return { next, suggested };
+}

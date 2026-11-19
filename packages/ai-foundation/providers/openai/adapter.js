@@ -27,27 +27,37 @@ function getClient() {
 // schema: JSON schema descriptor ({ name, strict, schema }) from tools/suggestedActionSchema.js
 // modelTier: 'fast' | 'capable'
 // systemPromptSuffix: optional extra instructions appended for a stricter retry
-async function callStructured(prompt, context, schema, modelTier, systemPromptSuffix = '') {
+// options (optional, used by the AI profile helper): { timeoutMs, maxRetries,
+//   throwOnError }. When omitted the request is exactly as before.
+async function callStructured(prompt, context, schema, modelTier, systemPromptSuffix = '', options) {
   const openai = getClient();
   if (!openai) return null;
 
   const model = MODEL_CONFIG[modelTier] || MODEL_CONFIG.fast;
 
   try {
-    const response = await openai.chat.completions.create({
+    const body = {
       model,
       messages: [
         { role: 'system', content: prompt.systemPrompt + systemPromptSuffix },
         { role: 'user', content: JSON.stringify(context) },
       ],
       response_format: { type: 'json_schema', json_schema: schema },
-    });
+    };
+    const requestOptions = options
+      ? { ...(options.timeoutMs ? { timeout: options.timeoutMs } : {}), ...(options.maxRetries != null ? { maxRetries: options.maxRetries } : {}) }
+      : undefined;
+    const response = requestOptions
+      ? await openai.chat.completions.create(body, requestOptions)
+      : await openai.chat.completions.create(body);
+    if (options && options.onUsage && response.usage) options.onUsage(response.usage);
 
     const content = response.choices?.[0]?.message?.content;
     if (!content) return null;
     return JSON.parse(content);
   } catch (err) {
     console.error('[ai-foundation] OpenAI call failed:', err.message);
+    if (options && options.throwOnError) throw err;
     return null;
   }
 }

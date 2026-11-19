@@ -116,7 +116,7 @@ to differ from this document, update this document first, in the same commit.
 | **3 Post a job wizard** (shipped) | `/jobs/post` + `/jobs/{id}/edit` (5 steps, replaces PostJobModal; per-device autosave), industry (D2) + Browse by industry + Industry filter, Open jobs on the store page, users-record security fix, admin review card shows full new-job content. Store linking stays admin-only (one-off script until a Phase 7 admin tool). | Yes |
 | **3 Post a job wizard** | 5-step wizard writing the new shape (§3) plus the legacy fields; drafts; edit vacancy (rules change §5.3). | Yes |
 | **4 Candidate profile + apply + My Applications** (shipped) | `/jobs/profile` (4 steps; steps 3–4 optional, "save & finish later"; skilled lane bilingual with trade tiles), one-tap apply when name + mobile + trade/role + city are known (else a 4-field form that also fills the profile), CV optional (no CV → printable "TIN Profile" card for the employer), per-job CVs with live access checks (no saved download links; employer loses access on withdrawal), `stage` + `stageHistory`, `/jobs/applications` with the 6-milestone tracker and interview/offer replies, employer stage moves + interview invite in My Jobs and the Profile page. | Yes |
-| **4b AI profile helper** (design only, §8) | Callable function: ~5 plain-language questions (Hindi/English/mixed) → profile draft → candidate reviews and saves. | Yes |
+| **4b AI profile helper** (shipped, §8) | "Fill it for me" on `/jobs/profile`: 5 plain-language questions (Hindi/English/mixed, typed or 🎤 browser voice typing) → `suggestJobProfile` callable → draft marked "suggested" in the wizard → candidate reviews and saves. After the final Save: TIN Profile preview + "Find jobs" / "Apply to this job". | Yes |
 | **5 Employer Desk + messaging** | Vacancies, pipeline board, list + bulk, application drawer, find candidates, team (existing org roles), recruitment details. Messaging = TIN Conversations with the job linked via `LINKABLE_ENTITY_COLLECTIONS` (no separate chat). | Yes |
 | **6 Emails + notifications** | In-app notifications collection, email sending per `ST[stage].email`, per-person preferences, 10-minute de-duplication. | Yes |
 | **7 Admin + career pathway** | Admin alerts, analytics, tables, audit log; career pathway + Career Score. | Yes |
@@ -469,7 +469,7 @@ match /notifications/{id} {
 - **Pay parsing:** `salaryParser.js` reads "₹25k" as ₹25 for JSON-LD `baseSalary`. Phase 2
   moves JSON-LD onto `normaliseJob()`, which treats shorthand as unreadable.
 
-## 8. Phase 4b — AI profile helper (design only, not built)
+## 8. Phase 4b — AI profile helper (built)
 
 **Goal:** a mason or helper who finds forms hard can answer about five simple
 questions — typed or dictated, in Hindi, English or a mix — and get a profile
@@ -516,15 +516,69 @@ without the candidate pressing Save on the review screen.
   a clear "try again tomorrow" message when reached.
 - The client button is disabled while a call is running; OpenAI's timeout is 20 s.
 
-**Cost per profile (estimate, prices to be re-checked before building):**
-- About 1,200 input tokens (instructions + schema + answers) and 350 output
-  tokens per call.
-- At gpt-4o-mini list prices (about $0.15 per million input tokens and $0.60 per
-  million output tokens), that's about $0.0004 per call, or roughly **₹0.04 per
-  profile**. Even at the 5-calls-a-day cap, it's under ₹0.20 per person per day.
-- 10,000 profiles ≈ ₹400. Cloud Functions invocation cost is negligible at this volume.
+**Cost per call (re-checked 2026-11-19, measured on the emulator with the real key):**
+- gpt-4o-mini list price, checked on OpenAI's model page: **$0.15 per million
+  input tokens, $0.60 per million output tokens** (unchanged).
+- Measured: about **1,720 input tokens** per call (instructions + option lists
+  + schema + answers; more than the 1,200 first guessed, because the option
+  lists are in the prompt) and **60–115 output tokens** (far less than the 350
+  guessed). Logged per call as `[suggestJobProfile] tokens` (counts only).
+- That's about **$0.0003 per call ≈ ₹0.03** (at roughly ₹90 per $; worst case
+  with 350 output tokens ≈ $0.0005 ≈ ₹0.04). At the 5-calls-a-day cap: under
+  ₹0.25 per person per day.
+- 10,000 calls ≈ ₹300 (worst case ≈ ₹420). The global cap of 2,000 calls a day
+  limits the worst possible OpenAI spend to about **₹85 a day**.
+- Cloud Functions invocation cost is negligible at this volume.
+- **Watch:** OpenAI's model page marks gpt-4o-mini (and its only snapshot,
+  gpt-4o-mini-2024-07-18) as **deprecated**. It works today; when a shutdown
+  date is announced, switch the `fast` tier with the `AI_FAST_MODEL`
+  setting (`packages/ai-foundation/providers/openai/modelConfig.js`) and re-run
+  the manual check. Note this also changes the model used by `onMessageCreate`.
 
-**Tests when built:** emulator test that the function refuses unauthenticated
+**As built (details the design above didn't fix):**
+- Code: `packages/ai-foundation/jobProfile/suggest.js` (scrub, input checks,
+  strict schema, output filter, notes) and `jobProfile/rateLimit.js` (pure
+  counter logic, India time); prompt `prompts/job-profile-suggestion/1.0.0.json`;
+  the callable in `functions/ai.js` (`invoker: "public"` and a 60 s timeout,
+  like the other callables); UI `src/components/jobs/ProfileHelper.jsx`,
+  `src/hooks/useSpeechInput.js`, `src/lib/jobProfileAi.js`, `applyDraft()` in
+  `src/utils/jobProfile.js`.
+- The option lists live in the web app (`src/data/jobsTaxonomy.js`, an ES
+  module), but only `functions/` is uploaded, so `scripts/vendor-ai-foundation.js`
+  (the existing predeploy build) also writes `functions/vendor/jobsTaxonomy.json`.
+  A unit test checks it matches the app's lists.
+- The OpenAI adapter gained an optional options argument (timeout 20 s, no
+  retries, throw on error). Without it the request is exactly as before, so
+  `onMessageCreate` is unchanged.
+- `aiUsage/{uid}`: `profileDay`, `profileDayCount`, `profileMonth`,
+  `profileMonthCount`, `updatedAt`; `aiUsage/_global`: `profileDay`,
+  `profileDayCount`, `updatedAt`. Counted in one transaction **before** the
+  OpenAI call, so a failed or timed-out call still counts (abuse can't bypass
+  the limit by forcing errors). Rules: `allow read, write: if false`.
+- `notes` are built by the server from the empty fields (bilingual), not by the
+  model, so they're always accurate.
+- The candidate's own lane always wins; the AI's lane is used only when none
+  was chosen. Draft values replace the wizard's values only for fields the
+  draft actually filled, and never name, phone, email, pay, CV or visibility.
+- **Voice input:** 🎤 per question, browser Web Speech API. Skilled lane tries
+  `hi-IN` then `en-IN`; professional lane tries `en-IN` then `hi-IN`
+  (English-first lane). The text lands in the answer box for editing; the
+  button is hidden where the browser has no speech recognition. TIN never
+  receives or stores audio (in Chrome, the browser's own speech service does
+  the recognition).
+- **Language order:** skilled lane Hindi-first with big buttons; professional
+  lane English-first. No lane yet → the helper asks first (two big buttons).
+- **After the final Save:** "Your profile is ready" with the TIN Profile card
+  employers see, a primary "Find jobs" (to the lane page) and, when the page was
+  opened from the apply sheet's "Edit profile" link (`?job=<id>`), a primary
+  "Apply to this job".
+
+**Tests (built):** `npm run test:functions` (auth + firestore + functions
+emulators under the `demo-tin-test` project, no OpenAI key): refuses
+unauthenticated calls and bad input, blocks call 6 of the day, writes nothing to
+the profile. Package tests (`packages/ai-foundation/tests/jobProfile*.test.js`),
+`test/unit/jobProfileAi.test.js` and `test/rules/ai-usage.test.js` cover the
+items below. Originally specified: emulator test that the function refuses unauthenticated
 calls; unit tests that the output filter drops unknown keys and non-taxonomy
 values, that phone/email scrubbing works, and that the rate-limit counter
 blocks call 6 of the day. A manual check with mixed Hindi–English answers.

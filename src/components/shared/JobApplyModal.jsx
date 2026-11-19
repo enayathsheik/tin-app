@@ -145,7 +145,7 @@ export function JobApplyModal({ user, applyingJob, profile, setProfile, closeApp
           {lane === "skilled" ? profile.trades.map(k => TRADES.find(x => x.key === k)?.labelHi).filter(Boolean).join(", ") : profile.role}
           {" · "}{profile.city}{profile.experienceYears ? ` · ${profile.experienceYears} yrs` : ""}
         </div>
-        <Link to="/jobs/profile" onClick={close} style={{ fontSize: 12, color: "#e85a2a", fontWeight: 700 }}>{bi ? "प्रोफ़ाइल बदलें · Edit profile" : "Edit profile"}</Link>
+        <Link to={job.id ? `/jobs/profile?job=${encodeURIComponent(job.id)}` : "/jobs/profile"} onClick={close} style={{ fontSize: 12, color: "#e85a2a", fontWeight: 700 }}>{bi ? "प्रोफ़ाइल बदलें · Edit profile" : "Edit profile"}</Link>
       </div>
     ) : (
       <>

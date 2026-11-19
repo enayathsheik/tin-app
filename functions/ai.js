@@ -18,8 +18,8 @@ const aiFoundation = require("./vendor/ai-foundation");
 
 const db = getFirestore();
 
-// Bound below on onMessageCreate — the only function here that calls into
-// the OpenAI-backed orchestrator (aiFoundation.classifyMessage). Firebase
+// Bound below on onMessageCreate and suggestJobProfile — the only functions
+// here that call into the OpenAI-backed orchestrator. Firebase
 // Functions v2 injects the resolved value into process.env.OPENAI_API_KEY
 // at invocation time, which is what providers/openai/adapter.js already
 // reads (see packages/ai-foundation) — no change needed there.
@@ -178,6 +178,66 @@ exports.confirmSuggestedAction = onCall({ cors: true, invoker: "public" }, async
 
   return { success: true, collection: targetCollection };
 });
+
+// ── CLOUD FUNCTION: suggestJobProfile ────────────────────────
+// TIN Jobs AI profile helper (docs/JOBS_BLUEPRINT.md §8). Five short work
+// answers in → a DRAFT profile out. Suggest, then confirm: this function
+// writes nothing but the aiUsage rate-limit counters; the candidate reviews
+// the draft in the wizard and saves it through the normal rules.
+// Privacy: only the five (scrubbed) answers go to OpenAI. It never reads
+// users/{uid} or jobProfilesPrivate, never logs or stores the answers.
+let jobsTaxonomy = null;
+function loadJobsTaxonomy() {
+  // Written by scripts/vendor-ai-foundation.js from src/data/jobsTaxonomy.js.
+  if (!jobsTaxonomy) jobsTaxonomy = require("./vendor/jobsTaxonomy.json");
+  return jobsTaxonomy;
+}
+
+const AI_BUSY_MESSAGE = "Couldn't fill it right now. Please try again, or fill the form yourself. · अभी नहीं हो पाया। फिर कोशिश करें, या खुद फ़ॉर्म भरें।";
+
+exports.suggestJobProfile = onCall(
+  { region: "asia-south1", secrets: [openaiApiKey], enforceAppCheck: false, cors: true, invoker: "public", timeoutSeconds: 60 },
+  async (request) => {
+    const uid = request.auth && request.auth.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Please log in first.");
+    if (uid === "_global") throw new HttpsError("permission-denied", "Not allowed.");
+
+    const data = request.data && typeof request.data === "object" ? request.data : {};
+    const { jobProfile, jobProfileRateLimit } = aiFoundation;
+    const prepared = jobProfile.prepareAnswers(data.answers);
+    if (!prepared.ok) throw new HttpsError("invalid-argument", prepared.reason);
+    const lane = data.lane === "skilled" || data.lane === "professional" ? data.lane : null;
+
+    // Count the call BEFORE calling OpenAI, in one transaction, so parallel
+    // calls can't slip past the limits.
+    const userRef = db.collection("aiUsage").doc(uid);
+    const globalRef = db.collection("aiUsage").doc("_global");
+    const verdict = await db.runTransaction(async (tx) => {
+      const [userSnap, globalSnap] = await Promise.all([tx.get(userRef), tx.get(globalRef)]);
+      const result = jobProfileRateLimit.checkUsage(
+        userSnap.exists ? userSnap.data() : null,
+        globalSnap.exists ? globalSnap.data() : null,
+        new Date()
+      );
+      if (result.ok) {
+        tx.set(userRef, { ...result.user, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+        tx.set(globalRef, { ...result.global, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      }
+      return result;
+    });
+    if (!verdict.ok) throw new HttpsError("resource-exhausted", verdict.message, { code: verdict.code });
+
+    try {
+      return await jobProfile.suggestJobProfile({ answers: prepared.answers, lane }, loadJobsTaxonomy(), {
+        // Token counts only — never the answers themselves.
+        onUsage: (u) => console.log("[suggestJobProfile] tokens", JSON.stringify({ in: u.prompt_tokens, out: u.completion_tokens })),
+      });
+    } catch (err) {
+      console.error("[suggestJobProfile] failed:", err && err.message);
+      throw new HttpsError("unavailable", AI_BUSY_MESSAGE);
+    }
+  }
+);
 
 // ── CLOUD FUNCTION: dismissSuggestedAction ───────────────────
 exports.dismissSuggestedAction = onCall({ cors: true, invoker: "public" }, async (request) => {
