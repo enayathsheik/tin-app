@@ -114,6 +114,56 @@ export async function getOrCreatePersonalConversation({ currentUid, counterparty
   return { id, ...data };
 }
 
+// Jobs (phase 5a): a candidate and the employer of a job they applied to
+// talk without the request → accept step — applying is the consent. Same
+// deterministic personal_{pair} doc as above. `applicationId` is the proof
+// firestore.rules checks (applicationLinksPair): that application must
+// exist, not be withdrawn, and link exactly these two people (applicant +
+// that job's poster). An earlier 'requested' thread between them is opened
+// up the same way. The job is linked to the conversation (ContextRail).
+export async function openApplicationConversation({ currentUid, counterpartyUid, applicationId, jobId, names = {} }) {
+  if (!currentUid || !counterpartyUid || !applicationId) throw new Error("openApplicationConversation: currentUid, counterpartyUid, applicationId required");
+  if (currentUid === counterpartyUid) throw new Error("openApplicationConversation: cannot start a conversation with yourself");
+
+  const id = `personal_${[currentUid, counterpartyUid].sort().join("_")}`;
+  const ref = doc(db, CONVERSATIONS, id);
+  const existing = await getDoc(ref);
+  let conv;
+  if (existing.exists()) {
+    conv = { id, ...existing.data() };
+    if (conv.status === "requested") {
+      await updateDoc(ref, { status: "accepted", viaApplication: applicationId });
+      conv = { ...conv, status: "accepted", viaApplication: applicationId };
+    }
+  } else {
+    const data = {
+      context: "personal",
+      type: "direct",
+      scope: "personal",
+      status: "accepted",
+      orgId: null,
+      sharedOrgId: null,
+      viaApplication: applicationId,
+      participantUids: [currentUid, counterpartyUid].sort(),
+      participantNames: names,
+      linkedEntities: [],
+      createdBy: currentUid,
+      createdAt: serverTimestamp(),
+      lastMessageAt: serverTimestamp(),
+    };
+    await setDoc(ref, data);
+    conv = { id, ...data };
+  }
+
+  const linked = (conv.linkedEntities || []).some(e => e.entityType === "job" && e.entityId === jobId);
+  if (jobId && !linked) {
+    // Best effort: the conversation is usable even if the job can't be linked.
+    try { await linkEntity({ conversationId: id, entityType: "job", entityId: jobId, relationship: "application" }); }
+    catch (e) { console.warn("[conversations] couldn't link job:", e.message); }
+  }
+  return conv;
+}
+
 // Recipient-only accept: flips a first-contact personal conversation from
 // one-way 'requested' to two-way 'accepted'. firestore.rules'
 // canUpdatePersonalConversation enforces that only a participant OTHER than

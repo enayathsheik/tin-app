@@ -81,6 +81,7 @@ export function JobsPage({ user, isGuest, onRequireLogin }) {
           <Link to="/jobs/profile" style={{ fontSize: 12, fontWeight: 700, color: "var(--acc)", textDecoration: "none" }}>👤 My job profile · <span lang="hi">मेरी प्रोफ़ाइल</span> →</Link>
           {!isGuest && <Link to="/jobs/applications" style={{ fontSize: 12, fontWeight: 700, color: "var(--acc)", textDecoration: "none" }}>📋 My applications →</Link>}
           {!isGuest && <Link to="/jobs/saved" style={{ fontSize: 12, fontWeight: 700, color: "var(--acc)", textDecoration: "none" }}>★ Saved jobs →</Link>}
+          {!isGuest && <Link to="/jobs/desk" style={{ fontSize: 12, fontWeight: 700, color: "var(--acc)", textDecoration: "none" }}>💼 Employer Desk →</Link>}
         </div>
       </div>
 

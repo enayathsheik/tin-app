@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { loadMyApplications, moveApplication, requestReschedule } from "../lib/applications";
+import { messageAboutApplication } from "../lib/jobMessages";
 import { candidateActions, currentStage, nextStep, stageLabel, stageText } from "../utils/applications.js";
 import { normaliseJob } from "../utils/jobModel.js";
 import { HI } from "../data/jobsHindi.js";
@@ -21,6 +22,7 @@ function ApplicationItem({ app: initial, uid }) {
   const [showRs, setShowRs] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const navigate = useNavigate();
 
   const stage = currentStage(app);
   const acts = candidateActions(app);
@@ -37,6 +39,21 @@ function ApplicationItem({ app: initial, uid }) {
     setBusy(false);
   };
   const move = (to) => run(() => moveApplication(app, to, "candidate", uid));
+  // TIN Conversations with the job's poster — applying is the consent, so
+  // the chat opens both ways straight away (no request step).
+  const employerUid = app.job?.postedByUid;
+  const canMessage = !!employerUid && stage !== "withdrawn";
+  const messageEmployer = async () => {
+    setBusy(true); setError("");
+    try {
+      const id = await messageAboutApplication({ myUid: uid, myName: app.applicantName, otherUid: employerUid, otherName: biz, app });
+      navigate(`/conversations/${id}`);
+    } catch (e) {
+      console.error("[my-apps] message failed:", e);
+      setError("Couldn't open messages: " + (e.message || e));
+      setBusy(false);
+    }
+  };
 
   return (
     <div style={{ ...card, padding: 14 }}>
@@ -56,7 +73,12 @@ function ApplicationItem({ app: initial, uid }) {
       {open && (
         <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ fontSize: 13, color: "var(--t2)" }}>{stageText(stage)}</div>
-          {contactLater && <div style={{ fontSize: 13, color: "var(--t2)", background: "var(--s2)", borderRadius: 8, padding: 8 }}>The employer will contact you about this.</div>}
+          {contactLater && <div style={{ fontSize: 13, color: "var(--t2)", background: "var(--s2)", borderRadius: 8, padding: 8 }}>The employer's request is in Messages. Reply there.</div>}
+          {canMessage && (
+            <button type="button" disabled={busy} onClick={messageEmployer} style={{ ...big, background: contactLater ? "#e85a2a" : "transparent", color: contactLater ? "#fff" : "var(--t1)", border: contactLater ? "none" : "1px solid var(--b3)", alignSelf: "flex-start" }}>
+              💬 {bi ? "मालिक को संदेश · Message employer" : "Message employer"}
+            </button>
+          )}
 
           {app.interview?.date && ["int_invited", "int_scheduled", "int_rescheduled"].includes(stage) && (
             <div style={{ fontSize: 13, background: "var(--s2)", borderRadius: 10, padding: 10, color: "var(--t1)" }}>
@@ -95,7 +117,7 @@ function ApplicationItem({ app: initial, uid }) {
               <summary style={{ fontSize: 12, fontWeight: 700, color: "var(--t2)", cursor: "pointer" }}>Timeline</summary>
               <ol style={{ margin: "6px 0 0", paddingLeft: 18, fontSize: 12, color: "var(--t2)" }}>
                 {[...app.stageHistory].reverse().map((e, i) => (
-                  <li key={i}>{stageLabel(e.stage)} · {fmt(e.at)}{e.note ? ` — “${e.note}”` : ""}</li>
+                  <li key={i} style={{ whiteSpace: "pre-line" }}>{stageLabel(e.stage)} · {fmt(e.at)}{e.note ? ` — “${e.note}”` : ""}</li>
                 ))}
               </ol>
             </details>

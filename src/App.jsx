@@ -31,6 +31,7 @@ import { SavedJobsPage } from "./pages/SavedJobsPage";
 import { PostJobPage } from "./pages/PostJobPage";
 import { JobProfilePage } from "./pages/JobProfilePage";
 import { MyApplicationsPage } from "./pages/MyApplicationsPage";
+import { EmployerDeskPage } from "./pages/EmployerDeskPage";
 import { StoreProfilePage } from "./pages/StoreProfilePage";
 import { PublicProfilePage } from "./pages/PublicProfilePage";
 import { ConversationsPage } from "./pages/ConversationsPage";
@@ -406,6 +407,7 @@ export default function App() {
             <Route path="/jobs/profile" element={<JobProfilePage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath("/jobs/profile"); setShowLoginPage(true); }} toast={showToast} />} />
             <Route path="/jobs/applications" element={<MyApplicationsPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath("/jobs/applications"); setShowLoginPage(true); }} />} />
             <Route path="/jobs/saved" element={<SavedJobsPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath("/jobs/saved"); setShowLoginPage(true); }} />} />
+            <Route path="/jobs/desk" element={<EmployerDeskPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath(location.pathname + location.search); setShowLoginPage(true); }} />} />
             <Route path="/jobs/:jobId" element={<JobDetailPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath(location.pathname); setShowLoginPage(true); }} toast={showToast} />} />
             <Route path="/store/:storeId" element={<StoreProfilePage />} />
             <Route path="/conversations/*" element={<ConversationsPage user={user} />} />

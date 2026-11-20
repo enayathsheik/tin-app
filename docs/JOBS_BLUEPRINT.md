@@ -117,6 +117,7 @@ to differ from this document, update this document first, in the same commit.
 | **3 Post a job wizard** | 5-step wizard writing the new shape (§3) plus the legacy fields; drafts; edit vacancy (rules change §5.3). | Yes |
 | **4 Candidate profile + apply + My Applications** (shipped) | `/jobs/profile` (4 steps; steps 3–4 optional, "save & finish later"; skilled lane bilingual with trade tiles), one-tap apply when name + mobile + trade/role + city are known (else a 4-field form that also fills the profile), CV optional (no CV → printable "TIN Profile" card for the employer), per-job CVs with live access checks (no saved download links; employer loses access on withdrawal), `stage` + `stageHistory`, `/jobs/applications` with the 6-milestone tracker and interview/offer replies, employer stage moves + interview invite in My Jobs and the Profile page. | Yes |
 | **4b AI profile helper** (shipped, §8) | "Fill it for me" on `/jobs/profile`: 5 plain-language questions (Hindi/English/mixed, typed or 🎤 browser voice typing) → `suggestJobProfile` callable → draft marked "suggested" in the wizard → candidate reviews and saves. After the final Save: TIN Profile preview + "Find jobs" / "Apply to this job". | Yes |
+| **5a Employer Desk** (built, §5.6b) | `/jobs/desk` for any poster: 4 numbers, vacancy tabs Live/Paused/Filled/Closed, pipeline board (6 columns; phone = one column at a time, tap to move), list + bulk (`BULK_SET`), close vacancy in one confirmed batch, application sheet, Message via TIN Conversations (job linked), candidate "Message employer", business card + more open jobs on the job page. Replaces My Jobs and the Profile page applicant list. | Yes |
 | **5 Employer Desk + messaging** | Vacancies, pipeline board, list + bulk, application drawer, find candidates, team (existing org roles), recruitment details. Messaging = TIN Conversations with the job linked via `LINKABLE_ENTITY_COLLECTIONS` (no separate chat). | Yes |
 | **6 Emails + notifications** | In-app notifications collection, email sending per `ST[stage].email`, per-person preferences, 10-minute de-duplication. | Yes |
 | **7 Admin + career pathway** | Admin alerts, analytics, tables, audit log; career pathway + Career Score. | Yes |
@@ -416,6 +417,34 @@ working until Phase 5 replaces it. Team access (HR Manager / Recruiter acting
 for the business) is designed in the Phase 5 plan on top of the existing
 `organizations` / `memberships` rules, without changing `tenancy.js` unless
 separately approved.
+
+### 5.6b Phase 5a: Employer Desk (built)
+
+- **`jobListings` update:** `jobStatus` may also be `"paused"` (list is now
+  live/paused/filled/closed). The feed, sitemap, prerender, store "Open jobs"
+  and the apply rule all require `live`, so a paused job leaves search and
+  takes no applications; its page still opens by direct link ("isn't taking
+  applications right now"), like filled/closed jobs. `"draft"` stays out.
+- **`conversations` create:** a personal 1:1 may start `accepted` when it
+  carries `viaApplication: "{jobId}_{uid}"` and `applicationLinksPair()` holds:
+  that application exists, isn't withdrawn, and its applicant and its job's
+  poster are exactly the two participants. **Update:** either participant may
+  flip an earlier `requested` thread to `accepted` with the same proof
+  (keys `status` + `viaApplication` only). Strangers still get `requested`.
+- No rule change for bulk updates or closing: both are batched writes through
+  the existing employer branch (employer stages, timeline +1, never out of a
+  closed stage), so a batch fully passes or changes nothing.
+- Indexes: `jobListings (postedByUid, createdAt desc)` (Desk, 20 per page) and
+  `(postedByUid, status, jobStatus, createdAt desc)` (job page "More open jobs").
+- Owner decisions (5a): "To reply" = reschedule requests + `int_scheduled`;
+  closing as **Filled** keeps Selected / Offer sent / Offer accepted; polite
+  notes (English, plus Hindi for skilled-lane jobs) are pre-filled and
+  editable; views (D5) and expiry (D6) excluded.
+- Code: `src/utils/employerDesk.js` (board columns, counts, bulk/close plans,
+  notes; unit-tested), `src/lib/employerDesk.js`, `src/lib/jobMessages.js`,
+  `openApplicationConversation()` in `src/lib/conversations.js`, UI in
+  `src/components/jobs/desk/`, `/jobs/desk` (`EmployerDeskPage`). Tests:
+  `test/unit/employerDesk.test.js`, `test/rules/employer-desk.test.js`.
 
 ### 5.7 Phase 6: notifications
 

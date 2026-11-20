@@ -9,6 +9,7 @@ import { buildJobPostingJsonLd } from "../utils/jobJsonLd.js";
 import { JobsStyles, LaneMarker } from "../components/jobs/jobsUi";
 import { LANE_COLOR, LANE_LABEL, card, chip, heading, payLine } from "../components/jobs/jobsStyle";
 import { ReportJobButton, SaveJobButton } from "../components/jobs/SaveReportButtons";
+import { BusinessCard } from "../components/jobs/BusinessCard";
 
 const SITE_URL = "https://tinit.in";
 const truncate = (str, len) => (str && str.length > len ? str.slice(0, len - 1).trimEnd() + "…" : str || "");
@@ -240,19 +241,7 @@ export function JobDetailPage({ user, isGuest, onRequireLogin, toast }) {
         <div style={{ fontSize: 11, color: "var(--t3)", marginTop: 8 }}>Anyone can view this job. Applying needs a free TIN account.</div>
       </div>
 
-      {/* BUSINESS CARD */}
-      <div style={{ ...card, padding: 16, marginTop: 12, display: "flex", alignItems: "center", gap: 12 }}>
-        <div className="avatar" style={{ width: 40, height: 40, fontSize: 16 }}>{(orgName[0] || "T").toUpperCase()}</div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 14, color: "var(--t1)" }}>{orgName}</div>
-          <div style={{ fontSize: 12, color: "var(--t3)" }}>
-            {[job.postedByType === "verified_business" ? "✓ TIN verified business" : "Posted on TIN", job.industryLabel].filter(Boolean).join(" · ")}
-          </div>
-        </div>
-        {cardLink && (
-          <Link to={cardLink.href} style={{ fontSize: 12, fontWeight: 700, color: "var(--acc)", textDecoration: "none", whiteSpace: "nowrap" }}>{cardLink.label} →</Link>
-        )}
-      </div>
+      <BusinessCard job={job} orgName={orgName} cardLink={cardLink} isOwnListing={isOwnListing} />
 
       <JobApplyModal {...applyState} />
     </div>

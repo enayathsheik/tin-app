@@ -171,7 +171,7 @@ export function PostJobPage({ user, isGuest, onRequireLogin, onListStore, toast 
         </h1>
         <p style={{ fontSize: 13, color: "var(--t3)", margin: "0 auto 16px", maxWidth: 460 }}>
           {!done.changed ? "Everything was already up to date."
-            : live ? "It's showing on TIN Jobs now. New applications appear under My Jobs."
+            : live ? "It's showing on TIN Jobs now. New applications appear in your Employer Desk."
             : "The TIN team reviews listings from accounts that aren't verified yet. It will show on TIN Jobs once approved."}
         </p>
         <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
@@ -398,7 +398,7 @@ export function PostJobPage({ user, isGuest, onRequireLogin, onListStore, toast 
     const row = (label, value) => value ? (<><dt style={{ fontSize: 11, color: "var(--t3)", textTransform: "uppercase", letterSpacing: ".06em" }}>{label}</dt><dd style={{ margin: "0 0 8px", fontSize: 13, color: "var(--t1)" }}>{value}</dd></>) : null;
     pane = <>
       <h2 style={{ ...heading, fontSize: 20, margin: "0 0 4px" }}>Check and {isEdit ? "save" : "publish"}</h2>
-      <p style={{ fontSize: 13, color: "var(--t3)", margin: "0 0 12px" }}>Posting is free. You can edit or close the job anytime from My Jobs.</p>
+      <p style={{ fontSize: 13, color: "var(--t3)", margin: "0 0 12px" }}>Posting is free. You can edit or close the job anytime from your Employer Desk.</p>
       <dl style={{ margin: "0 0 12px" }}>
         {row("Business", [d.business.name, labelOf(INDUSTRIES, d.business.industry)].filter(Boolean).join(" · "))}
         {row("Lane", d.lane === "skilled" ? "Skilled workforce" : "Professional")}

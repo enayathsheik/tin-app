@@ -5,7 +5,7 @@ import { CONTRIBUTOR_LEVELS, ROLES } from "../data/constants";
 import { getLevel } from "../utils/helpers";
 import { canChangeHandle, checkHandleAvailable, claimHandle, isReservedHandle, isValidHandleFormat } from "../utils/handles";
 import { CreateOrganizationSection } from "../components/profile/CreateOrganizationSection";
-import { ApplicantCard } from "../components/jobs/ApplicantCard";
+import { Link } from "react-router-dom";
 
 export function ProfilePage({ user, onUpdateUser, showJobPosts = true }) {
   const lv = getLevel(user.points);
@@ -14,8 +14,8 @@ export function ProfilePage({ user, onUpdateUser, showJobPosts = true }) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [myJobs, setMyJobs] = useState(null); // null = loading
-  const [applicantsByJob, setApplicantsByJob] = useState({});
 
+  // A short summary only — applicants are managed in the Employer Desk.
   useEffect(() => {
     if (!showJobPosts) { setMyJobs([]); return; }
     if (!user?.uid) { setMyJobs([]); return; }
@@ -25,11 +25,6 @@ export function ProfilePage({ user, onUpdateUser, showJobPosts = true }) {
         const listings = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         listings.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
         setMyJobs(listings);
-        const entries = await Promise.all(listings.map(async (j) => {
-          const appSnap = await getDocs(query(collection(db, "jobApplications"), where("jobId", "==", j.id)));
-          return [j.id, appSnap.docs.map(d => ({ id: d.id, ...d.data() }))];
-        }));
-        setApplicantsByJob(Object.fromEntries(entries));
       } catch (e) {
         console.error("[profile] Failed to load job posts:", e);
         setMyJobs([]);
@@ -275,24 +270,25 @@ export function ProfilePage({ user, onUpdateUser, showJobPosts = true }) {
           ) : myJobs.length === 0 ? (
             <div style={{ fontSize: 13, color: "var(--t3)", padding: "8px 0" }}>You haven't posted any jobs yet.</div>
           ) : (
-            myJobs.map(j => {
-              const applicants = applicantsByJob[j.id] || [];
-              const statusColor = j.status === "approved" ? "#16a34a" : j.status === "rejected" ? "#dc2626" : "#d97706";
-              const statusBg = j.status === "approved" ? "#f0fdf4" : j.status === "rejected" ? "#fff0f0" : "#fffbeb";
-              return (
-                <div key={j.id} style={{ border: "1px solid var(--b2)", borderRadius: "var(--r)", padding: 14, marginBottom: 12 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: "var(--t1)" }}>{j.jobTitle}</div>
+            <>
+              {myJobs.slice(0, 3).map(j => {
+                const statusColor = j.status === "approved" ? "#16a34a" : j.status === "rejected" ? "#dc2626" : "#d97706";
+                const statusBg = j.status === "approved" ? "#f0fdf4" : j.status === "rejected" ? "#fff0f0" : "#fffbeb";
+                return (
+                  <Link key={j.id} to={`/jobs/desk?job=${j.id}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, border: "1px solid var(--b2)", borderRadius: "var(--r)", padding: "10px 14px", marginBottom: 8, textDecoration: "none" }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: "var(--t1)" }}>{j.jobTitle}</div>
+                      <div style={{ fontSize: 12, color: "var(--t3)" }}>{[j.city, j.jobStatus && j.jobStatus !== "live" ? j.jobStatus : ""].filter(Boolean).join(" · ")}</div>
+                    </div>
                     <span style={{ fontSize: 10, fontWeight: 700, color: statusColor, background: statusBg, border: `1px solid ${statusColor}30`, borderRadius: 10, padding: "2px 8px", textTransform: "capitalize" }}>{j.status}</span>
-                  </div>
-                  <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 10 }}>{j.city} · {j.jobType} · {j.category}</div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--t2)", marginBottom: applicants.length ? 6 : 0 }}>
-                    {applicants.length} applicant{applicants.length === 1 ? "" : "s"}
-                  </div>
-                  {applicants.map(a => <ApplicantCard key={a.id} app={a} employerUid={user.uid} />)}
-                </div>
-              );
-            })
+                  </Link>
+                );
+              })}
+              <Link to="/jobs/desk" style={{ display: "inline-block", marginTop: 4, padding: "10px 16px", borderRadius: 8, background: "#e85a2a", color: "#fff", fontSize: 13, fontWeight: 700, textDecoration: "none" }}>
+                Open Employer Desk{myJobs.length > 3 ? ` · all ${myJobs.length} jobs` : ""} →
+              </Link>
+              <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 6 }}>Review applicants, move them through the stages and message them from the Desk.</div>
+            </>
           )}
         </div>}
       </div>
