@@ -5,6 +5,7 @@ import { writeFileSync } from "fs";
 import path from "path";
 import { initAdmin, requireServiceAccountPath } from "./firebaseAdmin.js";
 import { JOB_LANE_PAGES } from "../src/data/jobsLanes.js";
+import { JOBS_ONLY } from "../src/data/features.js";
 
 const SITE_URL = "https://tinit.in";
 const DIST_DIR = "dist";
@@ -35,8 +36,9 @@ async function main() {
   const storesSnap = await db.collection("stores").get();
 
   const entries = [
-    urlEntry(`${SITE_URL}/`, { priority: 1.0 }),
-    urlEntry(`${SITE_URL}/jobs`, { priority: 0.8 }),
+    // L1 Jobs-only launch: "/" just redirects to /jobs, so /jobs is the top entry.
+    ...(JOBS_ONLY ? [] : [urlEntry(`${SITE_URL}/`, { priority: 1.0 })]),
+    urlEntry(`${SITE_URL}/jobs`, { priority: JOBS_ONLY ? 1.0 : 0.8 }),
     ...JOB_LANE_PAGES.map(l => urlEntry(`${SITE_URL}${l.path}`, { priority: 0.7 })),
   ];
 

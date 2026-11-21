@@ -17,6 +17,7 @@ import { initAdmin, requireServiceAccountPath } from "./firebaseAdmin.js";
 import { buildJobPostingJsonLd } from "../src/utils/jobJsonLd.js";
 import { normaliseJob } from "../src/utils/jobModel.js";
 import { JOBS_HOME_META, JOB_LANE_PAGES } from "../src/data/jobsLanes.js";
+import { JOBS_ONLY } from "../src/data/features.js";
 
 const SITE_URL = "https://tinit.in";
 const DIST_DIR = "dist";
@@ -149,6 +150,11 @@ async function main() {
     writeFileSync(path.join(outDir, "index.html"), html);
     storeCount++;
   }
+
+  // L1 Jobs-only launch: "/" opens the Jobs home, so the root page carries the
+  // Jobs home title/description (canonical /jobs). Written last — every page
+  // above was built from the untouched template.
+  if (JOBS_ONLY) writeFileSync(templatePath, template.replace(META_REGION, buildStaticMetaBlock(JOBS_HOME_META)));
 
   console.log(`[prerender] Generated ${1 + JOB_LANE_PAGES.length} jobs landing/lane page(s), ${jobCount} job page(s) and ${storeCount} store page(s).`);
 }

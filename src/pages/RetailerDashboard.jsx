@@ -9,6 +9,7 @@ import { StaffProfilePage } from "./StaffProfilePage";
 import { ProfilePage } from "./ProfilePage";
 import { InspiPage } from "./InspiPage";
 import { EmployerDesk } from "../components/jobs/desk/EmployerDesk";
+import { isPageEnabled } from "../data/features";
 
 const BASE_RETAILER_NAV_ITEMS = [["home","🏠","My Business"],["discover","🔍","Discover"],["inspi","🖼","Inspi"],["jobs","💼","Jobs"],["staff","👥","Staff"],["deals","🏷","Deals"]];
 const MESSAGES_NAV_ITEM = ["messages","💬","Messages"];
@@ -19,7 +20,8 @@ const PROFILE_NAV_ITEM = ["profile","👤","Profile"];
 export function RetailerDashboard({ user, stores, onNavigate }) {
   const navigate = useNavigate();
   const RETAILER_NAV_ITEMS = [
-    ...BASE_RETAILER_NAV_ITEMS,
+    // L1: Discover/Inspi/Staff/Deals hidden for the Jobs-only launch (src/data/features.js).
+    ...BASE_RETAILER_NAV_ITEMS.filter(([id]) => id === "home" || isPageEnabled(id)),
     MESSAGES_NAV_ITEM,
     PROFILE_NAV_ITEM,
   ];

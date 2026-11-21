@@ -37,6 +37,7 @@ import { PublicProfilePage } from "./pages/PublicProfilePage";
 import { ConversationsPage } from "./pages/ConversationsPage";
 import { HomSystemsPage } from "./pages/hom/HomSystemsPage";
 import { HomAdminTab } from "./pages/hom/HomAdminTab";
+import { FEATURES, isPageEnabled } from "./data/features";
 
 export default function App() {
   const navigate = useNavigate();
@@ -212,7 +213,7 @@ export default function App() {
   const isContractor = user?.role === "contractor";
   const isArchitect = user?.role === "architect";
   const showLeaderboard = isContrib;
-  const TABS = !user
+  const TABS = (!user
     ? [
         ["home","Home"],
         ["discover","Discover"],
@@ -242,7 +243,8 @@ export default function App() {
         ["deals","Deals"],
         ["messages","Messages"],
         ["profile","Profile"],
-      ];
+      ]
+  ).filter(([id]) => isPageEnabled(id));
 
   // /jobs and /jobs/:jobId are now real routes, not `page` state — derive the
   // highlighted nav tab from the URL for those, falling back to `page` elsewhere.
@@ -321,7 +323,7 @@ export default function App() {
               <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:26,marginBottom:8,color:"#080808"}}>Thank You!</div>
               <div style={{fontSize:14,color:"#555",marginBottom:20,lineHeight:1.6}}>Store submitted! You earned <strong style={{color:"#e85a2a"}}>+10 points</strong> for contributing to TIN.</div>
               <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
-                <button onClick={()=>{setShowThankYou(false);setPage("discover");}} style={{padding:"9px 18px",borderRadius:8,background:"#e85a2a",border:"none",color:"white",fontSize:13,fontWeight:700,cursor:"pointer"}}>View in Discover →</button>
+                {FEATURES.discover && <button onClick={()=>{setShowThankYou(false);setPage("discover");}} style={{padding:"9px 18px",borderRadius:8,background:"#e85a2a",border:"none",color:"white",fontSize:13,fontWeight:700,cursor:"pointer"}}>View in Discover →</button>}
                 <button onClick={()=>{setShowThankYou(false);setPage("home");}} style={{padding:"9px 18px",borderRadius:8,background:"#f5f5f5",border:"1px solid #e0e0e0",color:"#080808",fontSize:13,fontWeight:700,cursor:"pointer"}}>Go Home</button>
               </div>
             </div>
@@ -349,7 +351,7 @@ export default function App() {
                   ["jobs","💼","Jobs"],
                   ["login","👤","Login"],
                 ]
-            ).map(([id,icon,label]) => (
+            ).filter(([id]) => isPageEnabled(id)).map(([id,icon,label]) => (
               <div key={id} className={`mobile-nav-item ${activePage===id?"on":""}`} onClick={() => {
                 if (id === "login") setShowLoginPage(true);
                 else if (id === "add") handleAddStore();
@@ -367,6 +369,11 @@ export default function App() {
         <div className="page">
           <Routes>
             <Route path="/" element={<>
+              {/* L1 Jobs-only launch: hidden pages (src/data/features.js) redirect
+                  to /jobs. "add" stays reachable (Post a Job → "List your store")
+                  even though its menu button is hidden, and a retailer keeps
+                  their own dashboard as home. */}
+              {page !== "add" && !isPageEnabled(page) && !(page === "home" && isRetailer) ? <Navigate to="/jobs" replace /> : <>
               {page === "home" && (isRetailer
                 ? <RetailerDashboard user={user} stores={stores} onNavigate={setPage} />
                 : isContrib
@@ -397,6 +404,7 @@ export default function App() {
               {page === "myzone" && <MyZonePage user={user} stores={stores} onNavigate={setPage} />}
               {page === "admin" && <AdminDashboard stores={stores} contributors={contributors} user={user} />}
               {page === "homSystems" && <HomAdminTab user={user} />}
+              </>}
             </>} />
             <Route path="/jobs" element={<JobsPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath("/jobs"); setShowLoginPage(true); }} toast={showToast} />} />
             <Route path="/jobs/professional" element={<JobsLanePage key="professional" slug="professional" user={user} isGuest={!user} onRequireLogin={() => { setPendingPath(location.pathname + location.search); setShowLoginPage(true); }} toast={showToast} />} />
