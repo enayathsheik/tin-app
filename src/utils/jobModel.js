@@ -57,7 +57,9 @@ export function formatPay(pay) {
   if (pay.source === "structured" && pay.min) {
     const suffix = PAY_PERIODS.find(p => p.key === pay.period)?.suffix;
     const range = pay.max && pay.max !== pay.min ? `₹${inr(pay.min)}–${inr(pay.max)}` : `₹${inr(pay.min)}`;
-    return suffix ? `${range} ${suffix}` : range;
+    const text = suffix ? `${range} ${suffix}` : range;
+    // L7: "Negotiable" may be shown next to the range.
+    return pay.negotiable ? `${text} · Negotiable` : text;
   }
   return pay.text || null;
 }
@@ -73,6 +75,7 @@ function normalisePay(raw) {
       min,
       max: max != null && min != null && max < min ? null : max,
       display: isKey(PAY_DISPLAY, p.display) ? p.display : null,
+      negotiable: p.negotiable === true,
       incentives: strOrNull(p.incentives),
       text: strOrNull(raw.salaryRange),
     };
@@ -86,6 +89,7 @@ function normalisePay(raw) {
     min: parsed?.min ?? null,
     max: parsed?.max ?? null,
     display: null,
+    negotiable: false,
     incentives: null,
     text,
   };

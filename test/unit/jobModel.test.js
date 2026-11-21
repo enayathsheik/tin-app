@@ -76,7 +76,7 @@ describe("normaliseJob — old-shape jobs", () => {
 
   it("reads pay from salaryRange and keeps the original text", () => {
     const j = normaliseJob(oldJob());
-    expect(j.pay).toEqual({ source: "legacy", period: "month", min: 18000, max: 24000, display: null, incentives: null, text: "₹18,000 – ₹24,000/month" });
+    expect(j.pay).toEqual({ source: "legacy", period: "month", min: 18000, max: 24000, display: null, negotiable: false, incentives: null, text: "₹18,000 – ₹24,000/month" });
     expect(j.payText).toBe("₹18,000 – ₹24,000/month");
   });
 
@@ -150,6 +150,8 @@ describe("normaliseJob — new-shape jobs", () => {
     expect(normaliseJob(newJob({ pay: { period: "month", min: 22000, max: 28000, display: "show_range" } })).payText).toBe("₹22,000–28,000 / month");
     expect(normaliseJob(newJob({ pay: { period: "month", min: 22000, max: 28000, display: "negotiable" } })).payText).toBe("Negotiable");
     expect(normaliseJob(newJob({ pay: { period: "month", min: 22000, display: "undisclosed" } })).payText).toBe("Not disclosed");
+    // L7: new jobs show "Negotiable" next to the range; old jobs above keep their text.
+    expect(normaliseJob(newJob({ pay: { period: "month", min: 22000, max: 28000, display: "show_range", negotiable: true } })).payText).toBe("₹22,000–28,000 / month · Negotiable");
   });
 
   it("short work type or a duration makes it 'Needed Now'", () => {

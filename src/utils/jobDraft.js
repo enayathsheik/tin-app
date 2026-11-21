@@ -12,7 +12,7 @@
 //    stored on them (owner decision, Phase 3);
 //  - storeId only when the account has an admin-set store link.
 import {
-  BENEFITS, FUNCS, INDUSTRIES, LANES, PAY_DISPLAY, PAY_PERIODS, SHORT_TYPES, TRADES, TYPES, URGENCY,
+  BENEFITS, FUNCS, INDUSTRIES, LANES, PAY_PERIODS, SHORT_TYPES, TRADES, TYPES, URGENCY,
   industryPrefill, isKey, labelOf,
 } from "../data/jobsTaxonomy.js";
 import { formatPay, normaliseJob } from "./jobModel.js";
@@ -60,7 +60,8 @@ export function emptyDraft(user = {}, store = null) {
     duties: "",
     skills: "",
     shortAssignment: { duration: "", startDate: "", urgency: "", certTools: "" },
-    pay: { period: "month", min: "", max: "", display: "show_range", incentives: "" },
+    // L7: pay range is required (period + from/to); "Negotiable" is a tick shown next to it.
+    pay: { period: "month", min: "", max: "", display: "show_range", negotiable: false, incentives: "" },
     evpMode: "list",
     benefits: {},
     evpText: "",
@@ -104,7 +105,10 @@ export function draftFromJob(raw, user = {}) {
       period: pay?.period || "month",
       min: pay?.min != null ? String(pay.min) : "",
       max: pay?.max != null ? String(pay.max) : "",
-      display: (structured && pay.display) || "show_range",
+      // L7: no more "Don't disclose" / "Negotiable instead of pay" — an old job
+      // edited here must get a range; old "Negotiable" becomes the tick.
+      display: "show_range",
+      negotiable: (structured && pay.display === "negotiable") || pay?.negotiable === true,
       incentives: pay?.incentives || "",
     },
     evpMode: j.evpText && !Object.keys(j.benefits).length ? "write" : "list",
@@ -112,8 +116,8 @@ export function draftFromJob(raw, user = {}) {
     evpText: j.evpText || "",
     contactPhone: j.contactPhone || base.contactPhone,
     notAgencyDeclaration: !!raw?.notAgencyDeclaration,
-    // Unreadable old salary text (e.g. "35000") is kept unless the poster
-    // enters a real amount or chooses Negotiable / Don't disclose.
+    // Unreadable old salary text (e.g. "35000") is shown as a hint; editing
+    // the job needs a real range (L7).
     legacySalaryText: pay?.source === "legacy" && pay.min == null ? (pay.text || "") : "",
   };
 }
@@ -149,13 +153,11 @@ export function validateStep(step, d) {
   if (step === 2) {
     const p = d.pay || {};
     if (!isKey(PAY_PERIODS, p.period)) err("pay.period", "Choose how it's paid.");
-    if (!isKey(PAY_DISPLAY, p.display)) err("pay.display", "Choose how to show pay.");
-    if (p.display === "show_range") {
-      const min = toNum(p.min), max = toNum(p.max);
-      if (min == null && !d.legacySalaryText) err("pay.min", "Add the amount, or choose Negotiable / Don't disclose.");
-      if (s(String(p.max ?? "")) && max == null) err("pay.max", "\"To\" must be a number.");
-      if (min != null && max != null && max < min) err("pay.max", "\"To\" can't be less than \"From\".");
-    }
+    // L7: a pay range is required on every new or edited job.
+    const min = toNum(p.min), max = toNum(p.max);
+    if (min == null) err("pay.min", "Add the starting pay (From).");
+    if (max == null) err("pay.max", "Add the top of the range (To). Same as From is fine.");
+    else if (min != null && max < min) err("pay.max", "\"To\" can't be less than \"From\".");
   }
   if (step === 4) {
     if (!s(d.contactPhone)) err("contactPhone", "Add a contact phone number.");
@@ -178,20 +180,21 @@ export function buildJobFields(d, { storeId = null } = {}) {
   const workTypes = [...new Set((d.workTypes || []).filter(k => isKey(TYPES, k)))];
   const short = workTypes.some(t => SHORT_TYPES.includes(t));
 
-  const display = isKey(PAY_DISPLAY, d.pay?.display) ? d.pay.display : "show_range";
-  const hidden = HIDDEN_PAY.includes(display);
-  const min = hidden ? null : toNum(d.pay?.min);
-  let max = hidden ? null : toNum(d.pay?.max);
-  if (max != null && min != null && max < min) max = null;
+  // L7: always a shown range; max is kept even when equal to min (rules
+  // require both), and "Negotiable" is a flag shown next to the range.
+  const min = toNum(d.pay?.min);
+  let max = toNum(d.pay?.max);
+  if (max == null || (min != null && max < min)) max = min;
   const pay = {
     period: isKey(PAY_PERIODS, d.pay?.period) ? d.pay.period : "month",
     min,
-    max: max === min ? null : max,
-    display,
+    max,
+    display: "show_range",
+    negotiable: d.pay?.negotiable === true,
     incentives: s(d.pay?.incentives),
   };
   const payText = formatPay({ ...pay, source: "structured", text: null });
-  const salaryRange = payText || (!hidden ? s(d.legacySalaryText) : "") || "";
+  const salaryRange = payText || "";
 
   const benefits = {};
   if (d.evpMode !== "write") {

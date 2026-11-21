@@ -73,7 +73,7 @@ describe("buildJobFields — what gets saved", () => {
       shortAssignment: null, benefits: { sales_incentives: "Monthly" }, evpText: "",
       contactPhone: "9800000000", notAgencyDeclaration: true,
     });
-    expect(f.pay).toEqual({ period: "year", min: 600000, max: 800000, display: "show_range", incentives: "+ incentive" });
+    expect(f.pay).toEqual({ period: "year", min: 600000, max: 800000, display: "show_range", negotiable: false, incentives: "+ incentive" });
   });
 
   it("also writes the legacy fields older readers use", () => {
@@ -93,12 +93,14 @@ describe("buildJobFields — what gets saved", () => {
     expect(j.industryLabel).toBe("Retailers, Distributors & Dealers");
   });
 
-  it("NEGOTIABLE / DON'T DISCLOSE save no amounts — only the period", () => {
+  it("L7: always saves a shown range; \"Negotiable\" is a flag next to it; old hidden-pay choices are ignored", () => {
+    const neg = buildJobFields(filled({ pay: { period: "month", min: "22000", max: "28000", display: "show_range", negotiable: true, incentives: "x" } }));
+    expect(neg.pay).toEqual({ period: "month", min: 22000, max: 28000, display: "show_range", negotiable: true, incentives: "x" });
+    expect(neg.salaryRange).toBe("₹22,000–28,000 / month · Negotiable");
     for (const display of ["negotiable", "undisclosed"]) {
-      const f = buildJobFields(filled({ pay: { period: "month", min: "22000", max: "28000", display, incentives: "x" } }));
-      expect(f.pay).toEqual({ period: "month", min: null, max: null, display, incentives: "x" });
-      expect(JSON.stringify(f)).not.toMatch(/22000|28000/);
-      expect(f.salaryRange).toBe(display === "negotiable" ? "Negotiable" : "Not disclosed");
+      const f = buildJobFields(filled({ pay: { period: "month", min: "22000", max: "28000", display, incentives: "" } }));
+      expect(f.pay.display).toBe("show_range");
+      expect(f.pay.min).toBe(22000);
     }
   });
 
@@ -126,9 +128,11 @@ describe("buildJobFields — what gets saved", () => {
     expect(f.benefits).toEqual({});
   });
 
-  it("drops a 'to' below 'from', and equal from/to becomes a single amount", () => {
-    expect(buildJobFields(filled({ pay: { period: "month", min: "30000", max: "20000", display: "show_range" } })).pay.max).toBeNull();
-    expect(buildJobFields(filled({ pay: { period: "day", min: "900", max: "900", display: "show_range" } })).salaryRange).toBe("₹900 / day");
+  it("a 'to' below 'from' falls back to 'from'; equal from/to shows a single amount but keeps both", () => {
+    expect(buildJobFields(filled({ pay: { period: "month", min: "30000", max: "20000", display: "show_range" } })).pay.max).toBe(30000);
+    const eq = buildJobFields(filled({ pay: { period: "day", min: "900", max: "900", display: "show_range" } }));
+    expect(eq.salaryRange).toBe("₹900 / day");
+    expect(eq.pay).toMatchObject({ min: 900, max: 900 });
   });
 });
 
@@ -156,10 +160,13 @@ describe("validation", () => {
     expect(fields(filled({ workTypes: ["daily_wage"] }))).toContain("shortAssignment.duration");
   });
 
-  it("pay: amount needed for 'show range'; not for hidden pay; to ≥ from", () => {
+  it("L7 pay: from AND to are required (no Don't disclose / Negotiable-instead); to ≥ from", () => {
     const fields = (pay) => validateStep(2, filled({ pay })).map(e => e.field);
-    expect(fields({ period: "month", min: "", max: "", display: "show_range" })).toContain("pay.min");
-    expect(fields({ period: "month", min: "", max: "", display: "negotiable" })).toEqual([]);
+    expect(fields({ period: "month", min: "", max: "", display: "show_range" })).toEqual(["pay.min", "pay.max"]);
+    expect(fields({ period: "month", min: "", max: "", display: "negotiable" })).toEqual(["pay.min", "pay.max"]);
+    expect(fields({ period: "month", min: "", max: "", display: "undisclosed" })).toEqual(["pay.min", "pay.max"]);
+    expect(fields({ period: "month", min: "20000", max: "", display: "show_range" })).toEqual(["pay.max"]);
+    expect(fields({ period: "month", min: "20000", max: "20000", display: "show_range", negotiable: true })).toEqual([]);
     expect(fields({ period: "month", min: "30000", max: "20000", display: "show_range" })).toContain("pay.max");
     expect(fields({ period: "month", min: "30000", max: "abc", display: "show_range" })).toContain("pay.max");
   });
@@ -194,12 +201,18 @@ describe("editing: draftFromJob", () => {
     expect(d.legacySalaryText).toBe("35000");
   });
 
-  it("unreadable old salary text is kept unless the poster enters a real amount", () => {
+  it("L7: editing an old job with unreadable salary text needs a real range (text shown as a hint)", () => {
     const d = draftFromJob(oldJob);
-    expect(validateStep(2, d)).toEqual([]);                       // allowed to keep it
-    expect(buildJobFields(d).salaryRange).toBe("35000");          // kept as written
-    expect(buildJobFields({ ...d, pay: { ...d.pay, min: "35000" } }).salaryRange).toBe("₹35,000 / month");
-    expect(buildJobFields({ ...d, pay: { ...d.pay, display: "negotiable" } }).salaryRange).toBe("Negotiable");
+    expect(d.legacySalaryText).toBe("35000");
+    expect(validateStep(2, d).map(e => e.field)).toEqual(["pay.min", "pay.max"]);
+    expect(buildJobFields({ ...d, pay: { ...d.pay, min: "35000", max: "40000" } }).salaryRange).toBe("₹35,000–40,000 / month");
+  });
+
+  it("L7: an old Negotiable job edited here keeps Negotiable as the tick; Don't disclose becomes a range to fill", () => {
+    const neg = draftFromJob({ id: "n", jobTitle: "A", lane: "professional", pay: { period: "month", min: null, max: null, display: "negotiable" } });
+    expect(neg.pay).toMatchObject({ display: "show_range", negotiable: true, min: "", max: "" });
+    const und = draftFromJob({ id: "u", jobTitle: "A", lane: "professional", pay: { period: "day", min: null, max: null, display: "undisclosed" } });
+    expect(und.pay).toMatchObject({ display: "show_range", negotiable: false, period: "day" });
   });
 
   it("a new-shape job round-trips: draft → fields → draft", () => {

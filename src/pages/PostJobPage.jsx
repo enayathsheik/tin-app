@@ -3,10 +3,10 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { CITIES, STATES } from "../data/constants";
 import {
-  BENEFITS, FUNCS, INDUSTRIES, PAY_DISPLAY, PAY_PERIODS, TRADES, TYPES, URGENCY, labelOf,
+  BENEFITS, FUNCS, INDUSTRIES, PAY_PERIODS, TRADES, TYPES, URGENCY, labelOf,
 } from "../data/jobsTaxonomy.js";
 import {
-  HIDDEN_PAY, WIZARD_STEPS, draftFromJob, emptyDraft, isShortAssignment, validateStep,
+  WIZARD_STEPS, draftFromJob, emptyDraft, isShortAssignment, validateStep,
 } from "../utils/jobDraft.js";
 import { formatPay } from "../utils/jobModel.js";
 import { createJob, isVerifiedAccount, loadJobForEdit, loadLinkedStore, updateJob } from "../lib/jobsPost";
@@ -27,7 +27,6 @@ const LANE_OPTIONS = [
   { key: "professional", label: "Professional", desc: "Office, showroom, design, sales, management", color: LANE_COLOR.professional },
   { key: "skilled", label: "Skilled workforce", desc: "Site, installation, workshop, trades", color: LANE_COLOR.skilled },
 ];
-const PAY_DISPLAY_OPTIONS = PAY_DISPLAY.map(o => ({ key: o.key, label: o.label }));
 const EVP_OPTIONS = [
   { key: "list", label: "Tick a list", desc: "Choose benefits and add details" },
   { key: "write", label: "Write it yourself", desc: "Describe your workplace in your own words" },
@@ -131,9 +130,8 @@ export function PostJobPage({ user, isGuest, onRequireLogin, onListStore, toast 
   const payPreview = useMemo(() => {
     if (!draft) return "";
     const p = draft.pay;
-    const hidden = HIDDEN_PAY.includes(p.display);
     const num = (v) => { const n = parseFloat(String(v).replace(/[,\s₹]/g, "")); return Number.isFinite(n) && n > 0 ? n : null; };
-    return formatPay({ source: "structured", period: p.period, display: p.display, min: hidden ? null : num(p.min), max: hidden ? null : num(p.max), text: draft.legacySalaryText || null }) || "—";
+    return formatPay({ source: "structured", period: p.period, display: "show_range", negotiable: !!p.negotiable, min: num(p.min), max: num(p.max), text: null }) || "—";
   }, [draft]);
 
   // ── Guest / loading / error / done screens ─────────────────
@@ -328,30 +326,25 @@ export function PostJobPage({ user, isGuest, onRequireLogin, onListStore, toast 
   }
 
   if (step === 2) {
-    const hidden = HIDDEN_PAY.includes(d.pay.display);
+    // L7: a pay range is required; "Negotiable" can be shown next to it.
     pane = <>
       <h2 style={{ ...heading, fontSize: 20, margin: "0 0 4px" }}>Pay</h2>
-      <p style={{ fontSize: 13, color: "var(--t3)", margin: "0 0 12px" }}>Clear pay gets more replies. You can still keep it negotiable.</p>
+      <p style={{ fontSize: 13, color: "var(--t3)", margin: "0 0 12px" }}>Every job on TIN shows a pay range — clear pay gets more replies. Tick Negotiable if there's room to discuss.</p>
       <Field label="Paid" required error={errFor("pay.period")}>
         <Pick label="Paid" options={PAY_PERIODS} value={d.pay.period} onChange={v => upd("pay.period", v)} />
       </Field>
-      <Field label="Show pay as" required error={errFor("pay.display")}>
-        <Pick label="Show pay as" options={PAY_DISPLAY_OPTIONS} value={d.pay.display} onChange={v => upd("pay.display", v)} />
-      </Field>
-      {hidden ? (
-        <div style={{ fontSize: 12, color: "#b45309", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>
-          Your job will show "{PAY_DISPLAY.find(o => o.key === d.pay.display)?.text}". Amounts aren't saved when pay is hidden — only how it's paid.
-        </div>
-      ) : (
-        <div className="pj-grid2">
-          <Field label="From (₹)" required error={errFor("pay.min")} hint={d.legacySalaryText ? `Currently shown as "${d.legacySalaryText}". Add an amount to replace it.` : undefined}>
-            <input className="fi" inputMode="numeric" value={d.pay.min} onChange={e => upd("pay.min", e.target.value)} placeholder="e.g. 22000" />
-          </Field>
-          <Field label="To (₹)" optional error={errFor("pay.max")}>
-            <input className="fi" inputMode="numeric" value={d.pay.max} onChange={e => upd("pay.max", e.target.value)} placeholder="e.g. 28000" />
-          </Field>
-        </div>
-      )}
+      <div className="pj-grid2">
+        <Field label="From (₹)" required error={errFor("pay.min")} hint={d.legacySalaryText ? `Currently shown as "${d.legacySalaryText}". Add a range to replace it.` : undefined}>
+          <input className="fi" inputMode="numeric" value={d.pay.min} onChange={e => upd("pay.min", e.target.value)} placeholder="e.g. 22000" />
+        </Field>
+        <Field label="To (₹)" required error={errFor("pay.max")}>
+          <input className="fi" inputMode="numeric" value={d.pay.max} onChange={e => upd("pay.max", e.target.value)} placeholder="e.g. 28000" />
+        </Field>
+      </div>
+      <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, color: "var(--t1)", marginBottom: 12, cursor: "pointer" }}>
+        <input type="checkbox" checked={!!d.pay.negotiable} onChange={e => upd("pay.negotiable", e.target.checked)} />
+        <span>Negotiable — show “Negotiable” next to the pay</span>
+      </label>
       <Field label="Incentives, allowances, other facilities" optional>
         <input className="fi" value={d.pay.incentives} onChange={e => upd("pay.incentives", e.target.value)} placeholder="e.g. 2% on monthly sales above target" />
       </Field>
@@ -407,7 +400,7 @@ export function PostJobPage({ user, isGuest, onRequireLogin, onListStore, toast 
         {short && row("Assignment", [d.shortAssignment.duration, d.shortAssignment.startDate && `from ${d.shortAssignment.startDate}`, d.shortAssignment.urgency && labelOf(URGENCY, d.shortAssignment.urgency)].filter(Boolean).join(" · "))}
         {row("Location", [d.city, d.state, d.pincode].filter(Boolean).join(", "))}
         {row("Experience", d.experience)}
-        {row("Pay", payPreview + (d.pay.incentives && !HIDDEN_PAY.includes(d.pay.display) ? ` · ${d.pay.incentives}` : ""))}
+        {row("Pay", payPreview + (d.pay.incentives ? ` · ${d.pay.incentives}` : ""))}
         {row("Why join", d.evpMode === "write" ? d.evpText : ben.join(", "))}
       </dl>
       <Field label="Contact phone" required error={errFor("contactPhone")} hint="Used by TIN to reach you about this listing.">

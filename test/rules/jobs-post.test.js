@@ -41,6 +41,10 @@ beforeAll(async () => {
     await setDoc(doc(db, "jobListings", "plainLive"), newJob("plain", "approved", buildJobFields(draft())));
     await setDoc(doc(db, "jobListings", "plainPending"), newJob("plain", "pending", buildJobFields(draft())));
     await setDoc(doc(db, "jobListings", "verifiedLive"), newJob("verified", "approved", buildJobFields(draft(), { storeId: "storeV" })));
+    // L7: an old job posted with "Don't disclose" (no amounts).
+    await setDoc(doc(db, "jobListings", "oldHiddenPay"), newJob("verified", "approved", {
+      ...buildJobFields(draft()), pay: { period: "month", min: null, max: null, display: "undisclosed", incentives: "" }, salaryRange: "Not disclosed",
+    }));
     // An old-shape job exactly like today's production data.
     await setDoc(doc(db, "jobListings", "legacyLive"), {
       postedByUid: "plain", postedByName: "X", postedByType: "individual", businessName: "Old Co", jobTitle: "ID",
@@ -78,12 +82,32 @@ describe("create with the wizard's fields", () => {
     await assertFails(addDoc(collection(linked, "jobListings"), newJob("linkedUnverified", "pending", buildJobFields(draft(), { storeId: "storeV" }))));
   });
 
-  it("hidden pay can't carry amounts", async () => {
+  it("L7: a new job needs a pay range — period, from and to; Negotiable flag allowed", async () => {
     const db = testEnv.authenticatedContext("plain").firestore();
-    const hidden = buildJobFields(draft({ pay: { period: "month", min: "22000", max: "28000", display: "undisclosed" } }));
-    await assertSucceeds(addDoc(collection(db, "jobListings"), newJob("plain", "pending", hidden))); // builder drops the amounts
-    const leaky = { ...hidden, pay: { ...hidden.pay, min: 22000 } };
-    await assertFails(addDoc(collection(db, "jobListings"), newJob("plain", "pending", leaky)));
+    const ok = buildJobFields(draft({ pay: { period: "month", min: "22000", max: "28000", display: "show_range", negotiable: true, incentives: "" } }));
+    await assertSucceeds(addDoc(collection(db, "jobListings"), newJob("plain", "pending", ok)));
+    const same = buildJobFields(draft({ pay: { period: "day", min: "900", max: "900", display: "show_range", incentives: "" } }));
+    await assertSucceeds(addDoc(collection(db, "jobListings"), newJob("plain", "pending", same)));
+    const bad = (pay) => addDoc(collection(db, "jobListings"), newJob("plain", "pending", { ...ok, pay: { ...ok.pay, ...pay } }));
+    await assertFails(bad({ display: "undisclosed", min: null, max: null }));   // Don't disclose is gone
+    await assertFails(bad({ display: "negotiable", min: null, max: null }));    // Negotiable instead of pay is gone
+    await assertFails(bad({ max: null }));                                      // "to" required
+    await assertFails(bad({ min: null }));                                      // "from" required
+    await assertFails(bad({ min: 0 }));
+    await assertFails(bad({ min: 30000, max: 20000 }));                         // to ≥ from
+    await assertFails(bad({ period: "fortnight" }));
+    await assertFails(bad({ negotiable: "yes" }));
+    const noPay = { ...ok }; delete noPay.pay;
+    await assertFails(addDoc(collection(db, "jobListings"), newJob("plain", "pending", noPay)));
+  });
+
+  it("L7: old jobs are unchanged — status-only and non-pay edits still work; changing pay needs a range", async () => {
+    const db = testEnv.authenticatedContext("verified").firestore();
+    await assertSucceeds(updateDoc(doc(db, "jobListings", "oldHiddenPay"), { jobStatus: "paused", updatedAt: new Date() }));
+    await assertSucceeds(updateDoc(doc(db, "jobListings", "oldHiddenPay"), { description: "Updated text", updatedAt: new Date() }));
+    await assertFails(updateDoc(doc(db, "jobListings", "oldHiddenPay"), { pay: { period: "month", min: null, max: null, display: "negotiable", incentives: "" } }));
+    await assertSucceeds(updateDoc(doc(db, "jobListings", "oldHiddenPay"), { pay: { period: "month", min: 20000, max: 25000, display: "show_range", negotiable: true, incentives: "" }, salaryRange: "₹20,000–25,000 / month · Negotiable" }));
+    await assertSucceeds(updateDoc(doc(testEnv.authenticatedContext("plain").firestore(), "jobListings", "legacyLive"), { jobStatus: "filled" }));
   });
 
   it("lane and headcount are checked", async () => {

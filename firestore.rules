@@ -187,6 +187,7 @@ service cloud.firestore {
           || (request.resource.data.get("status", "") == "approved" && jobPosterIsVerified())
         )
         && jobFieldsOk(request.resource.data)
+        && jobPayRangeOk(request.resource.data)
         && jobStoreIdOk(request.resource.data);
       // Jobs redesign phase 3 (docs/JOBS_BLUEPRINT.md §5.3): the poster may
       // edit the content of their own listing and flip jobStatus. Moderation
@@ -213,6 +214,9 @@ service cloud.firestore {
               || request.resource.data.get("status", "") == "pending"
               || jobPosterIsVerified())
           && jobFieldsOk(request.resource.data)
+          // L7: old jobs keep their pay as-is; an edit that changes pay needs a range.
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(["pay"])
+              || jobPayRangeOk(request.resource.data))
           && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(["storeId"])
               || jobStoreIdOk(request.resource.data))
         );
@@ -229,6 +233,17 @@ service cloud.firestore {
           && data.get("headcount", 1) >= 1
           && (!(data.get("pay", {}).get("display", "") in ["negotiable", "undisclosed"])
               || (data.get("pay", {}).get("min", null) == null && data.get("pay", {}).get("max", null) == null));
+      }
+      // L7 (launch): every new job shows a pay range — period + from/to, no
+      // "Don't disclose"; "Negotiable" is an optional flag shown next to it.
+      function jobPayRangeOk(data) {
+        let p = data.get("pay", null);
+        return p is map
+          && p.get("display", "") == "show_range"
+          && p.get("period", "") in ["month", "year", "day", "hour", "project"]
+          && p.get("min", null) is number && p.get("min", 0) > 0
+          && p.get("max", null) is number && p.get("max", 0) >= p.get("min", 0)
+          && p.get("negotiable", false) is bool;
       }
       // A job may carry a storeId only if it's the poster's admin-set store link.
       function jobStoreIdOk(data) {
