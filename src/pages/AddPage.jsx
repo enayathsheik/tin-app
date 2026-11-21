@@ -98,7 +98,8 @@ export function AddPage({ user, onSubmit, toast }) {
       verificationStatus: "community_added",
       gstVerified: gstStatus === "verified",
       gstVerifiedData: gstData ? { legalName: gstData.lgnm, status: gstData.sts, registrationDate: gstData.rgdt, constitutionOfBusiness: gstData.ctb } : null,
-      pointsAwarded: gstStatus === "verified" ? 20 : 10,
+      // L4: points are for Market Champions only; businesses listing themselves get none.
+      pointsAwarded: isContributor ? (gstStatus === "verified" ? 20 : 10) : 0,
       confidence: gstStatus === "verified" ? 85 : 20,
       createdAt: serverTimestamp(),
     };
@@ -109,7 +110,7 @@ export function AddPage({ user, onSubmit, toast }) {
     const result = await submitStore({
       save: async () => (await addDoc(collection(db, "stores"), storeData)).id,
       // Update contributor points — 20 pts for GST verified, 10 for community
-      awardPoints: user.uid && user.uid !== "admin" ? async () => {
+      awardPoints: isContributor && user.uid && user.uid !== "admin" ? async () => {
         const awarded = gstStatus === "verified" ? 20 : 10;
         const newPoints = (user.points || 0) + awarded;
         await updateUserStats(user.uid, {
@@ -141,10 +142,12 @@ export function AddPage({ user, onSubmit, toast }) {
     <div className="form-pg">
       <div className="form-wrap">
         <div className="form-hd">
-          <div className="form-title">Add Trade Profile</div>
-          <div className="form-sub">Help build India's building materials intelligence database</div>
+          <div className="form-title">{isContributor ? "Add Trade Profile" : "List your business on TIN"}</div>
+          <div className="form-sub">{isContributor ? "Help build India's building materials intelligence database" : "Free. Your business page shows next to your jobs, so job seekers know who's hiring."}</div>
         </div>
-        <div className="pts-hint">🏆 +10 points for this contribution · Data enriched by community over time</div>
+        {isContributor
+          ? <div className="pts-hint">🏆 +10 points for this contribution · Data enriched by community over time</div>
+          : <div className="pts-hint">🏪 The TIN team checks every new business. Once it's linked to your account, your jobs show on your business page.</div>}
 
         <div className="type-tabs">
           {[["store","🏪","Store / Business","Retail, distribution, manufacturing"], ["individual","👤","Individual","Contractor, architect, professional"]].map(([id, icon, lbl, desc]) => (
@@ -281,7 +284,7 @@ export function AddPage({ user, onSubmit, toast }) {
                   {gstData.sts && <div style={{fontSize:12,color:"#080808"}}><strong>Status:</strong> {gstData.sts}</div>}
                   {gstData.rgdt && <div style={{fontSize:12,color:"#080808"}}><strong>Registered:</strong> {gstData.rgdt}</div>}
                   {gstData.ctb && <div style={{fontSize:12,color:"#080808"}}><strong>Business Type:</strong> {gstData.ctb}</div>}
-                  <div style={{fontSize:11,color:"#16a34a",marginTop:4,fontWeight:600}}>+20 points awarded for GST verified store 🎉</div>
+                  {isContributor && <div style={{fontSize:11,color:"#16a34a",marginTop:4,fontWeight:600}}>+20 points awarded for GST verified store 🎉</div>}
                 </div>
               )}
               {gstStatus === "invalid" && (

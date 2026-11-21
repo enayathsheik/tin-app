@@ -40,6 +40,8 @@ export function JobProfilePage({ user, isGuest, onRequireLogin, toast }) {
   const [suggested, setSuggested] = useState([]);
   const [aiNotes, setAiNotes] = useState([]);
   const [done, setDone] = useState(false);
+  // L4: a saved profile opens on a view with a big "Edit profile" button.
+  const [editing, setEditing] = useState(false);
   const uid = user?.uid;
 
   useEffect(() => {
@@ -238,10 +240,32 @@ export function JobProfilePage({ user, isGuest, onRequireLogin, toast }) {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {jobParam && <Link to={`/jobs/${jobParam}`} style={{ ...btnPrimary, ...bigBtn }}>{bi ? "इस नौकरी पर आवेदन करें · Apply to this job" : "Apply to this job"} →</Link>}
           <Link to={lanePath} style={{ ...(jobParam ? btnOutline : btnPrimary), ...bigBtn }}>🔍 {bi ? "काम खोजें · Find jobs" : "Find jobs"}{jobParam ? "" : " →"}</Link>
+          <button type="button" onClick={() => { setDone(false); setEditing(true); }} style={{ ...btnOutline, ...bigBtn }}>✏️ {bi ? "प्रोफ़ाइल बदलें · Edit profile" : "Edit profile"}</button>
         </div>
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 12, fontSize: 13 }}>
-          <button type="button" onClick={() => setDone(false)} style={{ background: "none", border: "none", padding: 0, color: "var(--acc)", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", fontSize: 13 }}>✏️ {bi ? "प्रोफ़ाइल बदलें · Edit profile" : "Edit profile"}</button>
           <Link to="/jobs/applications" style={{ color: "var(--acc)", fontWeight: 700, textDecoration: "none" }}>{t("myApplications", bi)}</Link>
+        </div>
+      </div>
+    </>);
+  }
+
+  // L4: returning user — show the profile employers see, with an obvious Edit button.
+  // (Opened from the apply sheet with ?job= it goes straight to the form.)
+  if (pr.exists && !editing && !savedOnce && !jobParam && !helperOpen) {
+    const lanePath = pr.lane === "skilled" ? "/jobs/skilled" : "/jobs/professional";
+    const bigBtn = { minHeight: 52, fontSize: 16, padding: "12px 18px", borderRadius: 12, textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center", flex: "1 1 200px" };
+    return shell(<>
+      <h1 style={{ ...heading, fontSize: 26, margin: "0 0 2px" }}>My job profile {bi && <span lang="hi" style={{ fontSize: 18, color: "var(--t3)" }}>· मेरी प्रोफ़ाइल</span>}</h1>
+      <p style={{ fontSize: 13, color: "var(--t3)", margin: "0 0 12px" }}>{bi ? "आवेदन करने पर नौकरी देने वाले को यह TIN प्रोफ़ाइल दिखेगी। · Employers you apply to see this." : "This is the TIN Profile employers see when you apply."}</p>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+        <button type="button" onClick={() => { setEditing(true); setStep(0); }} style={{ ...btnPrimary, ...bigBtn }}>✏️ {bi ? "प्रोफ़ाइल बदलें · Edit profile" : "Edit profile"}</button>
+        <Link to={lanePath} style={{ ...btnOutline, ...bigBtn }}>🔍 {bi ? "काम खोजें · Find jobs" : "Find jobs"}</Link>
+      </div>
+      <div style={{ ...card, padding: 18 }}>
+        <TinProfileCard app={{ applicantName: pr.name, profileSnapshot: applicationSnapshot(pr).profileSnapshot }} />
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 12, fontSize: 13 }}>
+          <Link to="/jobs/applications" style={{ color: "var(--acc)", fontWeight: 700, textDecoration: "none" }}>{t("myApplications", bi)}</Link>
+          <Link to="/jobs/saved" style={{ color: "var(--acc)", fontWeight: 700, textDecoration: "none" }}>★ {bi ? "सेव की गई नौकरियाँ · Saved jobs" : "Saved jobs"}</Link>
         </div>
       </div>
     </>);

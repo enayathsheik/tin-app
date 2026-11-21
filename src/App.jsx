@@ -205,7 +205,7 @@ export default function App() {
     )];
     // Points/storesAdded are already credited by AddPage.jsx's own stats write — only
     // citiesCovered is computed here, since it needs the full stores list App.jsx holds.
-    const awardedPoints = data.pointsAwarded || 10;
+    const awardedPoints = data.pointsAwarded ?? 10; // 0 for businesses (L4: points are Market Champion only)
     setUser(u => ({ ...u, points: (u.points||0)+awardedPoints, storesAdded: (u.storesAdded||0)+1, citiesCovered: myCities.length }));
     if (user?.uid && user.uid !== "admin") {
       try {
@@ -213,7 +213,8 @@ export default function App() {
       } catch(e) { console.log("Points update:", e.message); }
     }
     setShowThankYou(true);
-    setTimeout(() => { setShowThankYou(false); setPage("home"); }, 3000);
+    // L4: a business listing itself goes back to posting its job.
+    setTimeout(() => { setShowThankYou(false); if (user?.role === "contributor") setPage("home"); else navigate("/jobs/post"); }, 3000);
   };
 
   const isContrib = user?.role === "contributor";
@@ -228,6 +229,7 @@ export default function App() {
         ["discover","Discover"],
         ["inspi","Inspi"],
         ["jobs","Jobs"],
+        ["myprofile","My Profile"],
         ["login","Login"],
       ]
     : user.role === "admin"
@@ -244,6 +246,7 @@ export default function App() {
         ["discover","Discover"],
         ["inspi","Inspi"],
         ["jobs","Jobs"],
+        ["myprofile","My Profile"],
         ["add","+ Add Store"],
         ...(isContrib ? [["rewards","⭐ Rewards"]] : []),
         ...(isContrib ? [["myzone","🗺 My Zone"]] : []),
@@ -251,13 +254,14 @@ export default function App() {
         ...(showLeaderboard ? [["leaderboard","Leaderboard"]] : []),
         ["deals","Deals"],
         ["messages","Messages"],
-        ["profile","Profile"],
+        ["profile","Account"],
       ]
   ).filter(([id]) => isPageEnabled(id));
 
   // /jobs and /jobs/:jobId are now real routes, not `page` state — derive the
   // highlighted nav tab from the URL for those, falling back to `page` elsewhere.
-  const activePage = location.pathname.startsWith("/jobs") ? "jobs"
+  const activePage = location.pathname.startsWith("/jobs/profile") ? "myprofile"
+    : location.pathname.startsWith("/jobs") ? "jobs"
     : location.pathname.startsWith("/conversations") ? "messages"
     : page;
 
@@ -303,6 +307,7 @@ export default function App() {
                 <button key={id} className={`ntab ${activePage === id ? "on" : ""}`} onClick={() => {
                   if (id === "login") setShowLoginPage(true);
                   else if (id === "jobs") navigate("/jobs");
+                  else if (id === "myprofile") navigate("/jobs/profile");
                   else if (id === "messages") navigate("/conversations");
                   else { navigate("/"); setPage(id); }
                 }}>{label}</button>
@@ -330,10 +335,10 @@ export default function App() {
             <div style={{background:"#fff",border:"1px solid #e0e0e0",borderRadius:24,padding:32,maxWidth:380,width:"100%",textAlign:"center",boxShadow:"0 8px 32px rgba(0,0,0,.12)"}}>
               <div style={{fontSize:48,marginBottom:12}}>🎉</div>
               <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:26,marginBottom:8,color:"#080808"}}>Thank You!</div>
-              <div style={{fontSize:14,color:"#555",marginBottom:20,lineHeight:1.6}}>Store submitted! You earned <strong style={{color:"#e85a2a"}}>+10 points</strong> for contributing to TIN.</div>
+              <div style={{fontSize:14,color:"#555",marginBottom:20,lineHeight:1.6}}>{isContrib ? <>Store submitted! You earned <strong style={{color:"#e85a2a"}}>+10 points</strong> for contributing to TIN.</> : <>Your business was sent to the TIN team. You can post your job now.</>}</div>
               <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
                 {FEATURES.discover && <button onClick={()=>{setShowThankYou(false);setPage("discover");}} style={{padding:"9px 18px",borderRadius:8,background:"#e85a2a",border:"none",color:"white",fontSize:13,fontWeight:700,cursor:"pointer"}}>View in Discover →</button>}
-                <button onClick={()=>{setShowThankYou(false);setPage("home");}} style={{padding:"9px 18px",borderRadius:8,background:"#f5f5f5",border:"1px solid #e0e0e0",color:"#080808",fontSize:13,fontWeight:700,cursor:"pointer"}}>Go Home</button>
+                <button onClick={()=>{setShowThankYou(false); if (isContrib) setPage("home"); else navigate("/jobs/post");}} style={{padding:"9px 18px",borderRadius:8,background:isContrib?"#f5f5f5":"#e85a2a",border:isContrib?"1px solid #e0e0e0":"none",color:isContrib?"#080808":"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>{isContrib ? "Go Home" : "Post a Job →"}</button>
               </div>
             </div>
           </div>
@@ -347,29 +352,33 @@ export default function App() {
                   ["discover","🔍","Discover"],
                   ["inspi","🖼","Inspi"],
                   ["jobs","💼","Jobs"],
+                  ["myprofile","👤","My Profile","मेरी प्रोफ़ाइल"],
                   ["add","➕","Add"],
                   ...(isContrib ? [["rewards","⭐","Rewards"]] : []),
                   ...(isContrib ? [["myzone","🗺","My Zone"]] : []),
                   ["messages","💬","Messages"],
-                  ["profile","👤","Profile"],
+                  ["profile","⚙️","Account"],
                 ]
               : [
                   ["home","🏠","Home"],
                   ["discover","🔍","Discover"],
                   ["inspi","🖼","Inspi"],
                   ["jobs","💼","Jobs"],
-                  ["login","👤","Login"],
+                  ["myprofile","👤","My Profile","मेरी प्रोफ़ाइल"],
+                  ["login","🔑","Login"],
                 ]
-            ).filter(([id]) => isPageEnabled(id)).map(([id,icon,label]) => (
+            ).filter(([id]) => isPageEnabled(id)).map(([id,icon,label,labelHi]) => (
               <div key={id} className={`mobile-nav-item ${activePage===id?"on":""}`} onClick={() => {
                 if (id === "login") setShowLoginPage(true);
                 else if (id === "add") handleAddStore();
                 else if (id === "jobs") navigate("/jobs");
+                else if (id === "myprofile") navigate("/jobs/profile");
                 else if (id === "messages") navigate("/conversations");
                 else { navigate("/"); setPage(id); }
               }}>
                 <span className="mobile-nav-icon">{icon}</span>
                 <span className="mobile-nav-label" style={{color:activePage===id?"#e85a2a":"#888"}}>{label}</span>
+                {labelHi && <span lang="hi" className="mobile-nav-label" style={{color:activePage===id?"#e85a2a":"#888",fontWeight:600,marginTop:-2}}>{labelHi}</span>}
               </div>
             ))}
           </div>
