@@ -1,9 +1,15 @@
 // Admin → Launch tools: one-time data fixes for the 22 Nov 2026 launch.
 import { useState } from "react";
-import { migrateApplicationContacts } from "../../lib/adminMigrations";
+import { backfillEntitlements, migrateApplicationContacts } from "../../lib/adminMigrations";
 
 export function LaunchToolsSection() {
   const [state, setState] = useState({ busy: false, result: null, error: "" });
+  const [ent, setEnt] = useState({ busy: false, result: null, error: "" });
+  const runEnt = async () => {
+    setEnt({ busy: true, result: null, error: "" });
+    try { setEnt({ busy: false, result: await backfillEntitlements(), error: "" }); }
+    catch (e) { console.error("[launch-tools] entitlements failed:", e); setEnt({ busy: false, result: null, error: e.message || String(e) }); }
+  };
   const run = async () => {
     setState({ busy: true, result: null, error: "" });
     try { setState({ busy: false, result: await migrateApplicationContacts(), error: "" }); }
@@ -27,6 +33,18 @@ export function LaunchToolsSection() {
         </button>
         {state.result && <div role="status" style={{ marginTop: 10, fontSize: 13, color: "#15803d" }}>✓ Checked {state.result.scanned} applications, moved {state.result.moved}.</div>}
         {state.error && <div role="alert" style={{ marginTop: 10, fontSize: 13, color: "#b91c1c" }}>⚠ {state.error}</div>}
+      </div>
+      <div style={{ background: "#fff", border: "1px solid #e0e0e0", borderRadius: 12, padding: 16, maxWidth: 640, marginTop: 14 }}>
+        <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 4 }}>L9 · Record free profiles and job posts</div>
+        <div style={{ fontSize: 13, color: "#555", lineHeight: 1.5, marginBottom: 12 }}>
+          New profiles and job posts are recorded automatically from now on. This records the ones made before, each valid 365 days from the day it was created, at today’s Pricing settings.
+        </div>
+        <button type="button" disabled={ent.busy} onClick={runEnt}
+          style={{ padding: "10px 18px", borderRadius: 8, border: "none", background: "#e85a2a", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
+          {ent.busy ? "Recording…" : "Record existing profiles and jobs"}
+        </button>
+        {ent.result && <div role="status" style={{ marginTop: 10, fontSize: 13, color: "#15803d" }}>✓ {ent.result.profiles} profiles and {ent.result.jobs} jobs checked, {ent.result.created} recorded.</div>}
+        {ent.error && <div role="alert" style={{ marginTop: 10, fontSize: 13, color: "#b91c1c" }}>⚠ {ent.error}</div>}
       </div>
     </>
   );

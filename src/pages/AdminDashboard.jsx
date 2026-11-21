@@ -9,6 +9,7 @@ import { AiTestSection } from "../components/admin/AiTestSection";
 import { MemberProvisioningSection } from "../components/admin/MemberProvisioningSection";
 import { ClaimsReviewSection } from "../components/admin/ClaimsReviewSection";
 import { LaunchToolsSection } from "../components/admin/LaunchToolsSection";
+import { PricingSection } from "../components/admin/PricingSection";
 import { exportToExcel } from "../utils/exportExcel";
 import { getLevel } from "../utils/helpers";
 
@@ -85,6 +86,7 @@ export function AdminDashboard({ stores, contributors, user }) {
     { id: "members", icon: "🤝", label: "Member Provisioning" },
     { id: "records", icon: "🗂", label: "All Records" },
     { id: "bulk", icon: "📤", label: "Bulk Upload" },
+    { id: "pricing", icon: "💰", label: "Pricing" },
     { id: "launch", icon: "🚀", label: "Launch tools" },
   ];
   const pendingContribs = contributors.filter(c=>c.validationStatus==="pending");
@@ -208,6 +210,8 @@ export function AdminDashboard({ stores, contributors, user }) {
         {section === "claims" && <ClaimsReviewSection user={user} />}
 
         {section === "launch" && <LaunchToolsSection />}
+
+        {section === "pricing" && <PricingSection user={user} />}
 
         {section === "records" && <>
           <div className="admin-hd" style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>

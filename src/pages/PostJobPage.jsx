@@ -15,6 +15,7 @@ import { JobsStyles } from "../components/jobs/jobsUi";
 import { LANE_COLOR, btnOutline, btnPrimary, card, heading } from "../components/jobs/jobsStyle";
 import { Choice, Field, Pick } from "../components/jobs/WizardFields";
 import { FindYourBusiness } from "../components/jobs/FindYourBusiness";
+import { PriceTag } from "../components/jobs/PriceTag";
 
 // Per-device autosave so a reload doesn't lose the wizard. Wrapped in
 // try/catch: storage can be blocked, and the wizard must still work.
@@ -151,7 +152,8 @@ export function PostJobPage({ user, isGuest, onRequireLogin, onListStore, toast 
   if (isGuest || !user?.uid) {
     return shell(
       <div style={{ ...card, padding: "36px 20px", textAlign: "center" }}>
-        <h1 style={{ ...heading, fontSize: 24, margin: "0 0 6px" }}>Post a job <span style={{ color: "var(--acc)" }}>free</span></h1>
+        <h1 style={{ ...heading, fontSize: 24, margin: "0 0 6px" }}>Post a job</h1>
+        <PriceTag kind="jobPost" style={{ marginBottom: 10 }} />
         <p style={{ fontSize: 13, color: "var(--t3)", margin: "0 0 14px" }}>Log in or create a free TIN account to post. You'll come straight back here.</p>
         <button onClick={onRequireLogin} style={btnPrimary}>Log in to post a job</button>
       </div>
@@ -421,7 +423,9 @@ export function PostJobPage({ user, isGuest, onRequireLogin, onListStore, toast 
   }
 
   return shell(<>
-    <h1 style={{ ...heading, fontSize: 26, margin: "0 0 2px" }}>{isEdit ? "Edit job" : <>Post a job <span style={{ color: "var(--acc)" }}>free</span></>}</h1>
+    <h1 style={{ ...heading, fontSize: 26, margin: "0 0 2px" }}>{isEdit ? "Edit job" : "Post a job"}</h1>
+    {/* L9: price from Admin → Pricing (free during launch). */}
+    {!isEdit && <PriceTag kind="jobPost" style={{ margin: "2px 0 6px" }} />}
     <p style={{ fontSize: 13, color: "var(--t3)", margin: "0 0 12px" }}>From one helper for a day to a regional head. Five short steps.</p>
     <style>{`.pj-grid2{display:grid;grid-template-columns:1fr;gap:0 12px}@media (min-width:600px){.pj-grid2{grid-template-columns:1fr 1fr}}`}</style>
     <datalist id="pj-cities">{CITIES.map(c => <option key={c} value={c} />)}</datalist>

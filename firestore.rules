@@ -833,7 +833,43 @@ service cloud.firestore {
     // screens can show limits and prices; only the TIN admin writes.
     match /config/{docId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAdmin() && (docId != "pricing" || pricingConfigOk(request.resource.data));
+    }
+    // L9: config/pricing shape — whole rupees, offer ≤ list, limit 1..999.
+    function pricingFeeOk(f) {
+      return f is map && f.list is int && f.offer is int && f.launchDiscount is bool
+        && f.list >= 0 && f.list <= 100000 && f.offer >= 0 && f.offer <= f.list;
+    }
+    function pricingConfigOk(d) {
+      return pricingFeeOk(d.get("profileFee", null)) && pricingFeeOk(d.get("jobPostFee", null))
+        && d.get("shortlistLimit", 0) is int && d.get("shortlistLimit", 0) >= 1 && d.get("shortlistLimit", 0) <= 999;
+    }
+
+    // ── ENTITLEMENTS ── (L9: no payments yet)
+    // Each free job-seeker profile or job post is recorded for 365 days so
+    // history exists when payments start. The owner creates it with the
+    // profile's first save / in the job's create batch; only admin edits.
+    match /entitlements/{entId} {
+      allow read: if request.auth != null && (isAdmin() || resource.data.get("uid", "") == request.auth.uid);
+      allow create: if isAdmin() || (request.auth != null && entitlementOk(entId, request.resource.data));
+      allow update, delete: if isAdmin();
+    }
+    function entitlementOk(entId, d) {
+      return d.keys().hasOnly(["uid", "kind", "refId", "priceList", "priceOffer", "launchDiscount", "pricePaid", "reason", "grantedAt", "validDays", "validUntil"])
+        && d.uid == request.auth.uid
+        && d.kind in ["job_profile", "job_post"]
+        && d.refId is string && entId == d.kind + "_" + d.refId
+        && d.pricePaid == 0
+        && d.priceList is int && d.priceOffer is int && d.launchDiscount is bool
+        && d.reason in ["launch_discount", "payments_not_live"]
+        && d.grantedAt == request.time
+        && d.validDays == 365
+        && d.validUntil is timestamp
+        && d.validUntil > request.time + duration.value(364, "d")
+        && d.validUntil < request.time + duration.value(366, "d")
+        && (d.kind == "job_profile"
+            ? d.refId == request.auth.uid
+            : getAfter(/databases/$(database)/documents/jobListings/$(d.refId)).data.get("postedByUid", "") == request.auth.uid);
     }
     // Per-job shortlist limit (config/pricing.shortlistLimit, default 10).
     function shortlistLimit() {

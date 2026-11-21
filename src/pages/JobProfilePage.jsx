@@ -12,6 +12,7 @@ import { TradeTiles } from "../components/jobs/TradeTiles";
 import { ProfileHelper } from "../components/jobs/ProfileHelper";
 import { TinProfileCard } from "../components/jobs/ApplicationBits";
 import { ShortlistNotice } from "../components/jobs/ShortlistNotice";
+import { PriceTag } from "../components/jobs/PriceTag";
 
 const SUGGESTED_TAG = <span style={{ marginLeft: 6, textTransform: "none", letterSpacing: 0, fontSize: 10, fontWeight: 800, color: "#7c3aed", background: "#f3e8ff", borderRadius: 8, padding: "1px 6px" }}>✨ suggested</span>;
 const STEPS = [["About you", "आपके बारे में"], ["Your work", "आपका काम"], ["What you want", "कैसा काम चाहिए"], ["Availability", "कब से"]];
@@ -67,6 +68,7 @@ export function JobProfilePage({ user, isGuest, onRequireLogin, toast }) {
   if (isGuest || !uid) {
     return shell(<div style={{ ...card, padding: "36px 20px", textAlign: "center" }}>
       <h1 style={{ ...heading, fontSize: 24, margin: "0 0 6px" }}>Find work · <span lang="hi">काम खोजें</span></h1>
+      <PriceTag kind="profile" style={{ marginBottom: 8 }} />
       <p style={{ fontSize: 14, color: "var(--t3)" }}>Log in or create a free TIN account to make your job profile.</p>
       <button onClick={onRequireLogin} style={{ ...btnPrimary, minHeight: 48, fontSize: 15 }}>Log in · लॉग इन</button>
     </div>);
@@ -310,7 +312,9 @@ export function JobProfilePage({ user, isGuest, onRequireLogin, toast }) {
 
   return shell(<>
     <h1 style={{ ...heading, fontSize: 26, margin: "0 0 2px" }}>My job profile {bi && <span lang="hi" style={{ fontSize: 18, color: "var(--t3)" }}>· मेरी प्रोफ़ाइल</span>}</h1>
-    <p style={{ fontSize: 13, color: "var(--t3)", margin: "0 0 12px" }}>{bi ? "मुफ़्त। बाकी जानकारी बाद में जोड़ सकते हैं। · Free. You can add more later." : "Free. One profile for every job on TIN. Steps 3 and 4 are optional."}</p>
+    {/* L9: price from Admin → Pricing (free during launch). */}
+    <PriceTag kind="profile" style={{ margin: "2px 0 6px" }} />
+    <p style={{ fontSize: 13, color: "var(--t3)", margin: "0 0 12px" }}>{bi ? "बाकी जानकारी बाद में जोड़ सकते हैं। · You can add more later." : "One profile for every job on TIN. Steps 3 and 4 are optional."}</p>
     {fillCta}
     {aiBanner}
     <style>{`.pj-grid2{display:grid;grid-template-columns:1fr;gap:0 12px}@media (min-width:600px){.pj-grid2{grid-template-columns:1fr 1fr}}`}</style>

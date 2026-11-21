@@ -11,6 +11,7 @@ import { initializeTestEnvironment, assertSucceeds, assertFails } from "@firebas
 import { doc, getDoc, serverTimestamp, setDoc, updateDoc, writeBatch, deleteDoc } from "firebase/firestore";
 import { stageUpdate } from "../../src/utils/applications.js";
 import { planShortlistSlots } from "../../src/utils/shortlist.js";
+import { pricingFrom } from "../../src/utils/pricing.js";
 import { firstShortlist } from "./shortlistHelper.js";
 
 const PROJECT_ID = "shortlist-limit-test";
@@ -56,8 +57,8 @@ describe("the limit (default 10)", () => {
   });
 
   it("an admin-set limit in config/pricing is used (and only the admin can set it)", async () => {
-    await assertFails(setDoc(doc(as(EMP), "config", "pricing"), { shortlistLimit: 50 }));
-    await assertSucceeds(setDoc(doc(as("adm", ADMIN_EMAIL), "config", "pricing"), { shortlistLimit: 2 }));
+    await assertFails(setDoc(doc(as(EMP), "config", "pricing"), { ...pricingFrom(null), shortlistLimit: 50 }));
+    await assertSucceeds(setDoc(doc(as("adm", ADMIN_EMAIL), "config", "pricing"), { ...pricingFrom(null), shortlistLimit: 2 }));
     await assertSucceeds(firstShortlist(as(EMP), appId(1), JOB, await shortlistUpdate(1), 1));
     await assertSucceeds(firstShortlist(as(EMP), appId(2), JOB, await shortlistUpdate(2), 2));
     await assertFails(firstShortlist(as(EMP), appId(3), JOB, await shortlistUpdate(3), 3));

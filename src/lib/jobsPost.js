@@ -6,11 +6,12 @@
 //            poster's content edit goes back to pending (owner decision);
 //            Live/Filled/Closed-only changes never need re-approval.
 import {
-  addDoc, collection, doc, getDoc, getDocs, limit, orderBy, query,
-  serverTimestamp, setDoc, updateDoc, where,
+  collection, doc, getDoc, getDocs, limit, orderBy, query,
+  serverTimestamp, setDoc, updateDoc, where, writeBatch,
 } from "firebase/firestore";
 import { db } from "../firebase/config";
 import { markJobRole } from "./jobRoles";
+import { addEntitlement, loadPricing } from "./pricing";
 import { normaliseJob } from "../utils/jobModel.js";
 import { buildJobFields, changedContentKeys, rememberedBusiness } from "../utils/jobDraft.js";
 
@@ -48,7 +49,11 @@ export async function createJob(user, draft, store) {
   const verified = isVerifiedAccount(user);
   const status = verified ? "approved" : "pending";
   const fields = buildJobFields(draft, { storeId: store?.id || null });
-  const ref = await addDoc(collection(db, "jobListings"), {
+  // L9: the job and its free-post entitlement (365 days) in one batch.
+  const ref = doc(collection(db, "jobListings"));
+  const pricing = await loadPricing();
+  const batch = writeBatch(db);
+  batch.set(ref, {
     ...fields,
     postedByUid: user.uid,
     postedByName: user.name || "",
@@ -60,6 +65,8 @@ export async function createJob(user, draft, store) {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+  addEntitlement(batch, "job_post", user.uid, ref.id, pricing.jobPostFee);
+  await batch.commit();
   await rememberBusiness(user.uid, draft);
   markJobRole(user.uid, "employer"); // L3 floating buttons
   return { id: ref.id, status };

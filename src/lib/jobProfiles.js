@@ -1,9 +1,10 @@
 // Candidate job profile reads/writes (jobProfiles/{uid} shareable +
 // jobProfilesPrivate/{uid} owner-only). Shapes: src/utils/jobProfile.js.
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { doc, getDoc, serverTimestamp, setDoc, writeBatch } from "firebase/firestore";
 import { ref, uploadBytes } from "firebase/storage";
 import { db, storage } from "../firebase/config";
 import { markJobRole } from "./jobRoles";
+import { addEntitlement, loadPricing } from "./pricing";
 import { profileFromDocs, splitProfile } from "../utils/jobProfile.js";
 
 export const CV_MIME_TYPES = [
@@ -41,6 +42,21 @@ export async function saveJobProfile(uid, profile, { isNew = false } = {}) {
     setDoc(doc(db, "jobProfilesPrivate", uid), { ...priv, updatedAt: serverTimestamp() }, { merge: true }),
   ]);
   markJobRole(uid, "seeker"); // L3 floating buttons
+  if (isNew) await recordProfileEntitlement(uid);
+}
+
+// L9: a new job-seeker profile is free (launch) — record it for 365 days.
+// Separate, best-effort write: a profile save never fails because of it
+// (e.g. a re-created profile whose entitlement already exists).
+async function recordProfileEntitlement(uid) {
+  try {
+    const pricing = await loadPricing();
+    const batch = writeBatch(db);
+    addEntitlement(batch, "job_profile", uid, uid, pricing.profileFee);
+    await batch.commit();
+  } catch (e) {
+    console.warn("[job-profile] entitlement not recorded:", e);
+  }
 }
 
 // Upload the candidate's saved CV (resumes/{uid}/profile/…). Returns the cv
