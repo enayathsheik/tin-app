@@ -4,6 +4,8 @@ import { Helmet } from "react-helmet-async";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase/config";
 import { StoreOpenJobs } from "../components/jobs/StoreOpenJobs";
+import { fetchStoreOpenJobs } from "../lib/jobsPost";
+import { isStorePublic } from "../utils/storeVisibility";
 
 const SITE_URL = "https://tinit.in";
 const truncate = (str, len) => (str && str.length > len ? str.slice(0, len - 1).trimEnd() + "…" : str || "");
@@ -21,11 +23,14 @@ const STALE_STATIC_META_SELECTOR = [
   'meta[name="twitter:card"]:not([data-rh])',
 ].join(",");
 
-export function StoreProfilePage() {
+export function StoreProfilePage({ user }) {
   const { storeId } = useParams();
   const [store, setStore] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  // L2: an imported, unverified, unclaimed store is "not available" (noindex).
+  const [unavailable, setUnavailable] = useState(false);
+  const ownLinkedStore = !!user?.storeId && user.storeId === storeId;
 
   useEffect(() => {
     document.querySelectorAll(STALE_STATIC_META_SELECTOR).forEach(el => el.remove());
@@ -35,20 +40,45 @@ export function StoreProfilePage() {
     let cancelled = false;
     setLoading(true);
     setNotFound(false);
-    getDoc(doc(db, "stores", storeId)).then(snap => {
+    setUnavailable(false);
+    getDoc(doc(db, "stores", storeId)).then(async snap => {
       if (cancelled) return;
-      if (snap.exists()) setStore({ id: snap.id, ...snap.data() });
-      else setNotFound(true);
+      if (!snap.exists()) { setNotFound(true); setLoading(false); return; }
+      const data = { id: snap.id, ...snap.data() };
+      let isPublic = isStorePublic(data, { linked: ownLinkedStore });
+      if (!isPublic) {
+        // Live jobs can only carry an admin-linked storeId, so a store with
+        // live jobs counts as linked (see src/utils/storeVisibility.js).
+        try { isPublic = (await fetchStoreOpenJobs(storeId, 1)).length > 0; } catch { /* stays hidden */ }
+      }
+      if (cancelled) return;
+      setStore(data);
+      setUnavailable(!isPublic);
       setLoading(false);
     }).catch(e => {
       console.error("[store-profile] Failed to load store:", e);
       if (!cancelled) { setNotFound(true); setLoading(false); }
     });
     return () => { cancelled = true; };
-  }, [storeId]);
+  }, [storeId, ownLinkedStore]);
 
   if (loading) {
     return <div style={{ textAlign: "center", padding: "80px 20px", color: "var(--t3)" }}>Loading…</div>;
+  }
+
+  if (unavailable) {
+    return (
+      <div style={{ textAlign: "center", padding: "80px 20px" }}>
+        <Helmet>
+          <title>Business page not available | TIN</title>
+          <meta name="robots" content="noindex" />
+        </Helmet>
+        <div style={{ fontSize: 36, marginBottom: 10 }}>🏪</div>
+        <div style={{ fontWeight: 700, fontSize: 15, color: "var(--t2)", marginBottom: 8 }}>This business page is not available</div>
+        <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 14 }}>Is this your business? Post a job on TIN and claim it.</div>
+        <Link to="/jobs" style={{ fontSize: 13, color: "var(--acc)", fontWeight: 700, textDecoration: "none" }}>← Back to Jobs</Link>
+      </div>
+    );
   }
 
   if (notFound || !store) {

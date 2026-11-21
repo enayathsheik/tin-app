@@ -13,11 +13,12 @@
 // `firebase deploy`. See scripts/firebaseAdmin.js for one-time credential setup.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
-import { initAdmin, requireServiceAccountPath } from "./firebaseAdmin.js";
+import { initAdmin, loadLinkedStoreIds, requireServiceAccountPath } from "./firebaseAdmin.js";
 import { buildJobPostingJsonLd } from "../src/utils/jobJsonLd.js";
 import { normaliseJob } from "../src/utils/jobModel.js";
 import { JOBS_HOME_META, JOB_LANE_PAGES } from "../src/data/jobsLanes.js";
 import { JOBS_ONLY } from "../src/data/features.js";
+import { isStorePublic } from "../src/utils/storeVisibility.js";
 
 const SITE_URL = "https://tinit.in";
 const DIST_DIR = "dist";
@@ -100,6 +101,11 @@ function buildStoreMetaBlock(store) {
     <!--SEO-META-END-->`;
 }
 
+const HIDDEN_STORE_META_BLOCK = `<!--SEO-META-START-->
+    <title>Business page not available | TIN</title>
+    <meta name="robots" content="noindex" />
+    <!--SEO-META-END-->`;
+
 async function main() {
   const templatePath = path.join(DIST_DIR, "index.html");
   if (!existsSync(templatePath)) {
@@ -141,14 +147,20 @@ async function main() {
   }
 
   const storesSnap = await db.collection("stores").get();
+  const linkedStoreIds = await loadLinkedStoreIds(db);
   let storeCount = 0;
+  let hiddenStoreCount = 0;
   for (const docSnap of storesSnap.docs) {
     const store = { id: docSnap.id, ...docSnap.data() };
-    const html = template.replace(META_REGION, buildStoreMetaBlock(store));
+    // L2: imported, unverified, unclaimed, unlinked stores get a noindex page
+    // with no business details (src/utils/storeVisibility.js).
+    const isPublic = isStorePublic(store, { linked: linkedStoreIds.has(store.id) });
+    if (!isPublic) hiddenStoreCount++;
+    const html = template.replace(META_REGION, isPublic ? buildStoreMetaBlock(store) : HIDDEN_STORE_META_BLOCK);
     const outDir = path.join(DIST_DIR, "store", store.id);
     mkdirSync(outDir, { recursive: true });
     writeFileSync(path.join(outDir, "index.html"), html);
-    storeCount++;
+    if (isPublic) storeCount++;
   }
 
   // L1 Jobs-only launch: "/" opens the Jobs home, so the root page carries the
@@ -156,7 +168,7 @@ async function main() {
   // above was built from the untouched template.
   if (JOBS_ONLY) writeFileSync(templatePath, template.replace(META_REGION, buildStaticMetaBlock(JOBS_HOME_META)));
 
-  console.log(`[prerender] Generated ${1 + JOB_LANE_PAGES.length} jobs landing/lane page(s), ${jobCount} job page(s) and ${storeCount} store page(s).`);
+  console.log(`[prerender] Generated ${1 + JOB_LANE_PAGES.length} jobs landing/lane page(s), ${jobCount} job page(s) and ${storeCount} store page(s) (+${hiddenStoreCount} hidden imported store page(s), noindex).`);
 }
 
 main().catch(e => { console.error("[prerender] Fatal:", e.message); process.exit(1); });

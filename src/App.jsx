@@ -83,11 +83,18 @@ export default function App() {
   const [storesLoadFailed, setStoresLoadFailed] = useState(false);
   const [contributorsLoadFailed, setContributorsLoadFailed] = useState(false);
 
-  // Load real stores from Firestore on mount
+  // L2 (Jobs-only launch): the full stores/contributors load feeds only the
+  // hidden marketplace pages, the admin panel and the Market Champion add-store
+  // stats — ~3.4k reads per visit — so it runs only when one of those needs it.
+  const needsStoresData = FEATURES.home || FEATURES.discover
+    || user?.role === "admin" || user?.role === "contributor";
+
+  // Load real stores from Firestore when needed
   useEffect(() => {
     // homsystems has no use for TIN's stores/contributors data — skip the
     // reads rather than pay for them on every microsite page load.
     if (isHomSystemsRoute) return;
+    if (!needsStoresData) return;
     const loadStores = async () => {
       try {
         const snap = await getDocs(query(collection(db, "stores"), orderBy("createdAt", "desc")));
@@ -127,7 +134,7 @@ export default function App() {
       }
     };
     loadContributors();
-  }, []);
+  }, [needsStoresData]);
   const [selectedCity, setSelectedCity] = useState(null);
   const [toast, setToast] = useState({ show: false, msg: "", type: "ok" });
   const [pendingBusinessType, setPendingBusinessType] = useState(null);
@@ -417,7 +424,7 @@ export default function App() {
             <Route path="/jobs/saved" element={<SavedJobsPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath("/jobs/saved"); setShowLoginPage(true); }} />} />
             <Route path="/jobs/desk" element={<EmployerDeskPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath(location.pathname + location.search); setShowLoginPage(true); }} />} />
             <Route path="/jobs/:jobId" element={<JobDetailPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath(location.pathname); setShowLoginPage(true); }} toast={showToast} />} />
-            <Route path="/store/:storeId" element={<StoreProfilePage />} />
+            <Route path="/store/:storeId" element={<StoreProfilePage user={user} />} />
             <Route path="/conversations/*" element={<ConversationsPage user={user} />} />
             {/* react-router route segments must be fully static or fully dynamic —
                 "/@:handle" never matches, so this takes the whole segment and

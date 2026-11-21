@@ -79,3 +79,10 @@ export function initAdmin() {
   firestore = getFirestore();
   return firestore;
 }
+
+// L2: stores linked to an account by the admin (users/{uid}.storeId) — they
+// stay public even if imported and unverified (src/utils/storeVisibility.js).
+export async function loadLinkedStoreIds(db) {
+  const snap = await db.collection("users").where("storeId", "!=", null).select("storeId").get();
+  return new Set(snap.docs.map(d => d.get("storeId")).filter(Boolean));
+}

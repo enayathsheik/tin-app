@@ -3,9 +3,10 @@
 // scripts/firebaseAdmin.js for one-time credential setup.
 import { writeFileSync } from "fs";
 import path from "path";
-import { initAdmin, requireServiceAccountPath } from "./firebaseAdmin.js";
+import { initAdmin, loadLinkedStoreIds, requireServiceAccountPath } from "./firebaseAdmin.js";
 import { JOB_LANE_PAGES } from "../src/data/jobsLanes.js";
 import { JOBS_ONLY } from "../src/data/features.js";
+import { isStorePublic } from "../src/utils/storeVisibility.js";
 
 const SITE_URL = "https://tinit.in";
 const DIST_DIR = "dist";
@@ -34,6 +35,7 @@ async function main() {
     .get();
 
   const storesSnap = await db.collection("stores").get();
+  const linkedStoreIds = await loadLinkedStoreIds(db);
 
   const entries = [
     // L1 Jobs-only launch: "/" just redirects to /jobs, so /jobs is the top entry.
@@ -49,8 +51,12 @@ async function main() {
     entries.push(urlEntry(`${SITE_URL}/jobs/${docSnap.id}`, { lastmod, priority: 0.6 }));
   });
 
+  let storeCount = 0;
   storesSnap.docs.forEach(docSnap => {
     const store = docSnap.data();
+    // L2: hidden imported stores never go in the sitemap.
+    if (!isStorePublic(store, { linked: linkedStoreIds.has(docSnap.id) })) return;
+    storeCount++;
     const lastmod = store.createdAt?.toDate?.()?.toISOString();
     entries.push(urlEntry(`${SITE_URL}/store/${docSnap.id}`, { lastmod, priority: 0.6 }));
   });
@@ -61,7 +67,7 @@ async function main() {
   const robots = `User-agent: *\nAllow: /\n\nSitemap: ${SITE_URL}/sitemap.xml\n`;
   writeFileSync(path.join(DIST_DIR, "robots.txt"), robots);
 
-  console.log(`[sitemap] Wrote dist/sitemap.xml (${jobsSnap.size} jobs, ${storesSnap.size} stores) and dist/robots.txt.`);
+  console.log(`[sitemap] Wrote dist/sitemap.xml (${jobsSnap.size} jobs, ${storeCount} of ${storesSnap.size} stores) and dist/robots.txt.`);
 }
 
 main().catch(e => { console.error("[sitemap] Fatal:", e.message); process.exit(1); });
