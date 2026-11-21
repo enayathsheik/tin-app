@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { TRADES } from "../data/jobsTaxonomy.js";
@@ -21,6 +21,7 @@ export function JobsLanePage({ slug, user, isGuest, onRequireLogin }) {
   const meta = laneBySlug(slug);
   const [params, setParams] = useSearchParams();
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const resultsRef = useRef(null);
   const f = useMemo(() => filtersFromSearchParams(params), [params]);
   const filterKey = FILTER_KEYS.map(k => f[k] || "").join("|");
 
@@ -88,8 +89,10 @@ export function JobsLanePage({ slug, user, isGuest, onRequireLogin }) {
       </button>
 
       <div className="tj-lay">
-        <JobFilters lane={meta.lane} f={f} onChange={setFilter} onClear={clearFilters} open={filtersOpen} />
-        <div style={{ minWidth: 0 }}>
+        <JobFilters lane={meta.lane} f={f} onChange={setFilter} onClear={clearFilters} open={filtersOpen}
+          resultCount={feed.jobs.length === 0 && feed.loading ? null : filtered.length}
+          onShowResults={() => { setFiltersOpen(false); requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })); }} />
+        <div ref={resultsRef} style={{ minWidth: 0, scrollMarginTop: 8 }}>
           <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 8 }}>
             {feed.jobs.length === 0 && feed.loading ? "Loading…"
               : `${filtered.length} ${filtered.length === 1 ? "role" : "roles"}${feed.done ? "" : ` in the latest ${feed.jobs.length} jobs`}`}

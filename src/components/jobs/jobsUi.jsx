@@ -16,6 +16,7 @@ export function JobsStyles() {
       .tj-side{display:none}
       .tj-side.open{display:flex}
       .tj-filters-btn{display:inline-flex}
+      .tj-show-results{display:flex}
       .tj-rows{display:flex;flex-direction:column;gap:10px}
       .tj-lanes{display:grid;grid-template-columns:1fr;gap:12px}
       .tj-strip{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;scroll-snap-type:x mandatory}
@@ -30,6 +31,7 @@ export function JobsStyles() {
         .tj-lay{grid-template-columns:240px 1fr}
         .tj-side,.tj-side.open{display:flex;position:sticky;top:12px}
         .tj-filters-btn{display:none}
+        .tj-show-results{display:none}
         .tj-lanes{grid-template-columns:1fr 1fr}
         .tj-facts{grid-template-columns:repeat(3,1fr)}
       }

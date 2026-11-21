@@ -1,13 +1,16 @@
 import { CITIES } from "../../data/constants";
 import { FUNCS, INDUSTRIES, TRADES, TYPES } from "../../data/jobsTaxonomy.js";
 import { EXPERIENCE_BANDS, PAY_BANDS } from "../../utils/jobFilters.js";
-import { card, fieldLabel } from "./jobsStyle";
+import { btnPrimary, card, fieldLabel } from "./jobsStyle";
 
 // Filter panel for a lane page. Values are taxonomy keys / band ids; ""
 // means "Any". `lane` decides function (professional) vs trade (skilled);
 // Needed Now shows both. Pay bands are limited to the periods that make
 // sense for the lane (monthly for professional, daily + monthly otherwise).
-export function JobFilters({ lane, f, onChange, onClear, open }) {
+// Filters apply as soon as they change (desktop sidebar is live). On the
+// phone the panel also gets a "Show N results" button (L5) that closes it
+// and jumps to the list — `resultCount` null while loading.
+export function JobFilters({ lane, f, onChange, onClear, open, resultCount = null, onShowResults }) {
   const showFn = lane !== "skilled";
   const showTrade = lane !== "professional";
   const payBands = lane === "professional" ? PAY_BANDS.filter(b => b.period === "month") : PAY_BANDS;
@@ -77,6 +80,12 @@ export function JobFilters({ lane, f, onChange, onClear, open }) {
       {active && (
         <button onClick={onClear} style={{ alignSelf: "flex-start", background: "none", border: "none", color: "var(--acc)", fontSize: 12, fontWeight: 700, cursor: "pointer", padding: 0 }}>
           Clear filters
+        </button>
+      )}
+      {onShowResults && (
+        <button type="button" className="tj-show-results" onClick={onShowResults}
+          style={{ ...btnPrimary, width: "100%", minHeight: 48, fontSize: 15, justifyContent: "center", alignItems: "center", marginTop: 4 }}>
+          {resultCount == null ? "Show results" : resultCount === 0 ? "No matching jobs — close" : `Show ${resultCount} ${resultCount === 1 ? "result" : "results"}`}
         </button>
       )}
     </aside>
