@@ -33,6 +33,7 @@ import { JobProfilePage } from "./pages/JobProfilePage";
 import { MyApplicationsPage } from "./pages/MyApplicationsPage";
 import { EmployerDeskPage } from "./pages/EmployerDeskPage";
 import { StoreProfilePage } from "./pages/StoreProfilePage";
+import { StoreEditPage } from "./pages/StoreEditPage";
 import { PublicProfilePage } from "./pages/PublicProfilePage";
 import { ConversationsPage } from "./pages/ConversationsPage";
 import { HomSystemsPage } from "./pages/hom/HomSystemsPage";
@@ -425,6 +426,7 @@ export default function App() {
             <Route path="/jobs/desk" element={<EmployerDeskPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath(location.pathname + location.search); setShowLoginPage(true); }} />} />
             <Route path="/jobs/:jobId" element={<JobDetailPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath(location.pathname); setShowLoginPage(true); }} toast={showToast} />} />
             <Route path="/store/:storeId" element={<StoreProfilePage user={user} />} />
+            <Route path="/store/:storeId/edit" element={<StoreEditPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath(location.pathname); setShowLoginPage(true); }} />} />
             <Route path="/conversations/*" element={<ConversationsPage user={user} />} />
             {/* react-router route segments must be fully static or fully dynamic —
                 "/@:handle" never matches, so this takes the whole segment and

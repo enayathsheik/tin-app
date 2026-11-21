@@ -7,6 +7,7 @@ import { InspiReviewSection } from "../components/admin/InspiReviewSection";
 import { JobsReviewSection } from "../components/admin/JobsReviewSection";
 import { AiTestSection } from "../components/admin/AiTestSection";
 import { MemberProvisioningSection } from "../components/admin/MemberProvisioningSection";
+import { ClaimsReviewSection } from "../components/admin/ClaimsReviewSection";
 import { exportToExcel } from "../utils/exportExcel";
 import { getLevel } from "../utils/helpers";
 
@@ -201,6 +202,8 @@ export function AdminDashboard({ stores, contributors, user }) {
         {section === "inspi" && <InspiReviewSection />}
 
         {section === "jobs" && <JobsReviewSection />}
+
+        {section === "claims" && <ClaimsReviewSection user={user} />}
 
         {section === "records" && <>
           <div className="admin-hd" style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>

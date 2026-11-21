@@ -659,3 +659,18 @@ items below. Originally specified: emulator test that the function refuses unaut
 calls; unit tests that the output filter drops unknown keys and non-taxonomy
 values, that phone/email scrubbing works, and that the rate-limit counter
 blocks call 6 of the day. A manual check with mixed Hindi–English answers.
+
+## 9. Launch (22 Nov 2026) — week-1 follow-ups
+
+Items deliberately left out of the launch pack, to do in the first week after launch:
+
+1. **Lock public store reads; move "Find your business" search to a server function.**
+   Today `match /stores/{storeId}` is `allow read: if true`, so imported stores that are
+   hidden from the site (L2a: sitemap, prerender, `/store/:id` "not available") can still
+   be read straight from the Firestore API. Fix: make store reads public only for public
+   stores (verified / claimed / linked / not imported — same rule as
+   `src/utils/storeVisibility.js`, which needs a store-level `isPublic` flag kept in sync,
+   since rules can't read `users/*.storeId` cheaply), and move the L2b search
+   (`src/lib/storeClaims.js` `searchStoresForClaim`) into a callable function that returns
+   only id, name, city, address and business type of matching stores, rate-limited per user.
+   The claim, admin approval and owner-edit flows don't change.

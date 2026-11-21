@@ -142,7 +142,12 @@ export function StoreProfilePage({ user }) {
               )}
             </div>
           </div>
+          {user?.uid && store.contributorId === user.uid && (
+            <Link to={`/store/${store.id}/edit`} style={{ fontSize: 12, fontWeight: 700, color: "var(--acc)", textDecoration: "none", whiteSpace: "nowrap" }}>✎ Edit profile</Link>
+          )}
         </div>
+
+        {store.about && <div style={{ fontSize: 13, color: "#080808", lineHeight: 1.6, marginBottom: 14, whiteSpace: "pre-line" }}>{store.about}</div>}
 
         {/* CONTACT BUTTONS */}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>

@@ -3,6 +3,7 @@ import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase/config";
 import { CATEGORY_TREE, BUSINESS_TYPES } from "../data/constants";
 import { ConfidenceBar } from "../components/shared/ConfidenceBar";
+import { submitStoreClaim } from "../lib/storeClaims";
 
 export function DiscoveryPage({ stores, selectedCity, user, isGuest, onRequireLogin, initialBusinessType }) {
   const [search, setSearch] = useState("");
@@ -50,10 +51,8 @@ export function DiscoveryPage({ stores, selectedCity, user, isGuest, onRequireLo
   const handleClaim = async () => {
     if (!claimData.phone && !claimData.gst) return;
     try {
-      await addDoc(collection(db, "claims"), {
-        storeId: claimStore.id, storeName: claimStore.storeName,
-        ...claimData, createdAt: serverTimestamp(), status: "pending",
-      });
+      // L2b: same claim shape as Post a Job → "Find your business" (firestore.rules match /claims).
+      await submitStoreClaim(user, claimStore, { ...claimData, name: claimData.name || user?.name || "" });
     } catch(e) { console.log("Claim error:", e); }
     setClaimSubmitted(true);
     setTimeout(() => { setClaimStore(null); setClaimSubmitted(false); setClaimData({name:"",phone:"",email:"",gst:""}); }, 3000);

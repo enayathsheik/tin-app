@@ -14,6 +14,7 @@ import { validatePincode } from "../utils/helpers";
 import { JobsStyles } from "../components/jobs/jobsUi";
 import { LANE_COLOR, btnOutline, btnPrimary, card, heading } from "../components/jobs/jobsStyle";
 import { Choice, Field, Pick } from "../components/jobs/WizardFields";
+import { FindYourBusiness } from "../components/jobs/FindYourBusiness";
 
 // Per-device autosave so a reload doesn't lose the wizard. Wrapped in
 // try/catch: storage can be blocked, and the wizard must still work.
@@ -215,7 +216,10 @@ export function PostJobPage({ user, isGuest, onRequireLogin, onListStore, toast 
         <div style={{ background: "var(--s2)", border: "1px solid var(--b1)", borderRadius: "var(--r)", padding: 12, marginBottom: 12 }}>
           <div style={{ fontWeight: 700, fontSize: 15, color: "var(--t1)" }}>{store.storeName}</div>
           <div style={{ fontSize: 12, color: "var(--t3)" }}>{[store.businessType, store.city].filter(Boolean).join(" · ")}</div>
-          <Link to={`/store/${store.id}`} style={{ fontSize: 12, fontWeight: 700, color: "var(--acc)", textDecoration: "none" }}>View store profile →</Link>
+          <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+            <Link to={`/store/${store.id}`} style={{ fontSize: 12, fontWeight: 700, color: "var(--acc)", textDecoration: "none" }}>View store profile →</Link>
+            {store.contributorId === user?.uid && <Link to={`/store/${store.id}/edit`} style={{ fontSize: 12, fontWeight: 700, color: "var(--acc)", textDecoration: "none" }}>Complete your store profile →</Link>}
+          </div>
         </div>
       </> : <>
         <p style={{ fontSize: 13, color: "var(--t3)", margin: "0 0 12px" }}>Who's hiring? We'll remember this for your next job.</p>
@@ -233,13 +237,8 @@ export function PostJobPage({ user, isGuest, onRequireLogin, onListStore, toast 
           {INDUSTRIES.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
         </select>
       </Field>
-      {!store && (
-        <div style={{ fontSize: 12, color: "var(--t3)", background: "var(--s2)", borderRadius: 8, padding: "8px 12px" }}>
-          Is your shop or office not on TIN yet?{" "}
-          <button type="button" onClick={onListStore} style={{ background: "none", border: "none", padding: 0, color: "var(--acc)", fontWeight: 700, cursor: "pointer", fontSize: 12 }}>List your store on TIN</button>
-          {" "}— the TIN team can then link it to your account so your jobs show on your store page.
-        </div>
-      )}
+      {/* L2b: claim an existing (possibly hidden, imported) store, or register a new one. */}
+      {!store && <FindYourBusiness user={user} onListStore={onListStore} defaultName={d.business.name} defaultCity={d.business.city} />}
     </>;
   }
 

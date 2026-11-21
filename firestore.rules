@@ -73,15 +73,23 @@ service cloud.firestore {
         || (request.auth != null
             && request.resource.data.get("verificationStatus", "community_added") == "community_added"
             && request.resource.data.get("verifiedAt", null) == null
-            && request.resource.data.get("verifiedBy", null) == null);
+            && request.resource.data.get("verifiedBy", null) == null
+            && !request.resource.data.keys().hasAny(storeClaimKeys()));
       // Whoever added the store may still edit its normal details, but not
       // its verification fields or who it belongs to (contributorId).
       allow update: if isAdmin()
         || (request.auth != null
             && resource.data.get("contributorId", "") == request.auth.uid
             && !request.resource.data.diff(resource.data).affectedKeys()
-                 .hasAny(["verificationStatus", "verifiedAt", "verifiedBy", "contributorId"]));
+                 .hasAny(["verificationStatus", "verifiedAt", "verifiedBy", "contributorId"])
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(storeClaimKeys()));
       allow delete: if isAdmin();
+    }
+    // L2b: set only by the admin when approving a claim (src/lib/storeClaims.js
+    // approveClaim). claimedByUid makes an imported store public
+    // (src/utils/storeVisibility.js), so nobody else may set it.
+    function storeClaimKeys() {
+      return ["claimedByUid", "claimedAt", "claimId", "previousContributorId"];
     }
 
     // ── REPORTS ────────────────────────────────────────────
@@ -92,10 +100,31 @@ service cloud.firestore {
     }
 
     // ── CLAIMS ─────────────────────────────────────────────
+    // L2b "Find your business": a signed-in user claims a store for their own
+    // account only, with a confirmed mobile number (GST optional). The admin
+    // approves or rejects (src/lib/storeClaims.js); the claimant can read their
+    // own claims to see the status.
     match /claims/{docId} {
-      allow read: if isAdmin();
-      allow create: if request.auth != null;
+      allow read: if isAdmin()
+        || (request.auth != null && resource.data.get("claimantUid", "") == request.auth.uid);
+      allow create: if request.auth != null && isValidNewClaim();
       allow update, delete: if isAdmin();
+    }
+    function isValidNewClaim() {
+      let d = request.resource.data;
+      let storePath = /databases/$(database)/documents/stores/$(d.storeId);
+      return d.keys().hasOnly(["claimantUid", "storeId", "storeName", "storeCity", "name",
+                               "phone", "phoneConfirmed", "gst", "email", "status", "createdAt"])
+        && d.claimantUid == request.auth.uid
+        && d.status == "pending"
+        && d.storeId is string
+        && d.name is string && d.name.size() > 0 && d.name.size() <= 100
+        && d.phone is string && d.phone.matches("^[6-9][0-9]{9}$")
+        && d.phoneConfirmed == true
+        && (d.get("gst", null) == null || (d.gst is string && d.gst.size() == 15))
+        && d.createdAt == request.time
+        && exists(storePath)
+        && get(storePath).data.get("claimedByUid", null) == null;
     }
 
     // ── SUGGESTIONS ────────────────────────────────────────
