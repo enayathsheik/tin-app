@@ -8,6 +8,7 @@ import { initializeTestEnvironment, assertSucceeds, assertFails } from "@firebas
 import { doc, getDoc, setDoc, updateDoc, deleteField, serverTimestamp } from "firebase/firestore";
 import { applicationSnapshot, emptyProfile, splitProfile } from "../../src/utils/jobProfile.js";
 import { stageUpdate } from "../../src/utils/applications.js";
+import { firstShortlist } from "./shortlistHelper.js";
 
 const PROJECT_ID = "applications-phase4-test";
 const ADMIN_EMAIL = "enayathsheik@gmail.com";
@@ -152,7 +153,7 @@ describe("employer updates", () => {
     const viewed = stageUpdate({ stageHistory: [{ stage: "submitted" }] }, "app_viewed", "employer", "emp");
     await assertSucceeds(updateDoc(doc(as("emp"), "jobApplications", "live_e1"), viewed));
     const shortlisted = stageUpdate(viewed, "shortlisted", "employer", "emp", { note: "Good fit" });
-    await assertSucceeds(updateDoc(doc(as("emp"), "jobApplications", "live_e1"), w(shortlisted)));
+    await assertSucceeds(firstShortlist(as("emp"), "live_e1", "live", w(shortlisted), 1)); // L10 slot
     const invited = stageUpdate(shortlisted, "int_invited", "employer", "emp", { interview: { date: "2026-11-25", time: "11:00", mode: "In person", where: "Shop 4", instructions: "" } });
     await assertSucceeds(updateDoc(doc(as("emp"), "jobApplications", "live_e1"), invited));
   });

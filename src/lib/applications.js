@@ -7,6 +7,7 @@ import {
 import { getBlob, ref, uploadBytes } from "firebase/storage";
 import { db, storage } from "../firebase/config";
 import { markJobRole } from "./jobRoles";
+import { writeFirstShortlist } from "./shortlist";
 import { applicationContact, applicationSnapshot } from "../utils/jobProfile.js";
 import { isContactUnlocked, stageUpdate } from "../utils/applications.js";
 import { validateCvFile } from "./jobProfiles";
@@ -118,6 +119,11 @@ export async function moveApplication(app, stage, by, byUid, opts = {}) {
     ...(update.contactUnlockedAt ? { contactUnlockedAt: serverTimestamp() } : {}), // L8
     updatedAt: serverTimestamp(),
   };
+  // L10: a first shortlist also takes a shortlist slot (same batch).
+  if (update.contactUnlockedAt) {
+    const slot = await writeFirstShortlist(app, toWrite);
+    return { ...app, ...update, shortlistSlot: slot, _jobShortlistCount: slot };
+  }
   await updateDoc(doc(db, "jobApplications", app.id), toWrite);
   return { ...app, ...update };
 }

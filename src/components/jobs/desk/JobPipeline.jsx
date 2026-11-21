@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { BULK_SET } from "../../../data/jobsTaxonomy.js";
-import { currentStage, isFinal, shouldMarkViewed, stageLabel } from "../../../utils/applications.js";
+import { currentStage, isContactUnlocked, isFinal, shouldMarkViewed, stageLabel, unlocksContact } from "../../../utils/applications.js";
 import { BOARD_COLUMNS, bulkPlan, defaultNote, groupByColumn, isNew, nextAction } from "../../../utils/employerDesk.js";
 import { bulkMoveApplications } from "../../../lib/employerDesk";
 import { moveApplication } from "../../../lib/applications";
@@ -8,6 +8,9 @@ import { useIsDesktop } from "../../../hooks/useIsDesktop";
 import { StagePill } from "../ApplicationBits";
 import { ApplicantDetail } from "./ApplicantDetail";
 import { ShareJobButton } from "../ShareJobButton";
+import { ShortlistMeter } from "./ShortlistMeter";
+import { useShortlistLimit } from "../../../hooks/useShortlistLimit";
+import { ShortlistFullError, shortlistCountOf } from "../../../utils/shortlist.js";
 import { Sheet } from "./Sheet";
 import { card } from "../jobsStyle";
 
@@ -20,8 +23,9 @@ const sub = (a) => [a.profileSnapshot?.role, a.profileSnapshot?.experienceYears 
 
 // Applicants of one job: pipeline board (phone: one column at a time) and
 // list with bulk updates. Every move opens or uses the application sheet.
-export function JobPipeline({ job, apps, employer, onAppsChange }) {
+export function JobPipeline({ job, apps, employer, onAppsChange, onJobPatch = () => {} }) {
   const isDesktop = useIsDesktop();
+  const shortlistLimit = useShortlistLimit(); // L10
   const [view, setView] = useState("board");
   const [col, setCol] = useState(() => (apps.some(isNew) ? "new" : BOARD_COLUMNS.find(c => groupByColumn(apps)[c.key].length)?.key || "new"));
   const [openId, setOpenId] = useState(null);
@@ -33,7 +37,11 @@ export function JobPipeline({ job, apps, employer, onAppsChange }) {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(null); // { ok, text }
 
-  const replace = (updated) => onAppsChange(apps.map(a => (a.id === updated.id ? updated : a)));
+  // L10: a first shortlist returns the job's new shortlist count.
+  const replace = (updated) => {
+    if (updated._jobShortlistCount) onJobPatch({ shortlistCount: updated._jobShortlistCount });
+    onAppsChange(apps.map(a => (a.id === updated.id ? updated : a)));
+  };
   const replaceMany = (list) => { const m = new Map(list.map(a => [a.id, a])); onAppsChange(apps.map(a => m.get(a.id) || a)); };
 
   const open = (a, how = null) => {
@@ -43,7 +51,11 @@ export function JobPipeline({ job, apps, employer, onAppsChange }) {
   const quickMove = async (a, to) => {
     setBusy(true); setNotice(null);
     try { replace(await moveApplication(a, to, "employer", employer.uid)); setNotice({ ok: true, text: `${a.applicantName || "Applicant"} → ${stageLabel(to)}` }); }
-    catch (e) { console.error("[desk] move failed:", e); setNotice({ ok: false, text: "Couldn't update: " + (e.message || e) }); }
+    catch (e) {
+      console.error("[desk] move failed:", e);
+      setNotice({ ok: false, text: e instanceof ShortlistFullError ? e.message : "Couldn't update: " + (e.message || e) });
+      if (e instanceof ShortlistFullError) onJobPatch({ shortlistCount: e.limit });
+    }
     setBusy(false);
   };
   const runNext = (a) => {
@@ -86,13 +98,22 @@ export function JobPipeline({ job, apps, employer, onAppsChange }) {
   const pickBulk = (s) => { setBulkStage(s); setBulkNote(defaultNote(s, job.lane)); };
   const selected = apps.filter(a => checked.has(a.id));
   const plan = bulkStage ? bulkPlan(selected, bulkStage) : null;
+  // L10: how many of the bulk move would be first shortlists, vs slots left.
+  const firstTimers = plan ? plan.update.filter(a => unlocksContact(bulkStage) && !isContactUnlocked(a)).length : 0;
+  const slotsLeft = Math.max(0, shortlistLimit - shortlistCountOf(job));
+  const willSkip = Math.max(0, firstTimers - slotsLeft);
   const applyBulk = async () => {
     if (!plan?.update.length) return;
     setBusy(true); setNotice(null);
     try {
-      replaceMany(await bulkMoveApplications(plan.update, bulkStage, employer.uid, bulkNote));
+      const res = await bulkMoveApplications(plan.update, bulkStage, employer.uid, bulkNote);
+      replaceMany(res);
+      if (res.jobShortlistCount) onJobPatch({ shortlistCount: res.jobShortlistCount });
+      const over = res.overLimit?.length || 0; // L10
+      if (over) onJobPatch({ shortlistCount: shortlistLimit });
       const skip = plan.skipped.closed + plan.skipped.same + plan.skipped.notFitting;
-      setNotice({ ok: true, text: `${plan.update.length} moved to ${stageLabel(bulkStage)}${skip ? ` · ${skip} skipped` : ""}.` });
+      const moved = res.length;
+      setNotice({ ok: !over, text: `${moved} moved to ${stageLabel(bulkStage)}${skip ? ` · ${skip} skipped` : ""}${over ? ` · ${over} not shortlisted: you've used all ${shortlistLimit} shortlists for this job. Post another job to shortlist more.` : "."}` });
       setChecked(new Set()); setBulkStage(""); setBulkNote("");
     } catch (e) {
       console.error("[desk] bulk update failed:", e);
@@ -103,6 +124,7 @@ export function JobPipeline({ job, apps, employer, onAppsChange }) {
 
   return (
     <div>
+      <ShortlistMeter job={job} limit={shortlistLimit} />
       <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
         {[["board", "Pipeline"], ["list", "List · bulk"]].map(([k, l]) => (
           <button key={k} type="button" onClick={() => setView(k)} aria-pressed={view === k} style={pillBtn(view === k)}>{l}</button>
@@ -168,6 +190,11 @@ export function JobPipeline({ job, apps, employer, onAppsChange }) {
               {bulkStage && (
                 <>
                   <textarea className="fta" rows={bulkNote ? 3 : 2} value={bulkNote} onChange={e => setBulkNote(e.target.value)} placeholder="Note for the candidates (optional)" aria-label="Note for the candidates" />
+                  {willSkip > 0 && (
+                    <div role="status" style={{ fontSize: 12, color: "#92400e", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "6px 8px" }}>
+                      {slotsLeft === 0 ? `You've used all ${shortlistLimit} shortlists for this job` : `Only ${slotsLeft} of ${shortlistLimit} shortlists left`} — {willSkip} will be skipped. Post another job to shortlist more.
+                    </div>
+                  )}
                   {plan && (plan.skipped.closed + plan.skipped.same + plan.skipped.notFitting) > 0 && (
                     <div style={{ fontSize: 12, color: "var(--t3)" }}>
                       {[plan.skipped.closed && `${plan.skipped.closed} already closed`, plan.skipped.same && `${plan.skipped.same} already there`,

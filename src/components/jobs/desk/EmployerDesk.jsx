@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { normaliseJob } from "../../../utils/jobModel.js";
 import { ShareJobButton } from "../ShareJobButton";
+import { ShortlistMeter } from "./ShortlistMeter";
+import { useShortlistLimit } from "../../../hooks/useShortlistLimit";
 import { VACANCY_TABS, deskCounts, isNew, isToReply, vacancyTab } from "../../../utils/employerDesk.js";
 import { loadDeskJobs, setJobStatus } from "../../../lib/employerDesk";
 import { loadApplicants } from "../../../lib/applications";
@@ -73,6 +75,7 @@ export function EmployerDesk({ user }) {
   }, [needsApps]);
 
   const select = (id) => { const p = new URLSearchParams(params); if (id) p.set("job", id); else p.delete("job"); setParams(p); };
+  const shortlistLimit = useShortlistLimit(); // L10
   const patchJob = (id, data) => setJobs(js => js.map(j => (j.id === id ? { ...j, ...data } : j)));
   const changeStatus = async (job, jobStatus) => {
     const before = job.jobStatus;
@@ -131,8 +134,9 @@ export function EmployerDesk({ user }) {
         <div style={{ margin: "10px 0 14px" }}>{actions(selected, true)}</div>
         {error && <div role="alert" style={{ fontSize: 13, color: "#b91c1c", marginBottom: 10 }}>⚠ {error}</div>}
         {apps ? (
-          <JobPipeline job={nj} apps={apps} employer={{ uid, name: selected.businessName || user.name || "" }}
-            onAppsChange={(list) => setAppsByJob(p => ({ ...p, [selected.id]: list }))} />
+          <JobPipeline job={{ ...nj, shortlistCount: selected.shortlistCount || 0 }} apps={apps} employer={{ uid, name: selected.businessName || user.name || "" }}
+            onAppsChange={(list) => setAppsByJob(p => ({ ...p, [selected.id]: list }))}
+            onJobPatch={(data) => patchJob(selected.id, data)} />
         ) : <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>Loading applicants…</div>}
         {closeSheet}
       </div>
@@ -202,6 +206,8 @@ export function EmployerDesk({ user }) {
                       </button>
                       <ReviewBadge job={j} />
                     </div>
+                    {/* L10: shortlists used on this job. */}
+                    {j.status === "approved" && <div style={{ marginTop: 4 }}><ShortlistMeter job={j} limit={shortlistLimit} compact /></div>}
                     {(fresh > 0 || reply > 0) && (
                       <div style={{ display: "flex", gap: 10, fontSize: 12, fontWeight: 700, marginTop: 6 }}>
                         {fresh > 0 && <span style={{ color: "var(--acc)" }}>● {fresh} new</span>}

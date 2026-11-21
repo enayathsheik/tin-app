@@ -10,6 +10,7 @@ import { initializeTestEnvironment, assertSucceeds, assertFails } from "@firebas
 import { doc, getDoc, serverTimestamp, setDoc, updateDoc, writeBatch, deleteField } from "firebase/firestore";
 import { applicationContact, applicationSnapshot, emptyProfile } from "../../src/utils/jobProfile.js";
 import { stageUpdate } from "../../src/utils/applications.js";
+import { firstShortlist } from "./shortlistHelper.js";
 
 const PROJECT_ID = "contact-visibility-test";
 const ADMIN_EMAIL = "enayathsheik@gmail.com";
@@ -127,12 +128,12 @@ describe("shortlist unlocks", () => {
     const { contactUnlockedAt: _drop, ...without } = w(sl); // eslint-disable-line no-unused-vars
     await assertFails(updateDoc(doc(as(EMP), "jobApplications", APP), without));
     await assertFails(updateDoc(doc(as(EMP), "jobApplications", APP), { ...w(sl), contactUnlockedAt: new Date(2020, 0, 1) }));
-    await assertSucceeds(updateDoc(doc(as(EMP), "jobApplications", APP), w(sl)));
+    await assertSucceeds(firstShortlist(as(EMP), APP, JOB, w(sl), 1)); // L10: with its shortlist slot
   });
 
   it("after shortlisting, the poster reads phone, email and CV; other employers still can't", async () => {
     await applyBatch(as(CAND), CAND, JOB, { resumePath: `resumes/${CAND}/${JOB}/1_cv.pdf` });
-    await updateDoc(doc(as(EMP), "jobApplications", APP), w(stageUpdate(await appNow(), "shortlisted", "employer", EMP)));
+    await firstShortlist(as(EMP), APP, JOB, w(stageUpdate(await appNow(), "shortlisted", "employer", EMP)), 1);
     const c = await assertSucceeds(getDoc(contactRef(as(EMP))));
     expect(c.data()).toMatchObject({ applicantPhone: "9769031000", applicantEmail: "p@example.com", resumePath: `resumes/${CAND}/${JOB}/1_cv.pdf` });
     await assertFails(getDoc(contactRef(as(OTHER))));
@@ -141,13 +142,13 @@ describe("shortlist unlocks", () => {
   it("going straight to an interview invite also unlocks", async () => {
     await applyBatch(as(CAND));
     const inv = stageUpdate(await appNow(), "int_invited", "employer", EMP, { interview: { date: "2026-11-25", time: "11:00", mode: "Phone call", where: "", instructions: "" } });
-    await assertSucceeds(updateDoc(doc(as(EMP), "jobApplications", APP), w(inv)));
+    await assertSucceeds(firstShortlist(as(EMP), APP, JOB, w(inv), 1));
     await assertSucceeds(getDoc(contactRef(as(EMP))));
   });
 
   it("unlock is one-way: rejecting later keeps contact visible, and nobody but admin can clear the timestamp", async () => {
     await applyBatch(as(CAND));
-    await updateDoc(doc(as(EMP), "jobApplications", APP), w(stageUpdate(await appNow(), "shortlisted", "employer", EMP)));
+    await firstShortlist(as(EMP), APP, JOB, w(stageUpdate(await appNow(), "shortlisted", "employer", EMP)), 1);
     await assertFails(updateDoc(doc(as(EMP), "jobApplications", APP), { contactUnlockedAt: deleteField() }));
     await assertFails(updateDoc(doc(as(EMP), "jobApplications", APP), { contactUnlockedAt: serverTimestamp() }));
     await assertSucceeds(updateDoc(doc(as(EMP), "jobApplications", APP), w(stageUpdate(await appNow(), "not_selected", "employer", EMP))));

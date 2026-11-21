@@ -188,6 +188,7 @@ service cloud.firestore {
         )
         && jobFieldsOk(request.resource.data)
         && jobPayRangeOk(request.resource.data)
+        && request.resource.data.get("shortlistCount", 0) == 0 // L10
         && jobStoreIdOk(request.resource.data);
       // Jobs redesign phase 3 (docs/JOBS_BLUEPRINT.md §5.3): the poster may
       // edit the content of their own listing and flip jobStatus. Moderation
@@ -204,15 +205,20 @@ service cloud.firestore {
                "contactPhone", "category", "jobType", "salaryRange", "notAgencyDeclaration",
                "lane", "trade", "functions", "workTypes", "headcount", "experience",
                "education", "workingHours", "responsibilities", "skills",
-               "shortAssignment", "pay", "benefits", "evpText", "industry", "storeId"])
+               "shortAssignment", "pay", "benefits", "evpText", "industry", "storeId", "shortlistCount"])
           // "paused" (phase 5a, Employer Desk): hidden from the public feed
           // and closed to new applications (both require "live").
           && request.resource.data.get("jobStatus", "live") in ["live", "paused", "filled", "closed"]
           && (request.resource.data.get("status", "") == resource.data.get("status", "")
               || request.resource.data.get("status", "") == "pending")
-          && (request.resource.data.diff(resource.data).affectedKeys().hasOnly(["jobStatus", "updatedAt"])
+          && (request.resource.data.diff(resource.data).affectedKeys().hasOnly(["jobStatus", "updatedAt", "shortlistCount"])
               || request.resource.data.get("status", "") == "pending"
               || jobPosterIsVerified())
+          // L10: the shortlist counter only goes up, never past the limit.
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(["shortlistCount"])
+              || (request.resource.data.get("shortlistCount", 0) is int
+                  && request.resource.data.get("shortlistCount", 0) > resource.data.get("shortlistCount", 0)
+                  && request.resource.data.get("shortlistCount", 0) <= shortlistLimit()))
           && jobFieldsOk(request.resource.data)
           // L7: old jobs keep their pay as-is; an edit that changes pay needs a range.
           && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(["pay"])
@@ -221,6 +227,27 @@ service cloud.firestore {
               || jobStoreIdOk(request.resource.data))
         );
       allow delete: if isAdmin();
+
+      // ── L10: shortlist slots ──
+      // Every applicant shortlisted for the first time (the moment phone,
+      // email and CV unlock — L8) takes one numbered slot 1..limit, in the same
+      // batch as that application's stage change and the job's shortlistCount.
+      // Doc ids are unique, so at most `limit` applicants per job can ever be
+      // unlocked; rejecting, moving or closing never frees a slot.
+      match /shortlistSlots/{slot} {
+        allow read: if request.auth != null
+          && (isAdmin() || get(/databases/$(database)/documents/jobListings/$(jobId)).data.get("postedByUid", "") == request.auth.uid);
+        allow create: if request.auth != null
+          && get(/databases/$(database)/documents/jobListings/$(jobId)).data.get("postedByUid", "") == request.auth.uid
+          && slot.matches("^[1-9][0-9]{0,2}$")
+          && int(slot) <= shortlistLimit()
+          && int(slot) > get(/databases/$(database)/documents/jobListings/$(jobId)).data.get("shortlistCount", 0)
+          && int(slot) <= getAfter(/databases/$(database)/documents/jobListings/$(jobId)).data.get("shortlistCount", 0)
+          && request.resource.data.keys().hasOnly(["appId", "createdAt"])
+          && getAfter(/databases/$(database)/documents/jobApplications/$(request.resource.data.get("appId", "_"))).data.get("jobId", "") == jobId
+          && getAfter(/databases/$(database)/documents/jobApplications/$(request.resource.data.get("appId", "_"))).data.get("shortlistSlot", 0) == int(slot);
+        allow update, delete: if isAdmin();
+      }
 
       function jobPosterIsVerified() {
         return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get("verificationStatus", "") == "verified";
@@ -275,7 +302,7 @@ service cloud.firestore {
         // L8: phone, email and CV go in private/contact (below), never on the
         // application the employer can read; pay only if the candidate chose
         // to show it; contact can't start unlocked.
-        && !request.resource.data.keys().hasAny(["applicantPhone", "applicantEmail", "resumePath", "resumeUrl", "resumeFileName", "contactUnlockedAt"])
+        && !request.resource.data.keys().hasAny(["applicantPhone", "applicantEmail", "resumePath", "resumeUrl", "resumeFileName", "contactUnlockedAt", "shortlistSlot"])
         && (request.resource.data.get("payVisible", false) == true
             || !request.resource.data.keys().hasAny(["currentPay", "expectedPay"]))
         && request.resource.data.get("hasCv", false) is bool;
@@ -304,7 +331,7 @@ service cloud.firestore {
         //    grows by one. Older My Jobs builds that only change
         //    applicantStatus keep working.
         (get(/databases/$(database)/documents/jobListings/$(resource.data.get("jobId", ""))).data.get("postedByUid", "") == request.auth.uid
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["applicantStatus", "stage", "stageHistory", "updatedAt", "interview", "contactUnlockedAt"])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["applicantStatus", "stage", "stageHistory", "updatedAt", "interview", "contactUnlockedAt", "shortlistSlot"])
           && contactUnlockOk()
           // Old builds that only change applicantStatus may only reject — a
           // shortlist must go through the stage path so contact unlock is
@@ -331,7 +358,14 @@ service cloud.firestore {
       function contactUnlockOk() {
         return (request.resource.data.get("stage", "") in contactUnlockStages() && !contactUnlocked(resource.data))
           ? request.resource.data.get("contactUnlockedAt", null) == request.time
-          : !request.resource.data.diff(resource.data).affectedKeys().hasAny(["contactUnlockedAt"]);
+            && shortlistSlotOk()
+          : !request.resource.data.diff(resource.data).affectedKeys().hasAny(["contactUnlockedAt", "shortlistSlot"]);
+      }
+      // L10: a first shortlist must take a slot created in the same batch.
+      function shortlistSlotOk() {
+        return request.resource.data.get("shortlistSlot", 0) is int
+          && existsAfter(/databases/$(database)/documents/jobListings/$(resource.data.get("jobId", ""))/shortlistSlots/$(string(request.resource.data.get("shortlistSlot", 0))))
+          && getAfter(/databases/$(database)/documents/jobListings/$(resource.data.get("jobId", ""))/shortlistSlots/$(string(request.resource.data.get("shortlistSlot", 0)))).data.get("appId", "") == applicationId;
       }
 
       // Private part: applicantPhone, applicantEmail, resumePath, resumeFileName.
@@ -794,6 +828,19 @@ service cloud.firestore {
         && (site.address.get('pincode', '') == '' || site.address.get('pincode', '').matches('^[0-9]{6}$'));
     }
     // ══ END HOM SYSTEMS — BLOCK 1 ═══════════════════════════════
+
+    // L10/L9: admin-set launch config (config/pricing). Public read so the
+    // screens can show limits and prices; only the TIN admin writes.
+    match /config/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    // Per-job shortlist limit (config/pricing.shortlistLimit, default 10).
+    function shortlistLimit() {
+      return exists(/databases/$(database)/documents/config/pricing)
+        ? get(/databases/$(database)/documents/config/pricing).data.get("shortlistLimit", 10)
+        : 10;
+    }
 
     function isAdmin() {
       return request.auth != null &&

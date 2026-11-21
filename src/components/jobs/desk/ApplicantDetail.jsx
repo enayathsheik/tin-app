@@ -55,7 +55,11 @@ export function ApplicantDetail({ app, job, employer, onChange, startWith = null
 
   const run = async (fn) => {
     setBusy(true); setError("");
-    try { await fn(); } catch (e) { console.error("[desk] update failed:", e); setError("Couldn't update: " + (e.message || e)); }
+    try { await fn(); } catch (e) {
+      console.error("[desk] update failed:", e);
+      // L10: at the shortlist limit, show the owner's message as-is.
+      setError(e?.name === "ShortlistFullError" ? e.message : "Couldn't update: " + (e.message || e));
+    }
     setBusy(false);
   };
 
