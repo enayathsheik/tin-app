@@ -9,7 +9,6 @@ import { useJobApply } from "../hooks/useJobApply";
 import { JobRow } from "../components/jobs/JobRow";
 import { JobsStyles, LaneMarker } from "../components/jobs/jobsUi";
 import { LANE_COLOR, btnOutline, card, chip, heading, payLine } from "../components/jobs/jobsStyle";
-import { PostJobButton } from "../components/jobs/PostJobButton";
 import { JobApplyModal } from "../components/shared/JobApplyModal";
 
 const SITE_URL = "https://tinit.in";
@@ -216,7 +215,6 @@ export function JobsPage({ user, isGuest, onRequireLogin }) {
         </div>
       </section>
 
-      <PostJobButton />
       <JobApplyModal {...applyState} />
     </div>
     </div>

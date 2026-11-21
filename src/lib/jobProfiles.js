@@ -3,6 +3,7 @@
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { ref, uploadBytes } from "firebase/storage";
 import { db, storage } from "../firebase/config";
+import { markJobRole } from "./jobRoles";
 import { profileFromDocs, splitProfile } from "../utils/jobProfile.js";
 
 export const CV_MIME_TYPES = [
@@ -39,6 +40,7 @@ export async function saveJobProfile(uid, profile, { isNew = false } = {}) {
     setDoc(doc(db, "jobProfiles", uid), { ...pub, ...stamp }, { merge: true }),
     setDoc(doc(db, "jobProfilesPrivate", uid), { ...priv, updatedAt: serverTimestamp() }, { merge: true }),
   ]);
+  markJobRole(uid, "seeker"); // L3 floating buttons
 }
 
 // Upload the candidate's saved CV (resumes/{uid}/profile/…). Returns the cv

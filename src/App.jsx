@@ -39,6 +39,7 @@ import { ConversationsPage } from "./pages/ConversationsPage";
 import { HomSystemsPage } from "./pages/hom/HomSystemsPage";
 import { HomAdminTab } from "./pages/hom/HomAdminTab";
 import { FEATURES, isPageEnabled } from "./data/features";
+import { FloatingJobActions } from "./components/jobs/FloatingJobActions";
 
 export default function App() {
   const navigate = useNavigate();
@@ -435,6 +436,8 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
+        {/* L3: Search Jobs / Post a Job by user type (src/utils/jobRoles.js). */}
+        <FloatingJobActions user={user} page={page} />
         <Toast {...toast} />
       </div>
     </>

@@ -10,6 +10,7 @@ import {
   serverTimestamp, setDoc, updateDoc, where,
 } from "firebase/firestore";
 import { db } from "../firebase/config";
+import { markJobRole } from "./jobRoles";
 import { normaliseJob } from "../utils/jobModel.js";
 import { buildJobFields, changedContentKeys, rememberedBusiness } from "../utils/jobDraft.js";
 
@@ -60,6 +61,7 @@ export async function createJob(user, draft, store) {
     updatedAt: serverTimestamp(),
   });
   await rememberBusiness(user.uid, draft);
+  markJobRole(user.uid, "employer"); // L3 floating buttons
   return { id: ref.id, status };
 }
 

@@ -10,7 +10,6 @@ import { JobRow } from "../components/jobs/JobRow";
 import { JobFilters } from "../components/jobs/JobFilters";
 import { JobsStyles, LaneMarker } from "../components/jobs/jobsUi";
 import { LANE_COLOR, btnOutline, card, heading } from "../components/jobs/jobsStyle";
-import { PostJobButton } from "../components/jobs/PostJobButton";
 import { JobApplyModal } from "../components/shared/JobApplyModal";
 
 const SITE_URL = "https://tinit.in";
@@ -123,7 +122,6 @@ export function JobsLanePage({ slug, user, isGuest, onRequireLogin }) {
         </div>
       </div>
 
-      <PostJobButton />
       <JobApplyModal {...applyState} />
     </div>
     </div>

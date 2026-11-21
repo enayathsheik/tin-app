@@ -6,6 +6,7 @@ import {
 } from "firebase/firestore";
 import { getBlob, ref, uploadBytes } from "firebase/storage";
 import { db, storage } from "../firebase/config";
+import { markJobRole } from "./jobRoles";
 import { applicationSnapshot } from "../utils/jobProfile.js";
 import { stageUpdate } from "../utils/applications.js";
 import { validateCvFile } from "./jobProfiles";
@@ -56,6 +57,7 @@ export async function submitApplication(user, job, profile, { message = "", cvCh
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+  markJobRole(user.uid, "seeker"); // L3 floating buttons
   return applicationId(jobId, user.uid);
 }
 
