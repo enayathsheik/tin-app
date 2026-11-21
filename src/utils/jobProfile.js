@@ -8,7 +8,7 @@ import {
 import { isSyntheticPhoneEmail } from "./phoneAuth.js";
 
 // Fields that must NEVER be on the shareable doc (rules enforce it too).
-export const PRIVATE_FIELDS = ["phone", "email", "currentPay", "expectedPay", "cv"];
+export const PRIVATE_FIELDS = ["phone", "email", "currentPay", "expectedPay", "cv", "showPayToEmployers"];
 export const DEFAULT_VISIBILITY = "open_to_opportunities"; // owner decision, Phase 4
 
 const s = (v) => (typeof v === "string" ? v.trim() : "");
@@ -25,6 +25,8 @@ export function emptyProfile(user = {}) {
     education: "", educationText: "", languages: "", skills: "", history: [], projects: "",
     city: s(user.city), areas: "",
     workTypePrefs: [], expectedPay: "", currentPay: "",
+    // L8: expected/current pay go to employers only when this is on (default off).
+    showPayToEmployers: false,
     availability: "", visibility: DEFAULT_VISIBILITY,
     cv: null,
   };
@@ -59,6 +61,7 @@ export function profileFromDocs(pub, priv, user = {}) {
     email: s(q.email) || base.email,
     expectedPay: s(q.expectedPay),
     currentPay: s(q.currentPay),
+    showPayToEmployers: q.showPayToEmployers === true,
     cv: q.cv && q.cv.path ? q.cv : null,
   };
 }
@@ -89,6 +92,7 @@ export function splitProfile(pr) {
     email: s(pr.email),
     expectedPay: s(pr.expectedPay),
     currentPay: s(pr.currentPay),
+    showPayToEmployers: pr.showPayToEmployers === true,
   };
   if (pr.cv && pr.cv.path) priv.cv = pr.cv;
   return { pub, priv };
@@ -107,13 +111,17 @@ export const isApplyReady = (pr, lane) => missingForApply(pr, lane).length === 0
 
 // What an application copies for THAT job's employer. Contact details and
 // expected pay are copied; current pay NEVER is.
+// L8: what the employer can read straight away (the application doc) — no
+// phone, email or CV (those go to applicationContact(), unlocked at
+// Shortlisted), and pay only if the candidate chose to show it.
 export function applicationSnapshot(pr) {
   const { pub, priv } = splitProfile(pr);
+  const showPay = priv.showPayToEmployers === true;
   return {
     applicantName: pub.name,
-    applicantPhone: priv.phone,
-    applicantEmail: priv.email,
-    expectedPay: priv.expectedPay,
+    payVisible: showPay,
+    ...(showPay && priv.expectedPay ? { expectedPay: priv.expectedPay } : {}),
+    ...(showPay && priv.currentPay ? { currentPay: priv.currentPay } : {}),
     profileSnapshot: {
       lane: pub.lane, role: pub.role, trades: pub.trades, functions: pub.functions,
       experienceYears: pub.experienceYears, education: pub.education, educationText: pub.educationText,
@@ -125,6 +133,12 @@ export function applicationSnapshot(pr) {
 
 // Plain-language lines for the "TIN Profile" card (shown where there's no
 // CV — never as a negative). Works on a profileSnapshot.
+// L8: the private part of an application (jobApplications/{id}/private/contact).
+export function applicationContact(pr) {
+  const { priv } = splitProfile(pr);
+  return { applicantPhone: priv.phone, applicantEmail: priv.email };
+}
+
 export function tinProfileLines(snap = {}) {
   const trades = (snap.trades || []).map(k => {
     const t = TRADES.find(x => x.key === k);

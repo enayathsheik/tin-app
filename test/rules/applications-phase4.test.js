@@ -5,7 +5,7 @@
 import { readFileSync } from "fs";
 import { beforeAll, afterAll, describe, it } from "vitest";
 import { initializeTestEnvironment, assertSucceeds, assertFails } from "@firebase/rules-unit-testing";
-import { doc, getDoc, setDoc, updateDoc, deleteField } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, deleteField, serverTimestamp } from "firebase/firestore";
 import { applicationSnapshot, emptyProfile, splitProfile } from "../../src/utils/jobProfile.js";
 import { stageUpdate } from "../../src/utils/applications.js";
 
@@ -19,6 +19,8 @@ const newApp = (jobId, uid, extra = {}) => ({
   stage: "submitted", stageHistory: [{ stage: "submitted", at: new Date(), by: "candidate", byUid: uid }],
   applicantStatus: "new", createdAt: new Date(), ...extra,
 });
+// L8: the client writes contactUnlockedAt as serverTimestamp() (rules: == request.time).
+const w = (update) => (update.contactUnlockedAt ? { ...update, contactUnlockedAt: serverTimestamp() } : update);
 const job = (poster, extra = {}) => ({ postedByUid: poster, jobTitle: "Masons", status: "approved", jobStatus: "live", createdAt: new Date(), ...extra });
 
 beforeAll(async () => {
@@ -55,16 +57,14 @@ describe("apply (create)", () => {
     await assertSucceeds(setDoc(doc(as("c1"), "jobApplications", "live_c1"), newApp("live", "c1")));
   });
 
-  it("today's old apply shape (no stage, saved resumeUrl) still works during rollout", async () => {
-    await assertSucceeds(setDoc(doc(as("c2"), "jobApplications", "live_c2"), {
+  it("L8: the old apply shape (phone / CV link on the application itself) is refused", async () => {
+    await assertFails(setDoc(doc(as("c2"), "jobApplications", "live_c2"), {
       jobId: "live", applicantUid: "c2", applicantName: "C2", applicantPhone: "98", message: "", resumeUrl: "https://x", resumeFileName: "cv.pdf", applicantStatus: "new", createdAt: new Date(),
     }));
   });
 
-  it("a CV path must be inside resumes/{me}/{thisJob}/", async () => {
-    await assertSucceeds(setDoc(doc(as("c3"), "jobApplications", "live_c3"), newApp("live", "c3", { resumePath: "resumes/c3/live/123_cv.pdf" })));
-    await assertFails(setDoc(doc(as("c4"), "jobApplications", "live_c4"), newApp("live", "c4", { resumePath: "resumes/c4/otherLive/123_cv.pdf" })));
-    await assertFails(setDoc(doc(as("c5"), "jobApplications", "live_c5"), newApp("live", "c5", { resumePath: "resumes/someoneElse/live/123_cv.pdf" })));
+  it("L8: a CV path on the application itself is refused (it belongs in private/contact)", async () => {
+    await assertFails(setDoc(doc(as("c3"), "jobApplications", "live_c3"), newApp("live", "c3", { resumePath: "resumes/c3/live/123_cv.pdf" })));
   });
 
   it("the job must exist and be approved + live", async () => {
@@ -81,8 +81,10 @@ describe("apply (create)", () => {
     await assertFails(setDoc(doc(as("cSub"), "jobApplications", "live_cSub"), newApp("live", "cSub"))); // already applied
   });
 
-  it("current pay can never be copied into an application", async () => {
+  it("L8: pay goes into an application only when the candidate switched on \"show my pay\"", async () => {
     await assertFails(setDoc(doc(as("c8"), "jobApplications", "live_c8"), newApp("live", "c8", { currentPay: "₹800 / day" })));
+    await assertFails(setDoc(doc(as("c8"), "jobApplications", "live_c8"), newApp("live", "c8", { expectedPay: "₹950 / day" })));
+    await assertSucceeds(setDoc(doc(as("c8"), "jobApplications", "live_c8"), newApp("live", "c8", { payVisible: true, expectedPay: "₹950 / day", currentPay: "₹800 / day" })));
   });
 
   it("can't apply to your own job; guests can't apply", async () => {
@@ -150,7 +152,7 @@ describe("employer updates", () => {
     const viewed = stageUpdate({ stageHistory: [{ stage: "submitted" }] }, "app_viewed", "employer", "emp");
     await assertSucceeds(updateDoc(doc(as("emp"), "jobApplications", "live_e1"), viewed));
     const shortlisted = stageUpdate(viewed, "shortlisted", "employer", "emp", { note: "Good fit" });
-    await assertSucceeds(updateDoc(doc(as("emp"), "jobApplications", "live_e1"), shortlisted));
+    await assertSucceeds(updateDoc(doc(as("emp"), "jobApplications", "live_e1"), w(shortlisted)));
     const invited = stageUpdate(shortlisted, "int_invited", "employer", "emp", { interview: { date: "2026-11-25", time: "11:00", mode: "In person", where: "Shop 4", instructions: "" } });
     await assertSucceeds(updateDoc(doc(as("emp"), "jobApplications", "live_e1"), invited));
   });
@@ -163,9 +165,11 @@ describe("employer updates", () => {
     await assertFails(updateDoc(doc(as("emp"), "jobApplications", "live_e2"), { currentPay: "x" }));
   });
 
-  it("older My Jobs builds changing only applicantStatus still work", async () => {
+  it("older My Jobs builds changing only applicantStatus may reject, but not shortlist (L8: unlock must be recorded)", async () => {
     await testEnv.withSecurityRulesDisabled(async (c) => setDoc(doc(c.firestore(), "jobApplications", "live_e3"), { jobId: "live", applicantUid: "e3", applicantStatus: "new" }));
-    await assertSucceeds(updateDoc(doc(as("emp"), "jobApplications", "live_e3"), { applicantStatus: "shortlisted" }));
+    await assertFails(updateDoc(doc(as("emp"), "jobApplications", "live_e3"), { applicantStatus: "shortlisted" }));
+    await assertFails(updateDoc(doc(as("emp"), "jobApplications", "live_e3"), { applicantStatus: "hired" }));
+    await assertSucceeds(updateDoc(doc(as("emp"), "jobApplications", "live_e3"), { applicantStatus: "rejected" }));
   });
 
   it("nothing after an application is closed; other employers can't touch it", async () => {

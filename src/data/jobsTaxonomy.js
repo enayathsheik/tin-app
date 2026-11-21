@@ -209,6 +209,13 @@ export const ST = {
 export const FINAL = ["not_shortlisted", "offer_accepted", "offer_declined", "not_selected", "withdrawn", "closed"];
 // Stages an employer may set on a single application.
 export const EMP_SET = ["review", "shortlisted", "not_shortlisted", "contacted", "int_done", "info_req", "assess_req", "selected", "offer_sent", "not_selected", "closed"];
+// L8 (launch): reaching any of these stages — Shortlisted or later — unlocks
+// the applicant's phone, email and CV for whoever manages the job. Mirrored
+// in firestore.rules (contactUnlockStages) and storage.rules.
+export const CONTACT_UNLOCK_STAGES = [
+  "shortlisted", "contacted", "int_invited", "int_scheduled", "int_rescheduled", "int_done",
+  "info_req", "assess_req", "selected", "offer_sent", "offer_accepted", "offer_declined",
+];
 // Stages an employer may set in bulk from the list view.
 export const BULK_SET = ["review", "shortlisted", "not_shortlisted", "not_selected", "closed"];
 // "Your next step" prompt shown to the candidate at these stages.

@@ -23,7 +23,8 @@ export const HI = {
   sendApplication: ["Send application", "आवेदन भेजें"],
   applied: ["Applied", "आवेदन हो गया"],
   addLater: ["You can add more later", "बाकी जानकारी बाद में जोड़ सकते हैं"],
-  phonePrivate: ["Your number is only shared with employers you apply to", "आपका नंबर सिर्फ़ उन्हीं को दिखेगा जहाँ आप आवेदन करेंगे"],
+  // L8: contact unlocks only when an employer shortlists the applicant.
+  phonePrivate: ["Employers see your number only after they shortlist you", "नौकरी देने वाला आपको शॉर्टलिस्ट करने के बाद ही आपका नंबर देख सकता है"],
   myApplications: ["My applications", "मेरे आवेदन"],
   withdraw: ["Withdraw application", "आवेदन वापस लें"],
   acceptInterview: ["Accept interview", "इंटरव्यू मंज़ूर करें"],

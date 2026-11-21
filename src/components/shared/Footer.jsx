@@ -6,7 +6,7 @@ export function Footer() {
         <div className="site-footer-links">
           <a href="mailto:enayathsheik@gmail.com">Contact</a>
           <span className="site-footer-sep">·</span>
-          <a href="#" onClick={(e) => e.preventDefault()}>Privacy</a>
+          <a href="/privacy">Privacy</a>
           <span className="site-footer-sep">·</span>
           <a href="#" onClick={(e) => e.preventDefault()}>Terms</a>
         </div>

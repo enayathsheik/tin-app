@@ -2,17 +2,20 @@
 // opening CVs with a live access check (no permanent links for new CVs).
 // Rules: firestore.rules jobApplications + storage.rules resumes/.
 import {
-  collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where, Timestamp,
+  collection, doc, getDoc, getDocs, query, serverTimestamp, updateDoc, where, writeBatch, Timestamp,
 } from "firebase/firestore";
 import { getBlob, ref, uploadBytes } from "firebase/storage";
 import { db, storage } from "../firebase/config";
 import { markJobRole } from "./jobRoles";
-import { applicationSnapshot } from "../utils/jobProfile.js";
-import { stageUpdate } from "../utils/applications.js";
+import { applicationContact, applicationSnapshot } from "../utils/jobProfile.js";
+import { isContactUnlocked, stageUpdate } from "../utils/applications.js";
 import { validateCvFile } from "./jobProfiles";
 
 const safeName = (n) => n.replace(/[^\w.\- ]+/g, "_").slice(-80);
 export const applicationId = (jobId, uid) => `${jobId}_${uid}`;
+// L8: phone, email and CV path live here, readable by the employer only once
+// the application reached Shortlisted or later (firestore.rules).
+export const contactDocRef = (appId) => doc(db, "jobApplications", appId, "private", "contact");
 
 // Copy a CV into this job's folder (resumes/{uid}/{jobId}/…) so access can
 // be checked against THIS job's application. Source: a new File, or the
@@ -43,12 +46,16 @@ export async function submitApplication(user, job, profile, { message = "", cvCh
     : {};
   const snap = applicationSnapshot(profile);
   const now = new Date();
-  await setDoc(doc(db, "jobApplications", applicationId(jobId, user.uid)), {
+  const appId = applicationId(jobId, user.uid);
+  // L8: one batch — the application the employer reads now (no contact, no
+  // CV path) + the private contact doc they can read once they shortlist.
+  const batch = writeBatch(db);
+  batch.set(doc(db, "jobApplications", appId), {
     jobId,
     applicantUid: user.uid,
     ...snap,
     message: (message || "").trim().slice(0, 1000),
-    ...cv,
+    hasCv: !!cv.resumePath,
     // Shown to the candidate even if the job later stops being readable.
     jobSnapshot: { title: raw.jobTitle || "", businessName: raw.businessName || raw.postedByName || "", city: raw.city || "" },
     stage: "submitted",
@@ -57,8 +64,26 @@ export async function submitApplication(user, job, profile, { message = "", cvCh
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+  batch.set(contactDocRef(appId), { ...applicationContact(profile), ...cv, createdAt: serverTimestamp() });
+  await batch.commit();
   markJobRole(user.uid, "seeker"); // L3 floating buttons
-  return applicationId(jobId, user.uid);
+  return appId;
+}
+
+// L8: the applicant's phone / email / CV for this application, or null when
+// still locked (not shortlisted yet) or missing. Old applications (before
+// L8) carry these on the application itself until the admin migration runs.
+export async function loadApplicationContact(app) {
+  const legacy = app.applicantPhone || app.applicantEmail || app.resumePath || app.resumeUrl;
+  if (legacy) return { applicantPhone: app.applicantPhone || "", applicantEmail: app.applicantEmail || "", resumePath: app.resumePath || "", resumeFileName: app.resumeFileName || "", resumeUrl: app.resumeUrl || "" };
+  if (!isContactUnlocked(app)) return null;
+  try {
+    const snap = await getDoc(contactDocRef(app.id));
+    return snap.exists() ? snap.data() : null;
+  } catch (e) {
+    console.warn("[applications] contact not readable:", e);
+    return null;
+  }
 }
 
 export async function loadAppliedJobIds(uid) {
@@ -90,6 +115,7 @@ export async function moveApplication(app, stage, by, byUid, opts = {}) {
   const toWrite = {
     ...update,
     stageHistory: update.stageHistory.map(e => ({ ...e, at: e.at instanceof Date ? Timestamp.fromDate(e.at) : e.at })),
+    ...(update.contactUnlockedAt ? { contactUnlockedAt: serverTimestamp() } : {}), // L8
     updatedAt: serverTimestamp(),
   };
   await updateDoc(doc(db, "jobApplications", app.id), toWrite);
@@ -105,7 +131,8 @@ export async function requestReschedule(app, note) {
 
 // Open a CV: new CVs via a live, rules-checked fetch (no lasting link);
 // old applications via their saved link. `win` = a tab opened synchronously
-// on click (so pop-up blockers allow it).
+// on click (so pop-up blockers allow it). `app` = application merged with
+// its contact (loadApplicationContact) — the CV path lives there since L8.
 export async function openApplicationCv(app, win) {
   if (app.resumePath) {
     const blob = await getBlob(ref(storage, app.resumePath));

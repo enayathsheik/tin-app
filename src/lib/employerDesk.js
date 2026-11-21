@@ -44,6 +44,8 @@ function toWrite(update) {
   return {
     ...update,
     stageHistory: update.stageHistory.map(e => ({ ...e, at: e.at instanceof Date ? Timestamp.fromDate(e.at) : e.at })),
+    // L8: contact unlock time must be the server's (firestore.rules).
+    ...(update.contactUnlockedAt ? { contactUnlockedAt: serverTimestamp() } : {}),
     updatedAt: serverTimestamp(),
   };
 }

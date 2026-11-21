@@ -113,6 +113,8 @@ export function ProfilePage({ user, onUpdateUser, showJobPosts = true }) {
   return (
     <div className="prof-pg">
       <div className="prof-wrap">
+        {/* L8: Privacy page link from the account screen. */}
+        <div style={{ textAlign: "right", fontSize: 12, marginBottom: 6 }}><Link to="/privacy" style={{ color: "var(--acc)", fontWeight: 700 }}>Privacy</Link></div>
         <div className="prof-hero">
           <div className="prof-top">
             <div className="prof-av">{user.name.charAt(0).toUpperCase()}</div>

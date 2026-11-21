@@ -119,10 +119,20 @@ service firebase.storage {
         );
     }
     // Owner decision: the employer loses access when the candidate withdraws.
+    // L8: …and only once the application reached Shortlisted or later
+    // (contactUnlockedAt, or an old application already at such a stage) —
+    // mirrors firestore.rules contactUnlocked().
     function employerCanReadCv(uid, jobId) {
       return firestore.exists(/databases/(default)/documents/jobApplications/$(jobId + "_" + uid))
         && firestore.get(/databases/(default)/documents/jobApplications/$(jobId + "_" + uid)).data.get("stage", "submitted") != "withdrawn"
-        && firestore.get(/databases/(default)/documents/jobListings/$(jobId)).data.get("postedByUid", "") == request.auth.uid;
+        && firestore.get(/databases/(default)/documents/jobListings/$(jobId)).data.get("postedByUid", "") == request.auth.uid
+        && cvContactUnlocked(firestore.get(/databases/(default)/documents/jobApplications/$(jobId + "_" + uid)).data);
+    }
+    function cvContactUnlocked(d) {
+      return d.get("contactUnlockedAt", null) != null
+        || d.get("stage", "") in ["shortlisted", "contacted", "int_invited", "int_scheduled", "int_rescheduled", "int_done",
+                                  "info_req", "assess_req", "selected", "offer_sent", "offer_accepted", "offer_declined"]
+        || (d.get("stage", "") == "" && d.get("applicantStatus", "") in ["shortlisted", "hired"]);
     }
 
     // Mirrors firestore.rules' isAdmin() (the TIN admin account).

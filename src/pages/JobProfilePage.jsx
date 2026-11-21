@@ -11,13 +11,14 @@ import { Field, Pick } from "../components/jobs/WizardFields";
 import { TradeTiles } from "../components/jobs/TradeTiles";
 import { ProfileHelper } from "../components/jobs/ProfileHelper";
 import { TinProfileCard } from "../components/jobs/ApplicationBits";
+import { ShortlistNotice } from "../components/jobs/ShortlistNotice";
 
 const SUGGESTED_TAG = <span style={{ marginLeft: 6, textTransform: "none", letterSpacing: 0, fontSize: 10, fontWeight: 800, color: "#7c3aed", background: "#f3e8ff", borderRadius: 8, padding: "1px 6px" }}>✨ suggested</span>;
 const STEPS = [["About you", "आपके बारे में"], ["Your work", "आपका काम"], ["What you want", "कैसा काम चाहिए"], ["Availability", "कब से"]];
 const big = { fontSize: 16, padding: "12px 14px", minHeight: 48 };
 const VIS_NOTE = {
   not_discoverable: "Hidden from employer search. You can still apply to jobs.",
-  default: "Employers on TIN can find your profile (name, work, area) — never your number. Your number is shared only with employers you apply to.",
+  default: "Employers on TIN can find your profile (name, work, area) — never your number. Your phone, email and CV are shared only when an employer you applied to shortlists you.",
 };
 
 // /jobs/profile — the candidate's job profile ("Find work"). 4 steps; the
@@ -197,7 +198,13 @@ export function JobProfilePage({ user, isGuest, onRequireLogin, toast }) {
         <Pick multiple label="Kind of work" options={types} value={pr.workTypePrefs} onChange={v => upd("workTypePrefs", v)} accent={LANE_COLOR[pr.lane] || "var(--acc)"} />
       </Field>
       <Field label={t("expectedPay", bi)} optional><input className="fi" style={bi ? big : undefined} value={pr.expectedPay} onChange={e => upd("expectedPay", e.target.value)} placeholder={bi ? "e.g. ₹900 / day" : "e.g. ₹6 LPA"} /></Field>
-      {!bi && <Field label="Current pay" optional hint="Never shown to employers."><input className="fi" value={pr.currentPay} onChange={e => upd("currentPay", e.target.value)} /></Field>}
+      {!bi && <Field label="Current pay" optional><input className="fi" value={pr.currentPay} onChange={e => upd("currentPay", e.target.value)} /></Field>}
+      {/* L8: the candidate decides whether employers see their pay. */}
+      <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: bi ? 15 : 13, color: "var(--t1)", marginBottom: 12, cursor: "pointer" }}>
+        <input type="checkbox" checked={!!pr.showPayToEmployers} onChange={e => upd("showPayToEmployers", e.target.checked)} style={{ marginTop: 3 }} />
+        <span>{bi ? <><span lang="hi">नौकरी देने वालों को मेरी मज़दूरी दिखाएँ</span> · Show my pay to employers</> : "Show my expected and current pay to employers I apply to"}
+          <span style={{ display: "block", fontSize: 11, color: "var(--t3)" }}>{pr.showPayToEmployers ? "Employers you apply to from now on will see it." : "Off: employers won't see your pay."}</span></span>
+      </label>
     </>;
   } else {
     pane = <>
@@ -234,7 +241,8 @@ export function JobProfilePage({ user, isGuest, onRequireLogin, toast }) {
       <div style={{ ...card, padding: 18 }}>
         <div style={{ fontSize: 36 }}>✅</div>
         <h1 style={{ ...heading, fontSize: 26, margin: "4px 0 2px" }}>{bi ? <><span lang="hi">प्रोफ़ाइल तैयार है</span> · Your profile is ready</> : "Your profile is ready"}</h1>
-        <p style={{ fontSize: 13, color: "var(--t3)", margin: "0 0 8px" }}>{bi ? "आवेदन करने पर नौकरी देने वाले को यह TIN प्रोफ़ाइल दिखेगी। · Employers you apply to see this TIN Profile." : "This is the TIN Profile employers see when you apply. Your number goes only to employers you apply to."}</p>
+        <p style={{ fontSize: 13, color: "var(--t3)", margin: "0 0 8px" }}>{bi ? "आवेदन करने पर नौकरी देने वाले को यह TIN प्रोफ़ाइल दिखेगी। · Employers you apply to see this TIN Profile." : "This is the TIN Profile employers see when you apply."}</p>
+        <ShortlistNotice bi={bi} style={{ marginBottom: 8 }} />
         <TinProfileCard app={{ applicantName: pr.name, profileSnapshot: applicationSnapshot(pr).profileSnapshot }} />
         <div style={{ fontSize: 13, fontWeight: 800, color: "var(--t2)", margin: "16px 0 8px" }}>{bi ? "अगला कदम · Next step" : "Next step"}</div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -328,6 +336,7 @@ export function JobProfilePage({ user, isGuest, onRequireLogin, toast }) {
             : <button type="button" disabled={saving} onClick={() => save({ finish: true })} style={{ ...btnPrimary, minHeight: 46, fontSize: 14 }}>{saving ? "…" : bi ? "प्रोफ़ाइल सेव करें · Save profile" : "Save profile"}</button>}
         </span>
       </div>
+      <ShortlistNotice bi={bi} style={{ marginTop: 12 }} />
       {savedOnce && <div style={{ fontSize: 12, color: "#15803d", marginTop: 8 }}>✓ {bi ? "सेव हो गया · Saved" : "Saved"} — <Link to="/jobs" style={{ color: "var(--acc)" }}>{bi ? "नौकरियाँ देखें · Browse jobs" : "Browse jobs"}</Link></div>}
     </div>
   </>);

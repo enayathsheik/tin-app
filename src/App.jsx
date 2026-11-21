@@ -34,6 +34,7 @@ import { MyApplicationsPage } from "./pages/MyApplicationsPage";
 import { EmployerDeskPage } from "./pages/EmployerDeskPage";
 import { StoreProfilePage } from "./pages/StoreProfilePage";
 import { StoreEditPage } from "./pages/StoreEditPage";
+import { PrivacyPage } from "./pages/PrivacyPage";
 import { PublicProfilePage } from "./pages/PublicProfilePage";
 import { ConversationsPage } from "./pages/ConversationsPage";
 import { HomSystemsPage } from "./pages/hom/HomSystemsPage";
@@ -438,6 +439,7 @@ export default function App() {
             <Route path="/store/:storeId" element={<StoreProfilePage user={user} />} />
             <Route path="/store/:storeId/edit" element={<StoreEditPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath(location.pathname); setShowLoginPage(true); }} />} />
             <Route path="/conversations/*" element={<ConversationsPage user={user} />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
             {/* react-router route segments must be fully static or fully dynamic —
                 "/@:handle" never matches, so this takes the whole segment and
                 PublicProfilePage itself validates/strips the "@" prefix. */}

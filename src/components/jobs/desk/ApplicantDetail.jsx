@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  INTERVIEW_MODES, cleanInterview, currentStage, interviewComplete, isFinal, stageLabel,
+  INTERVIEW_MODES, cleanInterview, currentStage, interviewComplete, isContactUnlocked, isFinal, stageLabel,
 } from "../../../utils/applications.js";
 import { defaultNote, moveOptions, nextAction } from "../../../utils/employerDesk.js";
-import { moveApplication, openApplicationCv } from "../../../lib/applications";
+import { loadApplicationContact, moveApplication, openApplicationCv } from "../../../lib/applications";
 import { messageAboutApplication } from "../../../lib/jobMessages";
 import { MilestoneTracker, StagePill, TinProfileCard } from "../ApplicationBits";
 
@@ -16,9 +16,10 @@ const fmtDate = (ts) => (ts?.toDate ? ts.toDate() : ts instanceof Date ? ts : nu
 const ASKS = ["info_req", "assess_req"]; // these also send the request as a message
 const INTERVIEW_NOW = ["int_invited", "int_scheduled", "int_rescheduled"];
 
-// Everything about one application, for the job's employer: contact (shown
-// because they applied), CV / TIN Profile, stage moves the employer may set,
-// interview invite, and Message (TIN Conversations). Used inside a Sheet.
+// Everything about one application, for the job's employer: TIN Profile,
+// contact + CV (L8: only once shortlisted — locked before that), stage
+// moves the employer may set, interview invite, and Message (TIN
+// Conversations). Used inside a Sheet.
 export function ApplicantDetail({ app, job, employer, onChange, startWith = null }) {
   const navigate = useNavigate();
   const [moveTo, setMoveTo] = useState(startWith === "invite" ? "" : startWith || "");
@@ -31,7 +32,19 @@ export function ApplicantDetail({ app, job, employer, onChange, startWith = null
 
   const stage = currentStage(app);
   const final = isFinal(stage);
-  const hasCv = !!(app.resumePath || app.resumeUrl);
+  // L8: phone / email / CV come from the private contact doc once unlocked.
+  const unlocked = isContactUnlocked(app);
+  const [contactState, setContactState] = useState({ id: null, contact: null });
+  useEffect(() => {
+    let cancelled = false;
+    loadApplicationContact(app).then(c => { if (!cancelled) setContactState({ id: `${app.id}:${unlocked}`, contact: c }); });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when the app or its lock state changes
+  }, [app.id, unlocked]);
+  const contact = contactState.id === `${app.id}:${unlocked}` ? contactState.contact : null;
+  const withContact = contact ? { ...app, ...contact } : app;
+  const hasCv = !!(contact?.resumePath || contact?.resumeUrl);
+  const cvAttached = hasCv || !!app.hasCv;
   const next = nextAction(app);
   const options = moveOptions(app);
   const asking = ASKS.includes(moveTo);
@@ -70,7 +83,7 @@ export function ApplicantDetail({ app, job, employer, onChange, startWith = null
 
   const openCv = async () => {
     const win = window.open("", "_blank");
-    try { await openApplicationCv(app, win); }
+    try { await openApplicationCv(withContact, win); }
     catch (e) { if (win) win.close(); setError("Couldn't open the CV: " + (e.message || e)); }
   };
 
@@ -88,16 +101,30 @@ export function ApplicantDetail({ app, job, employer, onChange, startWith = null
       <MilestoneTracker app={app} />
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {app.applicantPhone && <a href={`tel:${app.applicantPhone}`} style={{ ...outline, display: "inline-flex", alignItems: "center", textDecoration: "none" }}>📞 Call</a>}
+        {contact?.applicantPhone && <a href={`tel:${contact.applicantPhone}`} style={{ ...outline, display: "inline-flex", alignItems: "center", textDecoration: "none" }}>📞 Call</a>}
         {stage !== "withdrawn" && <button type="button" disabled={busy} onClick={openChat} style={outline}>💬 Message</button>}
         {hasCv && <button type="button" onClick={openCv} style={outline}>📄 CV</button>}
       </div>
-      <div style={{ fontSize: 13, color: "var(--t1)", display: "flex", flexWrap: "wrap", gap: "4px 14px", marginTop: 8 }}>
-        {app.applicantPhone && <span>{app.applicantPhone}</span>}
-        {app.applicantEmail && <a href={`mailto:${app.applicantEmail}`} style={{ color: "var(--t1)" }}>{app.applicantEmail}</a>}
-        {app.expectedPay && <span>Expected pay: {app.expectedPay}</span>}
-      </div>
-      <div style={{ fontSize: 11, color: "var(--t3)", marginTop: 2 }}>Contact details are shown because they applied to your job.</div>
+      {unlocked ? (
+        <>
+          <div style={{ fontSize: 13, color: "var(--t1)", display: "flex", flexWrap: "wrap", gap: "4px 14px", marginTop: 8 }}>
+            {contact?.applicantPhone && <span>{contact.applicantPhone}</span>}
+            {contact?.applicantEmail && <a href={`mailto:${contact.applicantEmail}`} style={{ color: "var(--t1)" }}>{contact.applicantEmail}</a>}
+          </div>
+          <div style={{ fontSize: 11, color: "var(--t3)", marginTop: 2 }}>Phone, email and CV are shown because you shortlisted this applicant.</div>
+        </>
+      ) : (
+        <div style={{ fontSize: 13, color: "var(--t2)", background: "var(--s2)", borderRadius: 8, padding: "8px 10px", marginTop: 8 }}>
+          🔒 Phone, email{cvAttached ? " and CV" : ""} unlock when you shortlist this applicant. You can message them on TIN any time.
+          {cvAttached && <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 2 }}>📄 CV attached</div>}
+        </div>
+      )}
+      {(app.expectedPay || app.currentPay) && (
+        <div style={{ fontSize: 13, color: "var(--t1)", display: "flex", flexWrap: "wrap", gap: "4px 14px", marginTop: 8 }}>
+          {app.expectedPay && <span>Expected pay: {app.expectedPay}</span>}
+          {app.currentPay && <span>Current pay: {app.currentPay}</span>}
+        </div>
+      )}
       {app.message && <div style={{ fontSize: 13, color: "var(--t2)", marginTop: 8 }}>“{app.message}”</div>}
       {sent && (
         <div style={{ fontSize: 13, color: "#15803d", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: 8, marginTop: 8 }}>
@@ -179,7 +206,7 @@ export function ApplicantDetail({ app, job, employer, onChange, startWith = null
       )}
       {error && <div role="alert" style={{ fontSize: 13, color: "#b91c1c", marginTop: 8 }}>⚠ {error}</div>}
 
-      {(!hasCv || app.profileSnapshot) && <TinProfileCard app={app} />}
+      {(!hasCv || app.profileSnapshot) && <TinProfileCard app={withContact} />}
 
       {(app.stageHistory || []).length > 0 && (
         <details style={{ marginTop: 12 }}>

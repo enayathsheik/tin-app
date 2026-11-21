@@ -2,7 +2,7 @@
 // §4.4). Plain functions, zero React/Firebase imports — unit-tested, and
 // mirrored by the jobApplications rules in firestore.rules.
 import {
-  CANDIDATE_STAGES, EMPLOYER_STAGES, EMP_SET, FINAL, LEGACY_APPLICANT_STATUS, MILESTONES, NEXT, ST,
+  CANDIDATE_STAGES, CONTACT_UNLOCK_STAGES, EMPLOYER_STAGES, EMP_SET, FINAL, LEGACY_APPLICANT_STATUS, MILESTONES, NEXT, ST,
 } from "../data/jobsTaxonomy.js";
 
 // The application's current stage: the new `stage` field, else the old
@@ -13,6 +13,13 @@ export function currentStage(app) {
 }
 
 export const isFinal = (stage) => FINAL.includes(stage);
+
+// L8: phone, email and CV are visible to the employer once the application
+// has reached Shortlisted or later (contactUnlockedAt, set once and never
+// cleared — a later rejection or closing doesn't re-lock it). Applications
+// from before L8 that are already past Shortlisted count as unlocked.
+export const unlocksContact = (stage) => CONTACT_UNLOCK_STAGES.includes(stage);
+export const isContactUnlocked = (app) => !!app?.contactUnlockedAt || unlocksContact(currentStage(app));
 export const stageLabel = (stage) => ST[stage]?.label || stage;
 export const stageText = (stage) => ST[stage]?.text || "";
 export const stageTone = (stage) => ST[stage]?.tone || "n";
@@ -88,6 +95,9 @@ export function stageUpdate(app, stage, by, byUid, { note = "", interview = null
     stageHistory: [...(app?.stageHistory || []), stageEntry(stage, by, byUid, note, at)],
   };
   if (interview) update.interview = interview;
+  // L8: the first employer move to Shortlisted-or-later unlocks contact. The
+  // writers turn this Date into serverTimestamp() (rules check request.time).
+  if (by === "employer" && unlocksContact(stage) && !isContactUnlocked(app)) update.contactUnlockedAt = at;
   return update;
 }
 
@@ -102,3 +112,21 @@ export function cleanInterview(i = {}) {
   };
 }
 export const interviewComplete = (i) => !!(i && i.date && i.time && (i.mode !== "In person" || i.where));
+
+// L8 migration plan for one application made before L8: which contact
+// fields to move into private/contact, whether a CV is attached, and
+// whether to record contactUnlockedAt (already at Shortlisted or later).
+// null when there's nothing to move. Used by src/lib/adminMigrations.js.
+const LEGACY_CONTACT_KEYS = ["applicantPhone", "applicantEmail", "resumePath", "resumeFileName", "resumeUrl"];
+export function legacyContactMigration(app) {
+  const present = LEGACY_CONTACT_KEYS.filter(k => app?.[k] !== undefined);
+  if (!present.length) return null;
+  const contact = {};
+  for (const k of present) if (app[k]) contact[k] = app[k];
+  return {
+    contact,
+    removeKeys: present,
+    hasCv: !!(app.resumePath || app.resumeUrl),
+    unlock: !app.contactUnlockedAt && unlocksContact(currentStage(app)),
+  };
+}

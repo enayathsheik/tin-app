@@ -52,7 +52,7 @@ export function TinProfileCard({ app }) {
       <h1>${esc(app.applicantName)}</h1><div class="sub">TIN Profile · ${esc(app.jobSnapshot?.title || "")}</div>
       <dl>${lines.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}
       ${app.applicantPhone ? `<dt>Mobile</dt><dd>${esc(app.applicantPhone)}</dd>` : ""}${app.applicantEmail ? `<dt>Email</dt><dd>${esc(app.applicantEmail)}</dd>` : ""}
-      ${app.expectedPay ? `<dt>Expected pay</dt><dd>${esc(app.expectedPay)}</dd>` : ""}</dl>
+      ${app.expectedPay ? `<dt>Expected pay</dt><dd>${esc(app.expectedPay)}</dd>` : ""}${app.currentPay ? `<dt>Current pay</dt><dd>${esc(app.currentPay)}</dd>` : ""}</dl>
       <div class="foot">Built from the candidate's TIN profile · tinit.in</div></body></html>`);
     w.document.close();
     w.focus();

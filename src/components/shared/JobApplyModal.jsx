@@ -6,6 +6,7 @@ import { TRADES, labelOf } from "../../data/jobsTaxonomy.js";
 import { t } from "../../data/jobsHindi.js";
 import { saveJobProfile, validateCvFile } from "../../lib/jobProfiles";
 import { submitApplication } from "../../lib/applications";
+import { ShortlistNotice } from "../jobs/ShortlistNotice";
 import { TradeTiles } from "../jobs/TradeTiles";
 
 const label = { fontSize: 12, fontWeight: 700, color: "#444", marginBottom: 6 };
@@ -181,6 +182,8 @@ export function JobApplyModal({ user, applyingJob, profile, setProfile, closeApp
       <textarea className="fta" rows={2} value={message} onChange={e => setMessage(e.target.value)} placeholder={bi ? "जैसे: कल से आ सकता हूँ" : "A short note for the employer"} />
     </label>
     {cvBlock}
+    {/* L8: tell them before they send. */}
+    <ShortlistNotice bi={bi} style={{ marginTop: 12 }} />
     {error && <div role="alert" style={{ fontSize: 13, color: "#b91c1c", background: "#fff0f0", border: "1px solid #fecaca", borderRadius: 10, padding: "10px 12px", marginTop: 12 }}>⚠ {error}</div>}
     <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
       <button onClick={send} disabled={sending}

@@ -49,8 +49,19 @@ describe("per-job CV", () => {
     await assertSucceeds(getBytes(ref(st(CAND), path)));
   });
 
-  it("the employer of THAT job can open it (live check against the application)", async () => {
+  it("L8: the employer of THAT job can open it only once they shortlist — and it stays open after a later rejection", async () => {
+    await assertFails(getBytes(ref(st(EMP), JOB_CV)));                         // submitted: locked
+    await testEnv.withSecurityRulesDisabled(async (c) => updateDoc(doc(c.firestore(), "jobApplications", `${JOB}_${CAND}`), { stage: "shortlisted", contactUnlockedAt: new Date() }));
     await assertSucceeds(getBytes(ref(st(EMP), JOB_CV)));
+    await testEnv.withSecurityRulesDisabled(async (c) => updateDoc(doc(c.firestore(), "jobApplications", `${JOB}_${CAND}`), { stage: "not_selected" }));
+    await assertSucceeds(getBytes(ref(st(EMP), JOB_CV)));                      // unlock is one-way
+    await testEnv.withSecurityRulesDisabled(async (c) => updateDoc(doc(c.firestore(), "jobApplications", `${JOB}_${CAND}`), { stage: "submitted" }));
+  });
+
+  it("L8: an old application already at Shortlisted (no contactUnlockedAt) counts as unlocked", async () => {
+    await testEnv.withSecurityRulesDisabled(async (c) => updateDoc(doc(c.firestore(), "jobApplications", `${JOB}_${CAND}`), { stage: "int_invited" }));
+    await assertSucceeds(getBytes(ref(st(EMP), JOB_CV)));
+    await testEnv.withSecurityRulesDisabled(async (c) => updateDoc(doc(c.firestore(), "jobApplications", `${JOB}_${CAND}`), { stage: "submitted" }));
   });
 
   it("another employer, a stranger, or a logged-out visitor can't open it", async () => {

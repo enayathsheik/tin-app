@@ -6,7 +6,7 @@ import {
   milestoneProgress, shouldMarkViewed, stageUpdate, cleanInterview, interviewComplete,
 } from "../../src/utils/applications.js";
 import {
-  PRIVATE_FIELDS, applicationSnapshot, emptyProfile, isApplyReady, missingForApply, profileFromDocs, splitProfile, tinProfileLines,
+  PRIVATE_FIELDS, applicationContact, applicationSnapshot, emptyProfile, isApplyReady, missingForApply, profileFromDocs, splitProfile, tinProfileLines,
 } from "../../src/utils/jobProfile.js";
 import { phoneToSyntheticEmail } from "../../src/utils/phoneAuth.js";
 import { EMP_SET, SKILLED_WORK_TYPES, TYPES, workTypesForLane, isKey } from "../../src/data/jobsTaxonomy.js";
@@ -136,7 +136,7 @@ describe("job profile", () => {
   it("splitProfile keeps phone, email and pay OFF the shareable doc", () => {
     const { pub, priv } = splitProfile(full());
     for (const k of PRIVATE_FIELDS) expect(pub).not.toHaveProperty(k);
-    expect(priv).toEqual({ phone: "9769031000", email: "p@example.com", expectedPay: "₹950 / day", currentPay: "₹800 / day" });
+    expect(priv).toEqual({ phone: "9769031000", email: "p@example.com", expectedPay: "₹950 / day", currentPay: "₹800 / day", showPayToEmployers: false });
     expect(pub.trades).toEqual(["mason"]);
     expect(pub.workTypePrefs).toEqual(["daily_wage"]);
     expect(pub.experienceYears).toBe(12);
@@ -163,15 +163,23 @@ describe("job profile", () => {
     expect(isApplyReady({ ...emptyProfile(), name: "A", phone: "98765 43210", city: "Pune", role: "Sales" }, "professional")).toBe(true);
   });
 
-  it("application snapshot copies contact + expected pay, NEVER current pay", () => {
+  it("L8: the application the employer reads has NO phone, email or pay by default", () => {
     const snap = applicationSnapshot(full());
     expect(snap.applicantName).toBe("Prakash More");
-    expect(snap.applicantPhone).toBe("9769031000");
-    expect(snap.applicantEmail).toBe("p@example.com");
-    expect(snap.expectedPay).toBe("₹950 / day");
-    expect(JSON.stringify(snap)).not.toContain("800");
-    expect(snap).not.toHaveProperty("currentPay");
+    for (const k of ["applicantPhone", "applicantEmail", "expectedPay", "currentPay", "resumePath"]) expect(snap).not.toHaveProperty(k);
+    expect(JSON.stringify(snap)).not.toMatch(/9769031000|p@example|950|800/);
+    expect(snap.payVisible).toBe(false);
     expect(snap.profileSnapshot.trades).toEqual(["mason"]);
+  });
+
+  it("L8: with \"show my pay\" on, expected and current pay go in; contact still doesn't", () => {
+    const snap = applicationSnapshot({ ...full(), showPayToEmployers: true });
+    expect(snap).toMatchObject({ payVisible: true, expectedPay: "₹950 / day", currentPay: "₹800 / day" });
+    expect(snap).not.toHaveProperty("applicantPhone");
+  });
+
+  it("L8: phone and email go to the private contact part", () => {
+    expect(applicationContact(full())).toEqual({ applicantPhone: "9769031000", applicantEmail: "p@example.com" });
   });
 
   it("TIN Profile lines show trades in English + Hindi and only what's filled in", () => {
