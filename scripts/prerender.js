@@ -19,6 +19,7 @@ import { normaliseJob } from "../src/utils/jobModel.js";
 import { JOBS_HOME_META, JOB_LANE_PAGES } from "../src/data/jobsLanes.js";
 import { JOBS_ONLY } from "../src/data/features.js";
 import { isStorePublic } from "../src/utils/storeVisibility.js";
+import { OG_IMAGE, OG_IMAGE_ALT, jobOrgName, jobShareDescription } from "../src/utils/jobShare.js";
 
 const SITE_URL = "https://tinit.in";
 const DIST_DIR = "dist";
@@ -33,11 +34,11 @@ const escapeHtml = (str) => String(str || "").replace(/&/g, "&amp;").replace(/"/
 function buildJobMetaBlock(job) {
   // Old and new job shapes both go through normaliseJob() (same as the page).
   const n = normaliseJob(job);
-  const orgName = n.businessName || n.postedByName || "TIN";
-  const title = escapeHtml(`${n.title} at ${orgName} | TIN Jobs`);
-  const description = escapeHtml(truncate(n.description || n.responsibilities.join(". "), 160));
+  const title = escapeHtml(`${n.title} at ${jobOrgName(n)} | TIN Jobs`);
+  // L6: pay · place · work type first, so WhatsApp/LinkedIn/X previews show them.
+  const description = escapeHtml(jobShareDescription(n));
   const url = `${SITE_URL}/jobs/${job.id}`;
-  const image = `${SITE_URL}/og-image.png`;
+  const image = OG_IMAGE;
   const jsonLd = buildJobPostingJsonLd(job);
 
   return `<!--SEO-META-START-->
@@ -48,7 +49,15 @@ function buildJobMetaBlock(job) {
     <meta property="og:image" content="${image}" />
     <meta property="og:url" content="${url}" />
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="TIN Jobs" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="${escapeHtml(OG_IMAGE_ALT)}" />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${title}" />
+    <meta name="twitter:description" content="${description}" />
+    <meta name="twitter:image" content="${image}" />
+    <link rel="canonical" href="${url}" />
     <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
     <!--SEO-META-END-->`;
 }

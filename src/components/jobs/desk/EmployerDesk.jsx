@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { normaliseJob } from "../../../utils/jobModel.js";
+import { ShareJobButton } from "../ShareJobButton";
 import { VACANCY_TABS, deskCounts, isNew, isToReply, vacancyTab } from "../../../utils/employerDesk.js";
 import { loadDeskJobs, setJobStatus } from "../../../lib/employerDesk";
 import { loadApplicants } from "../../../lib/applications";
@@ -93,6 +94,8 @@ export function EmployerDesk({ user }) {
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         {!compact && j.status === "approved" && <button type="button" onClick={() => select(j.id)} style={{ ...small, background: "#e85a2a", color: "#fff", border: "none" }}>Applicants · {(appsByJob[j.id] || []).length || (loadsUpFront(j) ? 0 : "…")}</button>}
         <Link to={`/jobs/${j.id}`} style={outline}>View</Link>
+        {/* L6: share a live job straight from the Desk. */}
+        {j.status === "approved" && t === "live" && <ShareJobButton job={normaliseJob(j)} style={outline} />}
         <Link to={`/jobs/${j.id}/edit`} style={outline}>✎ Edit</Link>
         {j.status === "approved" && t === "live" && <button type="button" onClick={() => changeStatus(j, "paused")} style={outline}>Pause</button>}
         {j.status === "approved" && t !== "live" && <button type="button" onClick={() => changeStatus(j, "live")} style={outline}>Reopen</button>}

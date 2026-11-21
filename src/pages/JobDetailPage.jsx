@@ -10,9 +10,10 @@ import { JobsStyles, LaneMarker } from "../components/jobs/jobsUi";
 import { LANE_COLOR, LANE_LABEL, card, chip, heading, payLine } from "../components/jobs/jobsStyle";
 import { ReportJobButton, SaveJobButton } from "../components/jobs/SaveReportButtons";
 import { BusinessCard } from "../components/jobs/BusinessCard";
+import { ShareJobButton } from "../components/jobs/ShareJobButton";
+import { OG_IMAGE, OG_IMAGE_ALT, jobShareDescription } from "../utils/jobShare.js";
 
 const SITE_URL = "https://tinit.in";
-const truncate = (str, len) => (str && str.length > len ? str.slice(0, len - 1).trimEnd() + "…" : str || "");
 
 // index.html's static SEO tags aren't managed by react-helmet-async (it only
 // tracks tags it renders itself, marked with data-rh) — left alone, they'd
@@ -92,9 +93,10 @@ export function JobDetailPage({ user, isGuest, onRequireLogin, toast }) {
 
   const orgName = job.businessName || job.postedByName || "TIN";
   const pageTitle = `${job.title} at ${orgName} | TIN Jobs`;
-  const pageDescription = truncate(job.description || job.responsibilities.join(". "), 160);
+  // L6: pay · place · type first, so a shared link's preview shows them.
+  const pageDescription = jobShareDescription(job);
   const pageUrl = `${SITE_URL}/jobs/${job.id}`;
-  const ogImage = `${SITE_URL}/og-image.png`;
+  const ogImage = OG_IMAGE;
   const jsonLd = buildJobPostingJsonLd({
     ...job.raw,
     createdAtISO: job.raw.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
@@ -131,6 +133,10 @@ export function JobDetailPage({ user, isGuest, onRequireLogin, toast }) {
         <meta property="og:image" content={ogImage} />
         <meta property="og:url" content={pageUrl} />
         <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="TIN Jobs" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content={OG_IMAGE_ALT} />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={pageTitle} />
         <meta name="twitter:description" content={pageDescription} />
@@ -153,6 +159,12 @@ export function JobDetailPage({ user, isGuest, onRequireLogin, toast }) {
           {job.postedByType === "verified_business" && <span className="badge bv">✓ Verified business</span>}
         </div>
         <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 12 }}>{orgName}{location ? ` · 📍 ${location}` : ""}</div>
+        {/* L6: share any approved job (pending ones aren't public yet). */}
+        {job.status === "approved" && (
+          <div style={{ marginBottom: 12 }}>
+            <ShareJobButton job={job} style={{ minHeight: 40, padding: "0 14px", borderRadius: 8, border: "1px solid var(--b3)", background: "var(--s1)", color: "var(--t1)", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }} />
+          </div>
+        )}
 
         {!isOpen && (
           <div style={{ fontSize: 12, color: "#b45309", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>

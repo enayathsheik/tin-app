@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { BULK_SET } from "../../../data/jobsTaxonomy.js";
 import { currentStage, isFinal, shouldMarkViewed, stageLabel } from "../../../utils/applications.js";
 import { BOARD_COLUMNS, bulkPlan, defaultNote, groupByColumn, isNew, nextAction } from "../../../utils/employerDesk.js";
@@ -8,6 +7,7 @@ import { moveApplication } from "../../../lib/applications";
 import { useIsDesktop } from "../../../hooks/useIsDesktop";
 import { StagePill } from "../ApplicationBits";
 import { ApplicantDetail } from "./ApplicantDetail";
+import { ShareJobButton } from "../ShareJobButton";
 import { Sheet } from "./Sheet";
 import { card } from "../jobsStyle";
 
@@ -112,7 +112,8 @@ export function JobPipeline({ job, apps, employer, onAppsChange }) {
 
       {apps.length === 0 ? (
         <div style={{ ...card, padding: "28px 16px", textAlign: "center", color: "var(--t3)", fontSize: 14 }}>
-          No applicants yet. Share the job link: <Link to={`/jobs/${job.id}`} style={{ color: "var(--acc)", fontWeight: 700 }}>open job page</Link>
+          No applicants yet. Share the job to reach more people:{" "}
+          <ShareJobButton job={job} label="Share job" style={{ background: "none", border: "none", padding: 0, color: "var(--acc)", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", fontSize: "inherit" }} />
         </div>
       ) : view === "board" ? (
         isDesktop ? (
