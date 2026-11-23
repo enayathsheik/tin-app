@@ -10,6 +10,8 @@ import { MemberProvisioningSection } from "../components/admin/MemberProvisionin
 import { ClaimsReviewSection } from "../components/admin/ClaimsReviewSection";
 import { LaunchToolsSection } from "../components/admin/LaunchToolsSection";
 import { PricingSection } from "../components/admin/PricingSection";
+import { TinJobsAdmin } from "../components/admin/jobsAdmin/TinJobsAdmin";
+import { isSuperAdmin } from "../lib/superAdmin";
 import { exportToExcel } from "../utils/exportExcel";
 import { getLevel } from "../utils/helpers";
 
@@ -73,6 +75,7 @@ export function AdminDashboard({ stores, contributors, user }) {
 
   const navItems = [
     { id: "dashboard", icon: "📊", label: "Dashboard" },
+    ...(isSuperAdmin() ? [{ id: "tinjobs", icon: "🧭", label: "TIN Jobs Admin" }] : []),
     { id: "validation", icon: "✅", label: "Market Champion Validation" },
 
     { id: "duplicates", icon: "🔗", label: "Duplicate Manager" },
@@ -157,6 +160,8 @@ export function AdminDashboard({ stores, contributors, user }) {
             </table>
           </div>
         </>}
+
+        {section === "tinjobs" && <TinJobsAdmin />}
 
         {section === "validation" && <>
           <div className="admin-hd"><div className="admin-title">Market Champion Validation</div><div className="admin-sub">Review and approve Market Champion applications</div></div>

@@ -212,7 +212,7 @@ signed-in users **only when `visibility != "not_discoverable"`**.
 | `availability` (`AVAIL` key), `visibility` (`VISIBILITY` key) | |
 | `createdAt`, `updatedAt` | |
 
-**`jobProfilesPrivate/{uid}`: owner only.**
+**`jobProfilesPrivate/{uid}`: owner only** (since §10 the TIN super admin can also read it).
 
 | Field | Notes |
 |---|---|
@@ -359,7 +359,8 @@ match /jobProfiles/{uid} {
   allow delete: if request.auth != null && (request.auth.uid == uid || isAdmin());
 }
 match /jobProfilesPrivate/{uid} {
-  allow read, write: if request.auth != null && request.auth.uid == uid;
+  allow read: if isAdmin() || (request.auth != null && request.auth.uid == uid); // admin read: §10
+  allow write: if request.auth != null && request.auth.uid == uid;
 }
 ```
 
@@ -674,3 +675,25 @@ Items deliberately left out of the launch pack, to do in the first week after la
    (`src/lib/storeClaims.js` `searchStoresForClaim`) into a callable function that returns
    only id, name, city, address and business type of matching stores, rate-limited per user.
    The claim, admin approval and owner-edit flows don't change.
+
+## 10. TIN Jobs Admin (super admin dashboard)
+
+Admin panel → **TIN Jobs Admin**, shown only to the TIN super admin (the signed-in
+account's email, `src/lib/superAdmin.js` — not `users.role`, which people can write
+themselves). Owner decision (23 Nov 2026): super admin means that ONE account — not
+hom_admin, business owners/admins, staff, or any delegated role added later
+(`test/rules/jobs-admin-roles.test.js`). Read-only: summary cards; Job Seekers, Employers and Jobs tabs with search,
+filters and Excel export; a page per candidate and per job.
+
+- **Job seeker** = has a job profile or applied to a job. **Employer** = posted a job, or
+  a business account (retailer role or linked store, as in `utils/jobRoles.js`).
+  One account can be both. **Shortlist** = contact unlocked (`isContactUnlocked`).
+  `x/10` on a job = slots used (`shortlistCount`) / `config/pricing.shortlistLimit`.
+- **Rules:** admin read added on `users/{uid}` and `jobProfilesPrivate/{uid}`; the other
+  reads (jobs, applications, contact, profiles, every resume path) already allowed the
+  admin. Employers' and candidates' access is unchanged (`test/rules/jobs-admin.test.js`).
+- **Resumes** open through the Firebase Storage download URL, requested on click. Such a
+  URL carries its own key: anyone holding it can open the file until the file or its token
+  is removed, so exported sheets must be kept private.
+- Files: `src/utils/jobsAdmin.js` (pure), `src/lib/jobsAdmin.js` (reads),
+  `src/components/admin/jobsAdmin/`.

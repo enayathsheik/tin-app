@@ -196,10 +196,10 @@ describe("candidate job profiles", () => {
     await assertFails(setDoc(doc(as("p2"), "jobProfilesPrivate", "p1"), priv));
   });
 
-  it("the private doc is readable by the owner only — not employers, not admin", async () => {
+  it("the private doc is readable by the owner and (since TIN Jobs Admin) the super admin — never employers", async () => {
     await assertSucceeds(getDoc(doc(as("p1"), "jobProfilesPrivate", "p1")));
     await assertFails(getDoc(doc(as("emp"), "jobProfilesPrivate", "p1")));
-    await assertFails(getDoc(doc(as("adm", ADMIN_EMAIL), "jobProfilesPrivate", "p1")));
+    await assertSucceeds(getDoc(doc(as("adm", ADMIN_EMAIL), "jobProfilesPrivate", "p1")));
   });
 
   it("the shareable doc: readable by signed-in users unless 'not discoverable'", async () => {

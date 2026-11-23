@@ -4,7 +4,8 @@ service cloud.firestore {
 
     // ── USERS ──────────────────────────────────────────────
     match /users/{userId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
+      // Own account, or the TIN super admin (Admin → TIN Jobs Admin).
+      allow read: if isAdmin() || (request.auth != null && request.auth.uid == userId);
       // verificationStatus decides whether a user's jobs go live without
       // review, and storeId which store page their jobs show on — so only the
       // admin may set them (Jobs redesign phase 3). Everything else on the
@@ -177,9 +178,10 @@ service cloud.firestore {
     // if the poster's own users/{uid}.verificationStatus is really "verified" —
     // a client can't just claim verified_business for itself.
     match /jobListings/{jobId} {
-      allow read: if resource.data.status == "approved"
-        || isAdmin()
-        || resource.data.postedByUid == request.auth.uid;
+      allow read: if isAdmin()
+        || (resource != null && (
+             resource.data.get("status", "") == "approved"
+          || (request.auth != null && resource.data.get("postedByUid", "") == request.auth.uid)));
       allow create: if request.auth != null
         && request.resource.data.get("postedByUid", "") == request.auth.uid
         && (
@@ -306,10 +308,12 @@ service cloud.firestore {
         && (request.resource.data.get("payVisible", false) == true
             || !request.resource.data.keys().hasAny(["currentPay", "expectedPay"]))
         && request.resource.data.get("hasCv", false) is bool;
-      allow read: if request.auth != null
-        && (resource.data.get("applicantUid", "") == request.auth.uid
-            || isAdmin()
-            || get(/databases/$(database)/documents/jobListings/$(resource.data.get("jobId", ""))).data.get("postedByUid", "") == request.auth.uid);
+      // resource != null (not "== null ||"): ids are {jobId}_{uid}, so a
+      // missing application must stay "denied", not reveal who applied.
+      allow read: if isAdmin()
+        || (request.auth != null && resource != null
+            && (resource.data.get("applicantUid", "") == request.auth.uid
+                || get(/databases/$(database)/documents/jobListings/$(resource.data.get("jobId", ""))).data.get("postedByUid", "") == request.auth.uid));
       allow update: if isAdmin() || (request.auth != null && !(appStage(resource.data) in ["not_shortlisted", "offer_accepted", "offer_declined", "not_selected", "withdrawn", "closed"]) && (
         // ── Candidate: withdraw; accept an interview (only from invited /
         //    rescheduled); answer an offer (only from offer_sent); or send a
@@ -372,11 +376,10 @@ service cloud.firestore {
       // Written by the applicant in the same batch as the application;
       // readable by the applicant, admin, and the job's poster once unlocked.
       match /private/{docId} {
-        allow read: if request.auth != null && docId == "contact" && (
+        allow read: if isAdmin() || (request.auth != null && docId == "contact" && (
              get(/databases/$(database)/documents/jobApplications/$(applicationId)).data.get("applicantUid", "") == request.auth.uid
-          || isAdmin()
           || (get(/databases/$(database)/documents/jobListings/$(get(/databases/$(database)/documents/jobApplications/$(applicationId)).data.get("jobId", ""))).data.get("postedByUid", "") == request.auth.uid
-              && contactUnlocked(get(/databases/$(database)/documents/jobApplications/$(applicationId)).data)));
+              && contactUnlocked(get(/databases/$(database)/documents/jobApplications/$(applicationId)).data))));
         allow create: if isAdmin() || (request.auth != null && docId == "contact"
           && getAfter(/databases/$(database)/documents/jobApplications/$(applicationId)).data.get("applicantUid", "") == request.auth.uid
           && request.resource.data.keys().hasOnly(["applicantPhone", "applicantEmail", "resumePath", "resumeFileName", "createdAt"])
@@ -407,17 +410,19 @@ service cloud.firestore {
     // Shareable part: owner writes; never carries private fields. Readable
     // by the owner, admin, or signed-in users unless "not discoverable".
     match /jobProfiles/{uid} {
-      allow read: if request.auth != null && (
-           request.auth.uid == uid || isAdmin()
-        || (resource != null && resource.data.get("visibility", "not_discoverable") != "not_discoverable"));
+      allow read: if isAdmin() || (request.auth != null && (
+           request.auth.uid == uid
+        || (resource != null && resource.data.get("visibility", "not_discoverable") != "not_discoverable")));
       allow create, update: if request.auth != null && request.auth.uid == uid
         && !request.resource.data.keys().hasAny(["phone", "email", "currentPay", "expectedPay", "cv"])
         && request.resource.data.get("lane", "professional") in ["professional", "skilled"];
       allow delete: if request.auth != null && (request.auth.uid == uid || isAdmin());
     }
-    // Private part (phone, email, pay, CV details): the candidate only.
+    // Private part (phone, email, pay, CV details): the candidate, plus the
+    // TIN super admin read-only (Admin → TIN Jobs Admin). Never employers.
     match /jobProfilesPrivate/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read: if isAdmin() || (request.auth != null && request.auth.uid == uid);
+      allow write: if request.auth != null && request.auth.uid == uid;
     }
     // AI profile helper rate-limit counters (§8): aiUsage/{uid} and
     // aiUsage/_global are written only by the suggestJobProfile Cloud
