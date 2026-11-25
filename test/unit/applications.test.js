@@ -43,6 +43,12 @@ describe("milestones", () => {
     expect(milestoneProgress({ stage: "not_shortlisted" }).stopped).toBe(true);
     expect(milestoneProgress({ applicantStatus: "rejected" }).stopped).toBe(true);
     expect(milestoneProgress({ stage: "offer_accepted" }).stopped).toBe(false);
+    const h = milestoneProgress({ stage: "hired", stageHistory: [{ stage: "submitted" }, { stage: "selected" }, { stage: "hired" }] });
+    expect([h.stopped, h.steps[5].label, h.steps[5].reached, h.steps[5].current]).toEqual([false, "Hired", true, true]);
+    expect(milestoneProgress({ stage: "selected" }).steps[5].label).toBe("Offer");
+    expect(candidateActions({ stage: "hired" })).toEqual({ withdraw: false, acceptInterview: false, requestReschedule: false, answerOffer: false });
+    expect(canCandidateMoveTo({ stage: "offer_sent" }, "hired")).toBe(false);
+    for (const [s, ok] of [["selected", true], ["offer_sent", true], ["int_done", false], ["shortlisted", false], ["hired", false], ["withdrawn", false]]) expect(canEmployerMoveTo({ stage: s }, "hired")).toBe(ok);
   });
   it("uses the history to show what was reached before a closing stage", () => {
     const app = { stage: "not_selected", stageHistory: [{ stage: "submitted" }, { stage: "app_viewed" }, { stage: "shortlisted" }, { stage: "int_invited" }, { stage: "not_selected" }] };
@@ -76,7 +82,8 @@ describe("candidate moves (blueprint §4.4)", () => {
 
 describe("employer moves", () => {
   it("EMP_SET options minus the current stage; none once closed", () => {
-    expect(employerStageOptions({ stage: "review" })).toEqual(EMP_SET.filter(s => s !== "review"));
+    expect(employerStageOptions({ stage: "review" })).toEqual(EMP_SET.filter(s => s !== "review" && s !== "hired"));
+    expect(employerStageOptions({ stage: "offer_sent" })).toContain("hired");
     expect(employerStageOptions({ stage: "closed" })).toEqual([]);
   });
   it("employer stages include viewed + interview invite/reschedule, not candidate stages", () => {

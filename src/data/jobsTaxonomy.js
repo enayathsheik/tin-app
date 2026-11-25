@@ -201,6 +201,7 @@ export const ST = {
   selected: { label: "Selected", tone: "g", email: true, text: "Congratulations, you've been selected." },
   offer_sent: { label: "Offer Sent", tone: "w", email: true, text: "An offer is waiting for your response." },
   offer_accepted: { label: "Offer Accepted", tone: "g", email: true, text: "You accepted the offer." },
+  hired: { label: "Hired", tone: "g", email: true, text: "Congratulations! The employer has marked you as hired." },
   offer_declined: { label: "Offer Declined", tone: "e", email: true, text: "You declined the offer." },
   not_selected: { label: "Not Selected", tone: "e", email: true, text: "The employer has chosen another candidate this time. Thank you for your time and interest." },
   withdrawn: { label: "Application Withdrawn", tone: "e", email: true, text: "You withdrew this application." },
@@ -208,15 +209,19 @@ export const ST = {
 };
 
 // Stages after which the application is closed (no further moves).
-export const FINAL = ["not_shortlisted", "offer_accepted", "offer_declined", "not_selected", "withdrawn", "closed"];
+export const FINAL = ["not_shortlisted", "offer_accepted", "offer_declined", "not_selected", "withdrawn", "closed", "hired"];
+// The good endings: the candidate accepted on TIN, or the employer marked them hired.
+export const HIRED_STAGES = ["offer_accepted", "hired"];
+// "Mark as hired" is offered (and allowed by the rules) only from these.
+export const HIRE_FROM = ["selected", "offer_sent"];
 // Stages an employer may set on a single application.
-export const EMP_SET = ["review", "shortlisted", "not_shortlisted", "contacted", "int_done", "info_req", "assess_req", "selected", "offer_sent", "not_selected", "closed"];
+export const EMP_SET = ["review", "shortlisted", "not_shortlisted", "contacted", "int_done", "info_req", "assess_req", "selected", "offer_sent", "hired", "not_selected", "closed"];
 // L8 (launch): reaching any of these stages — Shortlisted or later — unlocks
 // the applicant's phone, email and CV for whoever manages the job. Mirrored
 // in firestore.rules (contactUnlockStages) and storage.rules.
 export const CONTACT_UNLOCK_STAGES = [
   "shortlisted", "contacted", "int_invited", "int_scheduled", "int_rescheduled", "int_done",
-  "info_req", "assess_req", "selected", "offer_sent", "offer_accepted", "offer_declined",
+  "info_req", "assess_req", "selected", "offer_sent", "offer_accepted", "offer_declined", "hired",
 ];
 // Stages an employer may set in bulk from the list view.
 export const BULK_SET = ["review", "shortlisted", "not_shortlisted", "not_selected", "closed"];
@@ -235,7 +240,7 @@ export const MILESTONES = [
   ["Shortlisted", ["shortlisted", "contacted"]],
   ["Interview", ["int_invited", "int_scheduled", "int_rescheduled", "int_done"]],
   ["Selected", ["selected"]],
-  ["Offer", ["offer_sent", "offer_accepted"]],
+  ["Offer", ["offer_sent", "offer_accepted", "hired"]],
 ];
 
 // Phase 4: who may set which stage (docs/JOBS_BLUEPRINT.md §4.4; mirrored

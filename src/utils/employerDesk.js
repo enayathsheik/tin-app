@@ -3,7 +3,7 @@
 // rules themselves live in utils/applications.js + firestore.rules; this
 // file only decides what the Desk offers and counts.
 import { BULK_SET, EMP_SET } from "../data/jobsTaxonomy.js";
-import { currentStage, isContactUnlocked, isFinal, isFromSearch } from "./applications.js";
+import { canMarkHired, currentStage, isContactUnlocked, isFinal, isFromSearch } from "./applications.js";
 
 // ── Pipeline board ───────────────────────────────────────────
 // Six columns (owner-approved plan). Every stage belongs to exactly one.
@@ -12,7 +12,7 @@ export const BOARD_COLUMNS = [
   { key: "viewed", label: "Viewed", stages: ["app_viewed", "profile_viewed", "review"] },
   { key: "shortlisted", label: "Shortlisted / Contacted", stages: ["shortlisted", "contacted", "info_req", "assess_req"] },
   { key: "interview", label: "Interview", stages: ["int_invited", "int_scheduled", "int_rescheduled", "int_done"] },
-  { key: "offer", label: "Selected / Offer", stages: ["selected", "offer_sent", "offer_accepted"] },
+  { key: "offer", label: "Selected / Offer", stages: ["selected", "offer_sent", "offer_accepted", "hired"] },
   { key: "closed", label: "Closed", stages: ["not_shortlisted", "not_selected", "offer_declined", "withdrawn", "closed"] },
 ];
 
@@ -28,13 +28,14 @@ export function groupByColumn(apps) {
 
 // ── People (C) ───────────────────────────────────────────────
 // Where people are NOW, past Shortlisted. (Shortlists used, x of 10, is another
-// number: it never goes down.) Hired = the candidate accepted the offer on TIN.
+// number: it never goes down.) Hired = the candidate accepted
+// the offer on TIN, or the employer marked them as hired.
 export const PEOPLE_BUCKETS = [
   { key: "shortlisted", label: "Shortlisted", stages: ["shortlisted", "info_req", "assess_req"] },
   { key: "contacted", label: "Contacted", stages: ["contacted"] },
   { key: "interview", label: "Interviews", stages: ["int_invited", "int_scheduled", "int_rescheduled", "int_done"] },
   { key: "offer", label: "Offers", stages: ["selected", "offer_sent"] },
-  { key: "hired", label: "Hired", stages: ["offer_accepted"] },
+  { key: "hired", label: "Hired", stages: ["offer_accepted", "hired"] },
 ];
 export const isPeopleBucket = (k) => PEOPLE_BUCKETS.some(b => b.key === k);
 const bucketOf = (app) => (isContactUnlocked(app) ? PEOPLE_BUCKETS.find(b => b.stages.includes(currentStage(app)))?.key : undefined);
@@ -69,6 +70,7 @@ export function stageFitsNow(app, to) {
   const col = columnOf(currentStage(app));
   if (to === "not_shortlisted") return BEFORE_INTERVIEW.has(col);
   if (to === "not_selected") return !BEFORE_INTERVIEW.has(col);
+  if (to === "hired") return canMarkHired(app);
   return true;
 }
 
@@ -197,7 +199,7 @@ export function bulkPlan(apps, stage) {
 // ── Closing a vacancy ────────────────────────────────────────
 // Closing as "filled" keeps Selected / Offer sent / Offer accepted as they
 // are (owner decision); closing as "closed" ends every open application.
-export const KEPT_WHEN_FILLED = ["selected", "offer_sent", "offer_accepted"];
+export const KEPT_WHEN_FILLED = ["selected", "offer_sent", "offer_accepted", "hired"];
 
 export function closePlan(apps, jobStatus) {
   const close = [];
@@ -210,6 +212,6 @@ export function closePlan(apps, jobStatus) {
     else close.push(a);
   }
   // Pending offers = kept applications still waiting on the candidate or employer.
-  const pendingOffers = kept.filter(a => currentStage(a) !== "offer_accepted").length;
+  const pendingOffers = kept.filter(a => !isFinal(currentStage(a))).length;
   return { close, kept, alreadyClosed, pendingOffers };
 }

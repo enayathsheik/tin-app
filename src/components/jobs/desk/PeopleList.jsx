@@ -4,7 +4,7 @@
 // a time, under the same rules as everywhere else.
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { currentStage, isFromSearch } from "../../../utils/applications.js";
+import { canMarkHired, currentStage, isFromSearch } from "../../../utils/applications.js";
 import { PEOPLE_BUCKETS, peopleIn } from "../../../utils/employerDesk.js";
 import { loadApplicationContact, moveApplication, openApplicationCv } from "../../../lib/applications";
 import { messageAboutApplication } from "../../../lib/jobMessages";
@@ -25,6 +25,7 @@ export function PeopleList({ bucket, apps, jobsById, employer, showJob = false, 
   const [shown, setShown] = useState(PAGE);
   const [contacts, setContacts] = useState({}); // appId → contact, or null when there is none
   const [openId, setOpenId] = useState(null);
+  const [startWith, setStartWith] = useState(null); // "hired" opens its confirm step
   const [busyId, setBusyId] = useState("");
   const [error, setError] = useState("");
 
@@ -84,6 +85,7 @@ export function PeopleList({ bucket, apps, jobsById, employer, showJob = false, 
                 <button type="button" disabled={busyId === a.id} onClick={() => message(a)} aria-label={`Message ${name(a)}`} style={outline}>💬 Message</button>
                 {(contact?.resumePath || contact?.resumeUrl) && <button type="button" onClick={() => openCv(a, contact)} style={outline}>📄 CV</button>}
                 {bucket === "shortlisted" && stage === "shortlisted" && <button type="button" disabled={busyId === a.id} onClick={() => markContacted(a)} style={outline}>✓ Mark contacted</button>}
+                {canMarkHired(a) && <button type="button" onClick={() => { setStartWith("hired"); setOpenId(a.id); }} style={{ ...outline, color: "#15803d", borderColor: "#86efac" }}>🎉 Mark as hired</button>}
                 <button type="button" onClick={() => setOpenId(a.id)} style={outline}>More…</button>
               </div>
               {a.id in contacts && !contact?.applicantPhone && <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 6 }}>No phone number on file.</div>}
@@ -93,8 +95,8 @@ export function PeopleList({ bucket, apps, jobsById, employer, showJob = false, 
       </div>
       {people.length > shown && <button type="button" onClick={() => setShown(n => n + PAGE)} style={{ ...outline, marginTop: 10 }}>Show more</button>}
       {opened && (
-        <Sheet title={name(opened)} onClose={() => setOpenId(null)}>
-          <ApplicantDetail key={opened.id} app={opened} job={jobsById[opened.jobId]} employer={employerOf(opened)} onChange={onAppChange} />
+        <Sheet title={name(opened)} onClose={() => { setOpenId(null); setStartWith(null); }}>
+          <ApplicantDetail key={opened.id} startWith={startWith} app={opened} job={jobsById[opened.jobId]} employer={employerOf(opened)} onChange={onAppChange} />
         </Sheet>
       )}
     </div>

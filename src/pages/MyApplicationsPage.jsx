@@ -80,7 +80,10 @@ function ApplicationItem({ app: initial, uid }) {
 
       {open && (
         <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ fontSize: 13, color: "var(--t2)" }}>{stageText(stage, app)}</div>
+          <div style={{ fontSize: stage === "hired" ? 15 : 13, fontWeight: stage === "hired" ? 700 : 400, color: stage === "hired" ? "#15803d" : "var(--t2)" }}>
+            {stage === "hired" && bi && <span lang="hi" style={{ display: "block" }}>🎉 बधाई हो! नौकरी देने वाले ने बताया है कि आपको काम पर रख लिया गया है।</span>}
+            {stage === "hired" && !bi ? "🎉 " : ""}{stageText(stage, app)}
+          </div>
           {found && acts.withdraw && (
             <div style={{ fontSize: 12, color: "var(--t2)", background: "var(--s2)", borderRadius: 8, padding: 8 }}>
               {bi && <span lang="hi" style={{ display: "block" }}>इस नौकरी देने वाले ने आपकी प्रोफ़ाइल ढूँढी। वह आपका फ़ोन नंबर, ईमेल और CV देख सकता है।</span>}

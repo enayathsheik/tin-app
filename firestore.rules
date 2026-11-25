@@ -323,7 +323,7 @@ service cloud.firestore {
         || (request.auth != null && resource != null
             && (resource.data.get("applicantUid", "") == request.auth.uid
                 || get(/databases/$(database)/documents/jobListings/$(resource.data.get("jobId", ""))).data.get("postedByUid", "") == request.auth.uid));
-      allow update: if isAdmin() || (request.auth != null && !(appStage(resource.data) in ["not_shortlisted", "offer_accepted", "offer_declined", "not_selected", "withdrawn", "closed"]) && (
+      allow update: if isAdmin() || (request.auth != null && !(appStage(resource.data) in ["not_shortlisted", "offer_accepted", "offer_declined", "not_selected", "withdrawn", "closed", "hired"]) && (
         // ── Candidate: withdraw; accept an interview (only from invited /
         //    rescheduled); answer an offer (only from offer_sent); or send a
         //    reschedule note without changing the stage.
@@ -352,6 +352,10 @@ service cloud.firestore {
           && ((request.resource.data.diff(resource.data).affectedKeys().hasOnly(["applicantStatus"])
                && request.resource.data.get("applicantStatus", "") == "rejected")
               || (request.resource.data.get("stage", "") in ["review", "shortlisted", "not_shortlisted", "contacted", "int_done", "info_req", "assess_req", "selected", "offer_sent", "not_selected", "closed", "app_viewed", "profile_viewed", "int_invited", "int_rescheduled"]
+                  && stageHistoryGrewByOne())
+              // "Mark as hired": only someone already selected or offered.
+              || (request.resource.data.get("stage", "") == "hired"
+                  && appStage(resource.data) in ["selected", "offer_sent"]
                   && stageHistoryGrewByOne())))
       ));
 
@@ -362,7 +366,7 @@ service cloud.firestore {
       // never changes again — rejecting or closing later doesn't re-lock.
       function contactUnlockStages() {
         return ["shortlisted", "contacted", "int_invited", "int_scheduled", "int_rescheduled", "int_done",
-                "info_req", "assess_req", "selected", "offer_sent", "offer_accepted", "offer_declined"];
+                "info_req", "assess_req", "selected", "offer_sent", "offer_accepted", "offer_declined", "hired"];
       }
       // Applications from before L8 already past Shortlisted count as unlocked.
       function contactUnlocked(d) {

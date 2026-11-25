@@ -9,5 +9,6 @@ export default defineConfig({
   test: {
     include: ["test/rules/**/*.test.js", "test/unit/**/*.test.js"],
     hookTimeout: 60000, // first file to run waits for a cold emulator
+    testTimeout: 20000, // tests with many requests, on a cold emulator
   },
 });

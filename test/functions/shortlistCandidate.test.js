@@ -227,7 +227,7 @@ describe("someone who already applied", () => {
     expect((await go()).status).toBe("shortlisted");
     expect((await get(`jobApplications/${JOB}_${cand.uid}`)).stage).toBe("shortlisted");
   });
-  it.each(["not_shortlisted", "offer_declined", "not_selected", "withdrawn", "closed", "offer_accepted"])("at %s: refused, nothing changes", async (stage) => {
+  it.each(["not_shortlisted", "offer_declined", "not_selected", "withdrawn", "closed", "offer_accepted", "hired"])("at %s: refused, nothing changes", async (stage) => {
     await putApp(cand.uid, { stage, contactUnlockedAt: Timestamp.now() });
     expect((await go()).code).toBe("closed");
     expect((await get(`jobApplications/${JOB}_${cand.uid}`)).stage).toBe(stage);

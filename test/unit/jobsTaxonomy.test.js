@@ -56,8 +56,8 @@ describe("option lists", () => {
 describe("application lifecycle", () => {
   const stages = Object.keys(T.ST);
 
-  it("has the 20 prototype stages, all slug keys", () => {
-    expect(stages).toHaveLength(20);
+  it("has the 20 prototype stages + hired, all slug keys", () => {
+    expect(stages).toHaveLength(21);
     for (const s of stages) expect(s).toMatch(SLUG);
   });
 

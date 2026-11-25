@@ -132,6 +132,10 @@ describe("closing a vacancy", () => {
     const p = closePlan(apps, "filled");
     expect(p.close.map(a => a.stage)).toEqual(["submitted", "int_scheduled"]);
     expect(p.kept.map(a => a.stage)).toEqual(["selected", "offer_sent", "offer_accepted"]);
+    // marked as hired: kept too, and not a pending offer
+    const h = closePlan([...apps, app("hired")], "filled");
+    expect([h.kept.length, h.pendingOffers]).toEqual([4, p.pendingOffers]);
+    expect(closePlan([app("hired")], "closed").close).toEqual([]);
     expect(p.pendingOffers).toBe(2);
     expect(p.alreadyClosed).toBe(1);
   });
@@ -157,6 +161,15 @@ describe("people counts and lists (C)", () => {
     expect(peopleCounts(apps)).toEqual({ shortlisted: 2, contacted: 1, interview: 4, offer: 2, hired: 1 });
     expect(peopleCounts([])).toEqual({ shortlisted: 0, contacted: 0, interview: 0, offer: 0, hired: 0 });
     expect(peopleCounts(undefined).hired).toBe(0);
+  });
+  it("marked as hired counts as Hired", () => {
+    expect(peopleCounts([app("hired"), app("offer_accepted")]).hired).toBe(2);
+    expect(columnOf("hired")).toBe("offer");
+  });
+  it("hired is offered only to people selected or offered", () => {
+    for (const s of Object.keys(ST)) expect([s, moveOptions(app(s)).includes("hired")]).toEqual([s, ["selected", "offer_sent"].includes(s)]);
+    expect(moveOptions(app("hired"))).toEqual([]);
+    expect(bulkPlan([app("selected")], "hired").invalid).toBe(true);
   });
   it("older applications (no stage) count by their old status", () => {
     expect(peopleCounts([{ applicantStatus: "shortlisted" }, { applicantStatus: "hired" }, { applicantStatus: "new" }, { applicantStatus: "rejected" }])).toEqual({ shortlisted: 1, contacted: 0, interview: 0, offer: 0, hired: 1 });

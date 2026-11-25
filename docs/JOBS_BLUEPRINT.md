@@ -715,6 +715,12 @@ pause / resume / close / delete (25 Nov 2026).
 - Files: `src/utils/jobsAdmin.js` (pure), `src/lib/jobsAdmin.js` (reads),
   `src/components/admin/jobsAdmin/`.
 
+### 10.1 "Mark as hired" (25 Nov 2026)
+
+Stage `hired`: the employer sets it, only from `selected` or `offer_sent` (rules + `HIRE_FROM`). Final, like
+`offer_accepted`; both count in the Desk's **Hired**. Contact and CV stay open. The candidate sees it in My
+applications.
+
 ## 11. Skilled-worker login by one-time code (B2)
 
 Skilled workers sign up (`/signup/skilled`) and log in on a new phone (`/login/otp`) with an

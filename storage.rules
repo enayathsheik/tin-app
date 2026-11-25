@@ -131,7 +131,7 @@ service firebase.storage {
     function cvContactUnlocked(d) {
       return d.get("contactUnlockedAt", null) != null
         || d.get("stage", "") in ["shortlisted", "contacted", "int_invited", "int_scheduled", "int_rescheduled", "int_done",
-                                  "info_req", "assess_req", "selected", "offer_sent", "offer_accepted", "offer_declined"]
+                                  "info_req", "assess_req", "selected", "offer_sent", "offer_accepted", "offer_declined", "hired"]
         || (d.get("stage", "") == "" && d.get("applicantStatus", "") in ["shortlisted", "hired"]);
     }
 

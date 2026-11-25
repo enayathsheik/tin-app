@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  INTERVIEW_MODES, cleanInterview, currentStage, interviewComplete, isContactUnlocked, isFinal, isFromSearch, stageLabel,
+  INTERVIEW_MODES, canMarkHired, cleanInterview, currentStage, interviewComplete, isContactUnlocked, isFinal, isFromSearch, stageLabel,
 } from "../../../utils/applications.js";
 import { defaultNote, moveOptions, nextAction } from "../../../utils/employerDesk.js";
 import { loadApplicationContact, moveApplication, openApplicationCv } from "../../../lib/applications";
@@ -150,7 +150,7 @@ export function ApplicantDetail({ app, job, employer, onChange, startWith = null
       )}
 
       {final ? (
-        <div style={{ fontSize: 13, color: "var(--t3)", marginTop: 14 }}>This application is closed: <b>{stageLabel(stage)}</b>.</div>
+        <div style={{ fontSize: 13, color: stage === "hired" ? "#15803d" : "var(--t3)", marginTop: 14 }}>{stage === "hired" ? <b>🎉 You hired {app.applicantName || "this person"}.</b> : <>This application is closed: <b>{stageLabel(stage)}</b>.</>}</div>
       ) : (
         <>
           {next && !moveTo && !showInvite && (
@@ -158,6 +158,10 @@ export function ApplicantDetail({ app, job, employer, onChange, startWith = null
               onClick={() => (next.action === "invite" ? setShowInvite(true) : doMove(next.stage, ""))}>
               {next.label}
             </button>
+          )}
+
+          {canMarkHired(app) && moveTo !== "hired" && !showInvite && (
+            <button type="button" disabled={busy} onClick={() => pick("hired")} style={{ ...outline, width: "100%", marginTop: 8, color: "#15803d", borderColor: "#86efac" }}>🎉 Mark as hired</button>
           )}
 
           {showInvite && (
@@ -199,9 +203,10 @@ export function ApplicantDetail({ app, job, employer, onChange, startWith = null
             <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
               <textarea className="fta" rows={asking ? 3 : 2} value={note} onChange={e => setNote(e.target.value)}
                 placeholder={asking ? (moveTo === "info_req" ? "What do you need from them? e.g. a photo of your work, ID proof" : "What should they do? e.g. tile a 2×2 ft sample on Saturday") : "Note for the candidate (optional)"} />
+              {moveTo === "hired" && <div style={{ fontSize: 13, color: "#92400e", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "8px 10px" }}>They’ll see it in My applications. This closes the application and can’t be undone.</div>}
               {asking && <div style={{ fontSize: 12, color: "var(--t3)" }}>This is also sent to them in Messages, where they can reply.</div>}
               <div style={{ display: "flex", gap: 8 }}>
-                <button type="button" disabled={busy} onClick={() => doMove(moveTo)} style={primary}>Move to {stageLabel(moveTo)}</button>
+                <button type="button" disabled={busy} onClick={() => doMove(moveTo)} style={primary}>{moveTo === "hired" ? "Yes, mark as hired" : <>Move to {stageLabel(moveTo)}</>}</button>
                 <button type="button" onClick={() => { setMoveTo(""); setNote(""); }} style={outline}>Cancel</button>
               </div>
             </div>

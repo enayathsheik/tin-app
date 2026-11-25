@@ -2,7 +2,7 @@
 // §4.4). Plain functions, zero React/Firebase imports — unit-tested, and
 // mirrored by the jobApplications rules in firestore.rules.
 import {
-  CANDIDATE_STAGES, CONTACT_UNLOCK_STAGES, EMPLOYER_STAGES, EMP_SET, FINAL, LEGACY_APPLICANT_STATUS, MILESTONES, NEXT, ST,
+  CANDIDATE_STAGES, CONTACT_UNLOCK_STAGES, EMPLOYER_STAGES, EMP_SET, FINAL, HIRED_STAGES, HIRE_FROM, LEGACY_APPLICANT_STATUS, MILESTONES, NEXT, ST,
 } from "../data/jobsTaxonomy.js";
 
 // The application's current stage: the new `stage` field, else the old
@@ -46,14 +46,16 @@ export function milestoneProgress(app) {
     reached: ks.some(k => seen.has(k)) || (currentIdx >= 0 && i <= currentIdx),
     current: i === currentIdx,
   }));
+  if (stage === "hired") steps[steps.length - 1].label = "Hired"; // maybe with no offer on TIN
+  const stopped = isFinal(stage) && !HIRED_STAGES.includes(stage);
   if (!steps[0].reached) steps[0].reached = true; // every application was submitted
   // Found in search: nothing was submitted or viewed, it starts at Shortlisted.
   if (isFromSearch(app)) {
     const from = steps.slice(order.findIndex(ks => ks.includes("shortlisted")));
     from[0].reached = true;
-    return { steps: from, stopped: isFinal(stage) && stage !== "offer_accepted", stage };
+    return { steps: from, stopped, stage };
   }
-  return { steps, stopped: isFinal(stage) && stage !== "offer_accepted", stage };
+  return { steps, stopped, stage };
 }
 
 // ── Candidate moves ──────────────────────────────────────────
@@ -82,11 +84,12 @@ export function canCandidateMoveTo(app, to) {
 export function employerStageOptions(app) {
   const stage = currentStage(app);
   if (isFinal(stage)) return [];
-  return EMP_SET.filter(s => s !== stage);
+  return EMP_SET.filter(s => s !== stage && (s !== "hired" || HIRE_FROM.includes(stage)));
 }
+export const canMarkHired = (app) => HIRE_FROM.includes(currentStage(app));
 
 export function canEmployerMoveTo(app, to) {
-  return !isFinal(currentStage(app)) && EMPLOYER_STAGES.includes(to);
+  return !isFinal(currentStage(app)) && EMPLOYER_STAGES.includes(to) && (to !== "hired" || canMarkHired(app));
 }
 
 // Opening an application records "Application Viewed" once — only while
