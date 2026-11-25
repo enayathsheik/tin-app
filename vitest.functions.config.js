@@ -8,5 +8,6 @@ export default defineConfig({
   test: {
     include: ["test/functions/**/*.test.js"],
     testTimeout: 60000,
+    fileParallelism: false, // the files share one emulator database
   },
 });

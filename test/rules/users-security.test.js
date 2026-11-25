@@ -100,6 +100,63 @@ describe("users can't grant themselves verification or a store link", () => {
   });
 });
 
+describe("users can't make themselves an admin (S0)", () => {
+  const dbOf = (uid) => testEnv.authenticatedContext(uid, { email: `${uid}@example.com`, email_verified: true }).firestore();
+  const seed = (uid, data) => testEnv.withSecurityRulesDisabled((c) => setDoc(doc(c.firestore(), "users", uid), data));
+  const BAD = ["hom_admin", "admin", "jobs_admin", "HOM_ADMIN", "", null, ["hom_admin"], { a: 1 }];
+
+  it("sign-up with a privileged or made-up role is refused", async () => {
+    for (const role of BAD) await assertFails(setDoc(doc(dbOf("r1"), "users", "r1"), { ...signupProfile("r1"), role }));
+  });
+
+  it("changing your own role to one is refused (update, merge, or whole-document save)", async () => {
+    await seed("r2", signupProfile("r2"));
+    for (const role of BAD) {
+      await assertFails(updateDoc(doc(dbOf("r2"), "users", "r2"), { role }));
+      await assertFails(setDoc(doc(dbOf("r2"), "users", "r2"), { role, name: "x" }, { merge: true }));
+      await assertFails(setDoc(doc(dbOf("r2"), "users", "r2"), { ...signupProfile("r2"), role }));
+    }
+  });
+
+  it("so HOM orders and catalogue stay closed to them", async () => {
+    await seed("r2b", signupProfile("r2b"));
+    await assertFails(updateDoc(doc(dbOf("r2b"), "users", "r2b"), { role: "hom_admin" }));
+    await assertFails(setDoc(doc(dbOf("r2b"), "homVendors", "v1"), { name: "x" }));
+  });
+
+  it("every ordinary account type still signs up, and can switch to another", async () => {
+    for (const role of ["consumer", "contributor", "retailer", "contractor", "architect", "manufacturer", "jobseeker", "employer"]) {
+      await assertSucceeds(setDoc(doc(dbOf(`ok_${role}`), "users", `ok_${role}`), { ...signupProfile(`ok_${role}`), role }));
+      await assertSucceeds(updateDoc(doc(dbOf(`ok_${role}`), "users", `ok_${role}`), { role: "employer" }));
+    }
+  });
+
+  it("a profile with no role yet can be created and saved (Post a Job, handle)", async () => {
+    await assertSucceeds(setDoc(doc(dbOf("r3"), "users", "r3"), { jobBusiness: { name: "A" } }, { merge: true }));
+    await assertSucceeds(updateDoc(doc(dbOf("r3"), "users", "r3"), { handle: "r3" }));
+  });
+
+  it("an account the admin already made hom_admin keeps working, but can't regain it after dropping it", async () => {
+    await seed("r4", { ...signupProfile("r4"), role: "hom_admin" });
+    await assertSucceeds(updateDoc(doc(dbOf("r4"), "users", "r4"), { name: "HOM staff" }));
+    await assertSucceeds(setDoc(doc(dbOf("r4"), "users", "r4"), { ...signupProfile("r4"), role: "hom_admin" }));
+    await assertSucceeds(updateDoc(doc(dbOf("r4"), "users", "r4"), { role: "consumer" }));
+    await assertFails(updateDoc(doc(dbOf("r4"), "users", "r4"), { role: "hom_admin" }));
+  });
+
+  it("an older account with an unlisted role can still save other fields", async () => {
+    await seed("r5", { ...signupProfile("r5"), role: "designer" });
+    await assertSucceeds(updateDoc(doc(dbOf("r5"), "users", "r5"), { city: "Pune" }));
+  });
+
+  it("the TIN admin still signs in as admin and can make someone hom_admin", async () => {
+    const admin = testEnv.authenticatedContext("adminS0", { email: ADMIN_EMAIL }).firestore();
+    await assertSucceeds(setDoc(doc(admin, "users", "adminS0"), { ...signupProfile("adminS0"), role: "admin" }, { merge: true }));
+    await assertSucceeds(updateDoc(doc(admin, "users", "adminS0"), { name: "Admin", role: "admin" }));
+    await assertSucceeds(updateDoc(doc(admin, "users", "r5"), { role: "hom_admin" }));
+  });
+});
+
 describe("admin still controls verification", () => {
   const admin = () => testEnv.authenticatedContext("adminUid", { email: ADMIN_EMAIL }).firestore();
 

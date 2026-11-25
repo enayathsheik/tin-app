@@ -6,6 +6,7 @@
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { setGlobalOptions }   = require("firebase-functions/v2");
+const { defineSecret }       = require("firebase-functions/params");
 const { initializeApp }      = require("firebase-admin/app");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 
@@ -36,11 +37,20 @@ try {
   console.error("Failed to load hom.js — HOM Systems functions unavailable:", err);
 }
 
-// ── YOUR PLACES API KEY (store in Firebase env config) ───────
-// Set via: firebase functions:secrets:set PLACES_API_KEY
-// Then access via: process.env.PLACES_API_KEY
-// For now, hardcoded below — move to secret before production
-const PLACES_API_KEY = process.env.PLACES_API_KEY || "AIzaSyDM5HbNqYqNEodGMl0dEYfHK7sV-nlxJMc";
+// ── PLACES API KEY ───────────────────────────────────────────
+// Secret Manager only, never in code. Set or rotate with
+//   firebase functions:secrets:set PLACES_API_KEY
+// then redeploy pullPlacesData.
+const placesApiKey = defineSecret("PLACES_API_KEY");
+
+// ── TIN SUPER ADMIN GATE ─────────────────────────────────────
+// Same account as isAdmin() in firestore.rules. These functions use the
+// Admin SDK, which bypasses the rules, so each must check for itself.
+const ADMIN_EMAIL = "enayathsheik@gmail.com";
+function requireAdmin(request) {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
+  if (request.auth.token.email !== ADMIN_EMAIL) throw new HttpsError("permission-denied", "Only the TIN admin can do this");
+}
 
 const DELAY_MS       = 300;
 const sleep          = ms => new Promise(r => setTimeout(r, ms));
@@ -113,7 +123,7 @@ async function searchPlaces(textQuery, lat, lng, radiusM = 5000) {
     method: "POST",
     headers: {
       "Content-Type":    "application/json",
-      "X-Goog-Api-Key":  PLACES_API_KEY,
+      "X-Goog-Api-Key":  placesApiKey.value().trim(),
       "X-Goog-FieldMask":"places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.internationalPhoneNumber,places.rating,places.userRatingCount,places.websiteUri,places.location,places.regularOpeningHours",
     },
     body: JSON.stringify({
@@ -130,9 +140,8 @@ async function searchPlaces(textQuery, lat, lng, radiusM = 5000) {
 }
 
 // ── CLOUD FUNCTION: pullPlacesData ───────────────────────────
-exports.pullPlacesData = onCall({ cors: true }, async (request) => {
-  // Auth check — only admins
-  if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
+exports.pullPlacesData = onCall({ cors: true, secrets: [placesApiKey] }, async (request) => {
+  requireAdmin(request);
 
   const {
     jobId,
@@ -146,6 +155,7 @@ exports.pullPlacesData = onCall({ cors: true }, async (request) => {
 
   if (!jobId)         throw new HttpsError("invalid-argument", "jobId required");
   if (!categories.length) throw new HttpsError("invalid-argument", "At least one category required");
+  if (!placesApiKey.value()) throw new HttpsError("failed-precondition", "The Places API key isn't set up");
 
   // Create job doc in Firestore for real-time progress
   const jobRef = db.collection("pull_jobs").doc(jobId);
@@ -307,7 +317,7 @@ exports.pullPlacesData = onCall({ cors: true }, async (request) => {
 // ── CLOUD FUNCTION: publishStagedStores ──────────────────────
 // Moves approved staged stores → live /stores collection
 exports.publishStagedStores = onCall({ cors: true }, async (request) => {
-  if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
+  requireAdmin(request);
 
   const { storeIds } = request.data;
   if (!storeIds?.length) throw new HttpsError("invalid-argument", "No store IDs provided");
@@ -353,7 +363,7 @@ exports.publishStagedStores = onCall({ cors: true }, async (request) => {
 
 // ── CLOUD FUNCTION: deleteStagedStores ───────────────────────
 exports.deleteStagedStores = onCall({ cors: true }, async (request) => {
-  if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
+  requireAdmin(request);
 
   const { storeIds } = request.data;
   if (!storeIds?.length) throw new HttpsError("invalid-argument", "No store IDs provided");

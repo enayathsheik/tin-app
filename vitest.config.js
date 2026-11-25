@@ -8,5 +8,6 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     include: ["test/rules/**/*.test.js", "test/unit/**/*.test.js"],
+    hookTimeout: 60000, // first file to run waits for a cold emulator
   },
 });
