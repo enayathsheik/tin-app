@@ -181,7 +181,7 @@ export function contactsNeeded({ privates, applications }) {
 }
 
 // ── Employers ────────────────────────────────────────────────
-const ROLE_LABEL = { retailer: "Retailer", contractor: "Contractor", architect: "Architect", contributor: "Market Champion", consumer: "Individual" };
+const ROLE_LABEL = { jobseeker: "Job seeker", employer: "Business", retailer: "Retailer", contractor: "Contractor", architect: "Architect", contributor: "Market Champion", consumer: "Individual" };
 
 // `stores` = { [storeId]: store } for the linked stores.
 export function buildEmployers({ users, jobRows, stores = {} }) {
@@ -199,6 +199,7 @@ export function buildEmployers({ users, jobRows, stores = {} }) {
       email: accountEmail(u) || realEmail(store?.email),
       city: s(store?.city) || s(u.jobBusiness?.city) || s(u.city) || s(latest?.city),
       type: labelOf(INDUSTRIES, u.jobBusiness?.industry) || s(store?.businessType) || ROLE_LABEL[u.role] || "",
+      dealsIn: Array.isArray(u.dealsIn) ? u.dealsIn.map(s).filter(Boolean).join(", ") : "", // B1 sign-up
       verified: u.verificationStatus === "verified" ? "Verified"
         : store?.verificationStatus === "verified" ? "Store verified" : "Not verified",
       storeId: s(u.storeId),
@@ -445,7 +446,7 @@ export const seekerExport = (r, link = "") => ({
   "Jobs applied": r.applied, "Times shortlisted": r.shortlisted, "Resume link": link,
 });
 export const businessExport = (r) => ({
-  Business: r.business, Status: businessStateLabel(r.state), "Owner / contact": r.contact, Mobile: r.phone, Email: r.email, City: r.city, Type: r.type,
+  Business: r.business, Status: businessStateLabel(r.state), "Owner / contact": r.contact, Mobile: r.phone, Email: r.email, City: r.city, Type: r.type, "Deals in": r.dealsIn || "",
   Verified: r.verified, "Jobs posted": r.jobs, "Open jobs": r.openJobs,
   "Shortlists used": r.slots, "Shortlists available": r.slotsTotal, Joined: ymd(r.created),
 });

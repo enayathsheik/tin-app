@@ -155,7 +155,10 @@ export function PostJobPage({ user, isGuest, onRequireLogin, onListStore, toast 
         <h1 style={{ ...heading, fontSize: 24, margin: "0 0 6px" }}>Post a job</h1>
         <PriceTag kind="jobPost" style={{ marginBottom: 10 }} />
         <p style={{ fontSize: 13, color: "var(--t3)", margin: "0 0 14px" }}>Log in or create a free TIN account to post. You'll come straight back here.</p>
-        <button onClick={onRequireLogin} style={btnPrimary}>Log in to post a job</button>
+        <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+          <Link to="/signup/hire" state={{ back: "/jobs/post" }} style={{ ...btnPrimary, textDecoration: "none" }}>Create a business account</Link>
+          <button onClick={onRequireLogin} style={btnOutline}>Log in</button>
+        </div>
       </div>
     );
   }

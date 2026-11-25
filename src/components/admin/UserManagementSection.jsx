@@ -82,6 +82,8 @@ export function UserManagementSection() {
                   <td>
                     {editId === u.id ? (
                       <select value={editRole} onChange={e => setEditRole(e.target.value)} style={{ fontSize: 12, borderRadius: 6, border: "1px solid var(--b3)", padding: "3px 6px" }}>
+                        <option value="jobseeker">jobseeker</option>
+                        <option value="employer">employer</option>
                         <option value="contributor">contributor</option>
                         <option value="retailer">retailer</option>
                         <option value="consumer">consumer</option>

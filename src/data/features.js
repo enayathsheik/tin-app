@@ -11,6 +11,9 @@ export const FEATURES = {
   inspi: false,          // Inspi (design inspiration feed)
   marketChampion: false, // Market Champion home + Rewards, My Zone, Leaderboard
   staff: false,          // Staff profiles
+  oldSignup: false,      // old register form on the login page (Consumer, Market Champion,
+                         // Retailer, Contractor, Architect; referral code; work email).
+                         // Sign-up is /signup since B1. Existing accounts keep working.
   deals: false,          // Deals
   addStoreMenu: false,   // "+ Add Store" menu buttons (the Add Store page itself stays
                          // reachable from Post a Job → "List your store on TIN")

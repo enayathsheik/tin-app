@@ -32,6 +32,7 @@ import { PostJobPage } from "./pages/PostJobPage";
 import { JobProfilePage } from "./pages/JobProfilePage";
 import { MyApplicationsPage } from "./pages/MyApplicationsPage";
 import { EmployerDeskPage } from "./pages/EmployerDeskPage";
+import { SignupPage } from "./pages/SignupPage";
 import { StoreProfilePage } from "./pages/StoreProfilePage";
 import { StoreEditPage } from "./pages/StoreEditPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
@@ -223,6 +224,13 @@ export default function App() {
   const isConsumer = user?.role === "consumer";
   const isContractor = user?.role === "contractor";
   const isArchitect = user?.role === "architect";
+  const isEmployer = user?.role === "employer"; // B1 sign-up "I'm hiring"
+  // B1: after sign-up go back to where they were headed, else their own start page.
+  const signupProps = {
+    user, pendingPath,
+    onSignedUp: (u, path) => { setUser(u); setPendingPath(null); setPendingPage(null); navigate(path, { replace: true }); },
+    onLogin: () => setShowLoginPage(true),
+  };
   const showLeaderboard = isContrib;
   const TABS = (!user
     ? [
@@ -242,6 +250,8 @@ export default function App() {
     ? [["homSystems","HOM Systems"]]
     : isRetailer
     ? [] // Retailer uses internal sidebar nav
+    : isEmployer
+    ? [["jobs","Jobs"],["desk","Employer Desk"],["messages","Messages"],["profile","Account"]]
     : [
         ["home","Home"],
         ["discover","Discover"],
@@ -262,6 +272,7 @@ export default function App() {
   // /jobs and /jobs/:jobId are now real routes, not `page` state — derive the
   // highlighted nav tab from the URL for those, falling back to `page` elsewhere.
   const activePage = location.pathname.startsWith("/jobs/profile") ? "myprofile"
+    : isEmployer && location.pathname.startsWith("/jobs/desk") ? "desk"
     : location.pathname.startsWith("/jobs") ? "jobs"
     : location.pathname.startsWith("/conversations") ? "messages"
     : page;
@@ -281,12 +292,14 @@ export default function App() {
       <>
         <style>{G}</style>
         <div className="light" style={{ background: "#f4f5f7", minHeight: "100vh" }}>
-          <LoginPage onLogin={(u) => {
+          <LoginPage onCreateAccount={(kind) => { setShowLoginPage(false); navigate(`/signup/${kind}`); }} onLogin={(u) => {
             setUser(u);
             setShowLoginPage(false);
             if (u.role === "admin") { navigate("/"); setPage("admin"); setPendingPath(null); return; }
             if (u.role === "hom_admin") { navigate("/"); setPage("homSystems"); setPendingPath(null); return; }
             if (pendingPath) { navigate(pendingPath); setPendingPath(null); return; }
+            // A business with nowhere else to go starts at its Desk.
+            if (u.role === "employer" && !pendingPage) { navigate("/jobs/desk"); return; }
             navigate("/");
             setPage(pendingPage || "home");
             setPendingPage(null);
@@ -309,6 +322,7 @@ export default function App() {
                   if (id === "login") setShowLoginPage(true);
                   else if (id === "jobs") navigate("/jobs");
                   else if (id === "myprofile") navigate("/jobs/profile");
+                  else if (id === "desk") navigate("/jobs/desk");
                   else if (id === "messages") navigate("/conversations");
                   else { navigate("/"); setPage(id); }
                 }}>{label}</button>
@@ -319,7 +333,7 @@ export default function App() {
             {user ? (
               <>
                 {selectedCity && <div style={{ fontSize: 11, color: "var(--t3)", fontWeight: 600 }}>📍 {selectedCity}</div>}
-                {user.role !== "admin" && user.role !== "hom_admin" && user.role !== "retailer" && <div className="pts-badge">{user.points || 0} pts</div>}
+                {user.role !== "admin" && user.role !== "hom_admin" && user.role !== "retailer" && user.role !== "employer" && user.role !== "jobseeker" && <div className="pts-badge">{user.points || 0} pts</div>}
                 <div className="avatar" onClick={() => { navigate("/"); setPage("profile"); }}>{user.name.charAt(0).toUpperCase()}</div>
                 <button onClick={handleLogout} style={{padding:"4px 10px",borderRadius:8,background:"transparent",border:"1px solid var(--b3)",color:"#080808",fontSize:12,cursor:"pointer",fontFamily:"'Barlow',sans-serif"}} title="Logout">↩ Out</button>
               </>
@@ -347,7 +361,9 @@ export default function App() {
         {/* MOBILE BOTTOM NAV */}
         {!isRetailer && user?.role !== "admin" && user?.role !== "hom_admin" && (
           <div className="mobile-nav">
-            {(user
+            {(isEmployer
+              ? [["jobs","💼","Jobs"],["desk","🏢","Employer Desk"],["messages","💬","Messages"],["profile","⚙️","Account"]]
+              : user
               ? [
                   ["home","🏠","Home"],
                   ["discover","🔍","Discover"],
@@ -374,6 +390,7 @@ export default function App() {
                 else if (id === "add") handleAddStore();
                 else if (id === "jobs") navigate("/jobs");
                 else if (id === "myprofile") navigate("/jobs/profile");
+                else if (id === "desk") navigate("/jobs/desk");
                 else if (id === "messages") navigate("/conversations");
                 else { navigate("/"); setPage(id); }
               }}>
@@ -436,6 +453,9 @@ export default function App() {
             <Route path="/jobs/saved" element={<SavedJobsPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath("/jobs/saved"); setShowLoginPage(true); }} />} />
             <Route path="/jobs/desk" element={<EmployerDeskPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath(location.pathname + location.search); setShowLoginPage(true); }} />} />
             <Route path="/jobs/:jobId" element={<JobDetailPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath(location.pathname); setShowLoginPage(true); }} toast={showToast} />} />
+            <Route path="/signup" element={<SignupPage key="choose" {...signupProps} />} />
+            <Route path="/signup/work" element={<SignupPage key="work" kind="work" {...signupProps} />} />
+            <Route path="/signup/hire" element={<SignupPage key="hire" kind="hire" {...signupProps} />} />
             <Route path="/store/:storeId" element={<StoreProfilePage user={user} />} />
             <Route path="/store/:storeId/edit" element={<StoreEditPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath(location.pathname); setShowLoginPage(true); }} />} />
             <Route path="/conversations/*" element={<ConversationsPage user={user} />} />

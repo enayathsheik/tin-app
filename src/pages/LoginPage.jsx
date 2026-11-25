@@ -3,11 +3,14 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswor
 import { getDocs, query, collection, where, addDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db, saveUserProfile, getUserProfile } from "../firebase/config";
 import { ROLES } from "../data/constants";
+import { FEATURES } from "../data/features";
 import { getLevel } from "../utils/helpers";
 import { checkHandleAvailable, claimHandle, findAvailableHandle, isReservedHandle, isValidHandleFormat, suggestHandleBase } from "../utils/handles";
 import { normalizeIndianMobile, phoneToSyntheticEmail, resolveAuthEmail } from "../utils/phoneAuth";
 
-export function LoginPage({ onLogin }) {
+// Login for everyone. Sign-up moved to /signup (B1); the register form below is
+// the old one, kept behind FEATURES.oldSignup.
+export function LoginPage({ onLogin, onCreateAccount }) {
   const [mode, setMode] = useState("login");
   const [role, setRole] = useState("contributor");
   const [email, setEmail] = useState("");
@@ -147,7 +150,7 @@ export function LoginPage({ onLogin }) {
           const finalProfile = isAdminEmail ? { ...profile, role: "admin" } : profile;
           onLogin({ ...finalProfile, uid: cred.user.uid });
         } else {
-          const basicProfile = { name: phoneDigits || emailToUse.split("@")[0], email: emailToUse, phone: phoneDigits, workEmail: emailToUse, personalEmail: "", role: isAdminEmail ? "admin" : "contributor", linkedin: "", company: "", points: 0, storesAdded: 0, citiesCovered: 0, level: getLevel(0).name, validationStatus: "n/a", createdAt: new Date().toISOString(), uid: cred.user.uid };
+          const basicProfile = { name: phoneDigits || emailToUse.split("@")[0], email: emailToUse, phone: phoneDigits, workEmail: emailToUse, personalEmail: "", role: isAdminEmail ? "admin" : "jobseeker", linkedin: "", company: "", points: 0, storesAdded: 0, citiesCovered: 0, level: getLevel(0).name, validationStatus: "n/a", createdAt: new Date().toISOString(), uid: cred.user.uid };
           await saveUserProfile(cred.user.uid, basicProfile);
           onLogin(basicProfile);
         }
@@ -384,7 +387,16 @@ export function LoginPage({ onLogin }) {
 
         <div className="login-sw">
           {mode === "login"
-            ? <>New to TIN? <span onClick={() => setMode("register")}>Create account</span></>
+            ? FEATURES.oldSignup
+              ? <>New to TIN? <span onClick={() => setMode("register")}>Create account</span></>
+              : <>
+                  <div style={{ marginBottom: 8 }}>New to TIN? Create a free account:</div>
+                  <div style={{ display: "grid", gap: 8 }}>
+                    {[["work", "👷 I'm looking for work · मुझे काम चाहिए"], ["hire", "🏢 I'm hiring"]].map(([k, l]) => (
+                      <button key={k} type="button" onClick={() => onCreateAccount(k)} style={{ minHeight: 46, borderRadius: 10, border: "1.5px solid var(--acc)", background: "transparent", color: "var(--acc)", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>{l}</button>
+                    ))}
+                  </div>
+                </>
             : <>Already have account? <span onClick={() => setMode("login")}>Sign in</span></>
           }
         </div>
@@ -397,13 +409,13 @@ export function LoginPage({ onLogin }) {
       {showRoleConfirm && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
           <div style={{ background: "#fff", borderRadius: 16, padding: 32, maxWidth: 420, width: "100%", fontFamily: "'Barlow', sans-serif", boxShadow: "0 8px 32px rgba(0,0,0,.18)" }}>
-            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: 22, marginBottom: 12, color: "#080808" }}>Registering as a Retailer?</div>
+            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: 22, marginBottom: 12, color: "#080808" }}>Is this a business account?</div>
             <div style={{ fontSize: 14, color: "#555", lineHeight: 1.6, marginBottom: 24 }}>
-              Retailer accounts are for business owners managing their store on TIN. If you're a sales professional who wants to add stores and earn points, choose Market Champion instead.
+              Business accounts are for people who hire. If you're looking for work, use a job seeker account.
             </div>
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              <button onClick={() => { setShowRoleConfirm(false); doSubmit(); }} style={{ padding: "10px 20px", background: "#e85a2a", color: "#fff", border: "none", borderRadius: 8, fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Yes, I'm a Retailer</button>
-              <button onClick={() => { setShowRoleConfirm(false); setRole("contributor"); }} style={{ padding: "10px 20px", background: "#f5f5f5", border: "1px solid #e0e0e0", borderRadius: 8, fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: 14, cursor: "pointer", color: "#080808" }}>Switch to Market Champion</button>
+              <button onClick={() => { setShowRoleConfirm(false); doSubmit(); }} style={{ padding: "10px 20px", background: "#e85a2a", color: "#fff", border: "none", borderRadius: 8, fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Yes, I'm a business</button>
+              <button onClick={() => { setShowRoleConfirm(false); onCreateAccount("work"); }} style={{ padding: "10px 20px", background: "#f5f5f5", border: "1px solid #e0e0e0", borderRadius: 8, fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: 14, cursor: "pointer", color: "#080808" }}>Switch to job seeker account</button>
             </div>
           </div>
         </div>

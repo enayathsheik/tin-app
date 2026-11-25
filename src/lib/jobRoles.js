@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 import { collection, doc, getDoc, getDocs, limit, query, where } from "firebase/firestore";
 import { db } from "../firebase/config";
-import { isEmployerByAccount } from "../utils/jobRoles.js";
+import { isEmployerByAccount, isSeekerByAccount } from "../utils/jobRoles.js";
 
 const cache = new Map(); // uid → { employer, seeker }
 const listeners = new Set();
@@ -27,8 +27,8 @@ async function loadRoles(user) {
   const uid = user.uid;
   const employer = isEmployerByAccount(user)
     || await hasAny(query(collection(db, "jobListings"), where("postedByUid", "==", uid), limit(1)));
-  let seeker = false;
-  try { seeker = (await getDoc(doc(db, "jobProfiles", uid))).exists(); } catch (e) { console.warn("[job-roles] profile check failed:", e); }
+  let seeker = isSeekerByAccount(user);
+  if (!seeker) try { seeker = (await getDoc(doc(db, "jobProfiles", uid))).exists(); } catch (e) { console.warn("[job-roles] profile check failed:", e); }
   if (!seeker) seeker = await hasAny(query(collection(db, "jobApplications"), where("applicantUid", "==", uid), limit(1)));
   return { employer, seeker };
 }

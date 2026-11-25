@@ -4,7 +4,7 @@ import { db } from "../firebase/config";
 export const RESERVED_HANDLES = [
   "admin", "login", "home", "discover", "add", "jobs", "job", "store", "stores", "inspi",
   "rewards", "leaderboard", "deals", "myzone", "staff", "profile", "profiles", "p", "api",
-  "settings", "help", "about", "contact", "terms", "privacy",
+  "settings", "help", "about", "contact", "terms", "privacy", "signup", "homsystems", "conversations",
 ];
 
 const HANDLE_RE = /^[a-z0-9_]{3,20}$/;
@@ -16,6 +16,8 @@ const ROLE_MAP = {
   retailer: "retailer",
   architect: "architect",
   contractor: "contractor",
+  jobseeker: "jobseeker",
+  employer: "employer",
 };
 
 export function publicRoleFromInternalRole(role) {

@@ -15,6 +15,8 @@ const ROLE_LABELS = {
   retailer: "Retailer / Distributor",
   architect: "Architect / Designer",
   contractor: "Contractor",
+  jobseeker: "Job seeker",
+  employer: "Business",
 };
 
 // See JobDetailPage.jsx for why this cleanup is needed — index.html's static

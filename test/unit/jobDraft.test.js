@@ -28,7 +28,8 @@ describe("industry prefill (D2)", () => {
   it("maps every TIN business type in the approved table to a real industry key", () => {
     for (const k of Object.values(BUSINESS_TYPE_INDUSTRY)) expect(isKey(INDUSTRIES, k)).toBe(true);
     expect(industryPrefill({ businessType: "Distributor" })).toBe("retail_distribution");
-    expect(industryPrefill({ businessType: "Designer" })).toBe("architects_interior_firms");
+    expect(industryPrefill({ businessType: "Designer" })).toBe("designers"); // own type since B1
+    expect(industryPrefill({ businessType: "Wholesaler" })).toBe("wholesalers");
     expect(industryPrefill({ businessType: "Consultant" })).toBe("consultants");
   });
 
@@ -49,7 +50,7 @@ describe("industry prefill (D2)", () => {
 describe("emptyDraft prefill", () => {
   it("from a linked store", () => {
     const d = emptyDraft({ role: "consumer", phone: "98" }, { storeName: "A Tiles", businessType: "Wholesaler", city: "Pune" });
-    expect(d.business).toEqual({ name: "A Tiles", industry: "retail_distribution", city: "Pune" });
+    expect(d.business).toEqual({ name: "A Tiles", industry: "wholesalers", city: "Pune" });
     expect(d.contactPhone).toBe("98");
   });
 

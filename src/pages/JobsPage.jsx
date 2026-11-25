@@ -78,6 +78,8 @@ export function JobsPage({ user, isGuest, onRequireLogin }) {
         </form>
         <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 10 }}>
           <Link to="/jobs/profile" style={{ fontSize: 12, fontWeight: 700, color: "var(--acc)", textDecoration: "none" }}>👤 My job profile · <span lang="hi">मेरी प्रोफ़ाइल</span> →</Link>
+          {isGuest && <Link to="/signup/work" style={{ fontSize: 12, fontWeight: 700, color: "var(--acc)", textDecoration: "none" }}>👷 I'm looking for work · <span lang="hi">मुझे काम चाहिए</span> →</Link>}
+          {isGuest && <Link to="/signup/hire" style={{ fontSize: 12, fontWeight: 700, color: "var(--acc)", textDecoration: "none" }}>🏢 I'm hiring →</Link>}
           {!isGuest && <Link to="/jobs/applications" style={{ fontSize: 12, fontWeight: 700, color: "var(--acc)", textDecoration: "none" }}>📋 My applications →</Link>}
           {!isGuest && <Link to="/jobs/saved" style={{ fontSize: 12, fontWeight: 700, color: "var(--acc)", textDecoration: "none" }}>★ Saved jobs →</Link>}
           {!isGuest && <Link to="/jobs/desk" style={{ fontSize: 12, fontWeight: 700, color: "var(--acc)", textDecoration: "none" }}>💼 Employer Desk →</Link>}

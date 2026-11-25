@@ -9,7 +9,8 @@
 import { readFileSync } from "fs";
 import { beforeAll, afterAll, describe, it } from "vitest";
 import { initializeTestEnvironment, assertSucceeds, assertFails } from "@firebase/rules-unit-testing";
-import { doc, setDoc, updateDoc, getDoc } from "firebase/firestore";
+import { collection, doc, setDoc, updateDoc, getDoc, getDocs, limit, orderBy, query, serverTimestamp, where, writeBatch } from "firebase/firestore";
+import { emptySignup, signupProfile as newAccount } from "../../src/utils/signup.js";
 
 const PROJECT_ID = "users-security-test";
 const ADMIN_EMAIL = "enayathsheik@gmail.com";
@@ -97,6 +98,36 @@ describe("users can't grant themselves verification or a store link", () => {
 
   it("can't edit someone else's profile", async () => {
     await assertFails(updateDoc(doc(testEnv.authenticatedContext("alice").firestore(), "users", "verifiedBob"), { name: "x" }));
+  });
+});
+
+describe("B1 sign-up", () => {
+  const identity = (kind, uid, extra) => {
+    const u = newAccount(kind, { ...emptySignup(kind), name: "A", mobile: "9876500001", password: "secret1", businessName: "A Tiles", industry: "wholesalers", city: "Thane", dealsIn: ["Flooring"], ...extra }, uid, ["Flooring"]);
+    for (const k of ["points", "storesAdded", "citiesCovered", "level"]) delete u[k]; // saveUserProfile puts these in stats
+    return u;
+  };
+  // What src/lib/signup.js writes: the account, its stats, its handle + public page.
+  it("job seeker and employer accounts can be created, with handle, and saved again on a retry", async () => {
+    for (const kind of ["work", "hire"]) {
+      const uid = `su_${kind}`, db = testEnv.authenticatedContext(uid, { email: "9876500001@phone.tinit.in" }).firestore();
+      for (let i = 0; i < 2; i++) await assertSucceeds(setDoc(doc(db, "users", uid), identity(kind, uid), { merge: true }));
+      await assertSucceeds(setDoc(doc(db, "users", uid, "stats", "summary"), { points: 0, level: "Bronze" }, { merge: true }));
+      const b = writeBatch(db);
+      b.set(doc(db, "handles", `h${kind}`), { uid, createdAt: serverTimestamp() });
+      b.set(doc(db, "profiles", uid), { handle: `h${kind}`, role: kind === "hire" ? "employer" : "jobseeker", displayName: "A" }, { merge: true });
+      await assertSucceeds(b.commit());
+      await assertSucceeds(updateDoc(doc(db, "users", uid), { handle: `h${kind}` }));
+    }
+  });
+  it("the new employer can search candidates straight away; the new job seeker can't", async () => {
+    const q = (uid) => getDocs(query(collection(testEnv.authenticatedContext(uid).firestore(), "jobProfiles"), where("searchable", "==", true), orderBy("updatedAt", "desc"), limit(20)));
+    await assertSucceeds(q("su_hire"));
+    await assertFails(q("su_work"));
+  });
+  it("a new account is never verified or linked to a store by signing up", async () => {
+    const db = testEnv.authenticatedContext("su_x").firestore();
+    for (const extra of [{ verificationStatus: "verified" }, { storeId: "storeA" }, { role: "hom_admin" }]) await assertFails(setDoc(doc(db, "users", "su_x"), { ...identity("hire", "su_x"), ...extra }));
   });
 });
 

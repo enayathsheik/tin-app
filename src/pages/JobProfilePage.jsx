@@ -75,7 +75,10 @@ export function JobProfilePage({ user, isGuest, onRequireLogin, toast }) {
       <h1 style={{ ...heading, fontSize: 24, margin: "0 0 6px" }}>Find work · <span lang="hi">काम खोजें</span></h1>
       <PriceTag kind="profile" style={{ marginBottom: 8 }} />
       <p style={{ fontSize: 14, color: "var(--t3)" }}>Log in or create a free TIN account to make your job profile.</p>
-      <button onClick={onRequireLogin} style={{ ...btnPrimary, minHeight: 48, fontSize: 15 }}>Log in · लॉग इन</button>
+      <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+        <Link to="/signup/work" style={{ ...btnPrimary, minHeight: 48, fontSize: 15, textDecoration: "none", display: "inline-flex", alignItems: "center" }}>Create account · खाता बनाएँ</Link>
+        <button onClick={onRequireLogin} style={{ ...btnOutline, minHeight: 48, fontSize: 15 }}>Log in · लॉग इन</button>
+      </div>
     </div>);
   }
   if (!pr) return shell(<div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>Loading…</div>);

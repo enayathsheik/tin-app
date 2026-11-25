@@ -25,7 +25,7 @@ describe("option lists", () => {
   }
 
   it("list sizes match the prototype", () => {
-    expect(T.INDUSTRIES).toHaveLength(11);
+    expect(T.INDUSTRIES).toHaveLength(13); // 11 + Wholesalers, Designers (B1)
     expect(T.FUNCS).toHaveLength(29);
     expect(T.TYPES).toHaveLength(13);
     expect(T.TRADES).toHaveLength(18);

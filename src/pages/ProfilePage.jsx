@@ -120,7 +120,7 @@ export function ProfilePage({ user, onUpdateUser, showJobPosts = true }) {
             <div className="prof-av">{user.name.charAt(0).toUpperCase()}</div>
             <div style={{flex:1}}>
               <div className="prof-name">{user.name}</div>
-              <div className="prof-role">{ROLES.find(r => r.id === user.role)?.label || user.role}</div>
+              <div className="prof-role">{ROLES.find(r => r.id === user.role)?.label || { jobseeker: "Job seeker", employer: "Business" }[user.role] || user.role}</div>
               <div className="prof-lbadge" style={{ background: lv.bg, color: lv.color, border: `1px solid ${lv.color}30` }}>◆ {lv.name} Contributor</div>
             </div>
             <button onClick={() => setEditing(!editing)} style={{padding:"6px 14px",borderRadius:8,background: editing?"#f5f5f5":"#080808",border:"1px solid #e0e0e0",color:editing?"#080808":"white",fontSize:12,fontWeight:700,cursor:"pointer",flexShrink:0}}>

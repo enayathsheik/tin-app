@@ -13,7 +13,9 @@
 // ── Employer industry (business category) ────────────────────
 export const INDUSTRIES = [
   { key: "retail_distribution", label: "Retailers, Distributors & Dealers" },
+  { key: "wholesalers", label: "Wholesalers" },
   { key: "architects_interior_firms", label: "Architects & Interior Design Firms" },
+  { key: "designers", label: "Designers" },
   { key: "manufacturers", label: "Manufacturers" },
   { key: "importers_exporters", label: "Importers & Exporters" },
   { key: "brands", label: "Brands" },
@@ -271,11 +273,11 @@ export const LANES = [
 export const BUSINESS_TYPE_INDUSTRY = {
   Retailer: "retail_distribution",
   Distributor: "retail_distribution",
-  Wholesaler: "retail_distribution",
+  Wholesaler: "wholesalers",
   Manufacturer: "manufacturers",
   Contractor: "contractors",
   Architect: "architects_interior_firms",
-  Designer: "architects_interior_firms",
+  Designer: "designers",
   Consultant: "consultants",
 };
 // TIN account role (ROLES in constants.js) → INDUSTRIES key, for accounts
