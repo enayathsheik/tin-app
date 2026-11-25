@@ -245,8 +245,7 @@ export function buildJobFields(d, { storeId = null } = {}) {
 }
 
 // Fields whose change counts as a content edit (anything but Live/Filled/
-// Closed). Used to decide whether an unverified poster's edit goes back to
-// pending, matching the firestore.rules poster-update branch.
+// Closed): only these are saved, and an edit with none saves nothing.
 export function changedContentKeys(before = {}, after = {}) {
   return Object.keys(after).filter(k => JSON.stringify(before[k] ?? null) !== JSON.stringify(after[k] ?? null));
 }

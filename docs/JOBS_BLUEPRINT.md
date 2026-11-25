@@ -48,7 +48,7 @@ to differ from this document, update this document first, in the same commit.
 | Step 2: The job | Lane, title (trade picker for skilled), headcount, functions, work types, short-assignment box (duration, start, urgency, cert/tools), location, experience, hours, education, duties, skills | `PostJobModal.jsx` single form | **New** wizard (replaces the modal) | 3 |
 | Step 3: Pay | Period, min/max, show as (range / negotiable / undisclosed), incentives | free-text `salaryRange` | **New** structured `pay` | 3 |
 | Step 4: Why work with you (optional) | Tick benefits with details, or write own text | none | **New** `benefits`, `evpText` | 3 |
-| Step 5: Review & publish | Summary; publish / save draft / submit for approval | approve/pending logic in `PostJobModal.jsx` | **Extend**: keep verified = live, else pending | 3 |
+| Step 5: Review & publish | Summary; publish / save draft / submit for approval | approve/pending logic in `PostJobModal.jsx` | **Extend**; every job goes live at once since §12 | 3 |
 | Edit vacancy (`editJob`) | Re-opens the wizard on an existing job | not allowed (rules only allow `jobStatus`) | **New** + rules change (§5.3) | 3 |
 | "Your vacancy is live" | Confirmation with links | toast + modal message | **Extend** | 3 |
 
@@ -304,15 +304,15 @@ match /jobReports/{reportId} {            // id = {jobId}_{uid}: one report per 
 }
 ```
 
-Shipped in Phase 2 as above. Reports have no admin screen until Phase 7 (read them in the Firebase console meanwhile).
+Shipped in Phase 2 as above. Reports are in Admin → Jobs Review since §12.
 
 ### 5.2 Phase 3: create with new fields (shipped)
 
-The create rule keeps "pending, or approved only for a verified account" and adds `jobFieldsOk()` (lane is professional/skilled; headcount is an int ≥ 1; hidden pay carries no amounts) and `jobStoreIdOk()` (a `storeId` must equal the poster's admin-set `users/{uid}.storeId`). Every field read uses `.get(field, default)`. See `firestore.rules` and `test/rules/jobs-post.test.js`.
+*(Approval replaced by §12.)* The create rule keeps "pending, or approved only for a verified account" and adds `jobFieldsOk()` (lane is professional/skilled; headcount is an int ≥ 1; hidden pay carries no amounts) and `jobStoreIdOk()` (a `storeId` must equal the poster's admin-set `users/{uid}.storeId`). Every field read uses `.get(field, default)`. See `firestore.rules` and `test/rules/jobs-post.test.js`.
 
 ### 5.3 Phase 3: poster may edit content of their own listing (shipped)
 
-Shipped as below, plus: `industry`, `storeId` and `notAgencyDeclaration` in the allowed keys; `jobStatus` limited to live/filled/closed; `jobFieldsOk()` on every edit; `jobStoreIdOk()` when `storeId` changes. **Owner decisions:** an unverified poster's content edit sends a live job back to pending; Live/Filled/Closed-only changes don't; a verified poster's edit stays live. (The old poster rule allowed only `jobStatus`, so My Jobs' Live/Filled/Closed — which also sends `updatedAt` — was failing for posters; fixed.) Original sketch:
+Shipped as below, plus: `industry`, `storeId` and `notAgencyDeclaration` in the allowed keys; `jobStatus` limited to live/filled/closed; `jobFieldsOk()` on every edit; `jobStoreIdOk()` when `storeId` changes. **Owner decisions** *(replaced by §12: edits stay live)*: an unverified poster's content edit sends a live job back to pending; Live/Filled/Closed-only changes don't; a verified poster's edit stays live. (The old poster rule allowed only `jobStatus`, so My Jobs' Live/Filled/Closed — which also sends `updatedAt` — was failing for posters; fixed.) Original sketch:
 
 ```
 || (request.auth != null
@@ -746,3 +746,43 @@ person signed in on that phone, so a code is needed only on a new one.
   one. Business and professional accounts are told to use their password. "Not mine / forgot" makes a
   new account and leaves the old one alone.
 - **Firebase console:** Phone sign-in on, SMS region policy India only, authorised domains.
+
+## 12. Beta mode, and jobs checked after posting (owner decision, 25 Nov 2026)
+
+**One switch:** `config/pricing.betaMode` (Admin → Pricing). ON unless it is exactly `false`; only the
+TIN admin writes it. Read by the rules (`betaMode()` / `shortlistLimit()`), by `shortlistCandidate`
+(`shortlistLimitNow` / `searchDailyLimitNow` in `src/utils/shortlist.js`) and by the screens.
+
+| | Beta ON (now) | Beta OFF (paid version) |
+|---|---|---|
+| Shortlists per job | no limit | `shortlistLimit`, default 10 |
+| Shortlists from search per employer per day | no limit | `searchShortlistDailyLimit`, default 20; 0 = search shortlisting off |
+| Job TIN has checked needed to shortlist from search | no | no |
+| Price of a profile / job post | free | Pricing page: list / offer price, launch discount (no payments built yet) |
+| Contact unlock at Shortlisted (L8) | yes | yes |
+| Slots, `shortlistCount`, daily count | recorded | recorded and enforced |
+
+Switching OFF applies at once to what beta counted: a job past the limit can't shortlist anyone new, but keeps
+the people it has. In beta the 0 setting doesn't stop search shortlisting.
+
+**Posting:** every new job is `approved` + `live`, verified account or not; edits stay live and never go back to
+pending. The poster can't change `status`. `createdAt` must be the server's time, and `verified_business` is
+accepted only from a verified account. A pending job is still accepted from pages opened before the change.
+
+**Checking afterwards** (Admin → Jobs Review, `src/lib/jobModeration.js`): new jobs newest first; job reports, most
+reported first (`checkedAt` marks them done); **Approve all pending jobs** for those sent before beta. No automatic
+hiding after reports.
+
+- **Take down:** `status: "taken_down"` + `takedown: { reason, at }`, shown to the employer. Hidden from the public,
+  and the poster can't read or change its applications, contacts or CVs (`isActivePoster()` in both rules files)
+  until **Restore**. Details already seen, and chats already started, can't be taken back. `rejected` (before beta)
+  counts as taken down. Restoring or approving keeps a job the employer had closed closed.
+- **Block from posting:** `users/{uid}.postingBlocked` (+ `postingBlockedReason`, `postingBlockedAt`), admin only.
+  Blocks new jobs, edits, reopening and shortlisting from search; pausing and closing still work. Jobs already up
+  stay up until taken down.
+- **Employer closes a job** at any time from the Desk ("Close job"), also one still waiting.
+- **Google:** the sitemap and job data cover only approved + live jobs, at each hosting build. Between builds the page
+  itself drops its job data and asks not to be indexed once the job isn't live.
+
+**Future options:** a daily posting limit per account after beta (would need posting to go through a server function);
+automatic hiding after several reports; search shortlisting only for checked jobs or verified businesses.

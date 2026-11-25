@@ -4,7 +4,7 @@
 // profile or job post is recorded as an entitlement valid for 365 days, so
 // history exists when payments start. Pure helpers, unit-tested in
 // test/unit/pricing.test.js.
-import { DEFAULT_SHORTLIST_LIMIT, MAX_SEARCH_DAILY_LIMIT, searchDailyLimitFrom, shortlistLimitFrom } from "./shortlist.js";
+import { DEFAULT_SHORTLIST_LIMIT, MAX_SEARCH_DAILY_LIMIT, isBetaMode, searchDailyLimitFrom, shortlistLimitFrom } from "./shortlist.js";
 
 export const FEE_KINDS = { profile: "profileFee", jobPost: "jobPostFee" };
 export const DEFAULT_FEE = { list: 750, offer: 100, launchDiscount: true };
@@ -20,12 +20,17 @@ const fee = (f) => ({
 // config/pricing → a complete, safe shape (defaults for anything missing).
 export function pricingFrom(config) {
   return {
+    betaMode: isBetaMode(config),
     profileFee: fee(config?.profileFee),
     jobPostFee: fee(config?.jobPostFee),
     shortlistLimit: config ? shortlistLimitFrom(config) : DEFAULT_SHORTLIST_LIMIT,
     searchShortlistDailyLimit: searchDailyLimitFrom(config),
   };
 }
+
+// The fee that applies now ("profileFee" / "jobPostFee"): in beta mode
+// everything is free, whatever the launch discount says.
+export const feeInForce = (pricing, key) => (pricing.betaMode ? { ...pricing[key], launchDiscount: true } : pricing[key]);
 
 // What the user pays now: ₹0 while the launch discount is on, else the offer price.
 export const feeNow = (f) => (f.launchDiscount ? 0 : f.offer);

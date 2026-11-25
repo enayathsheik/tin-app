@@ -5,6 +5,7 @@ import { ref, uploadBytes } from "firebase/storage";
 import { db, storage } from "../firebase/config";
 import { markJobRole } from "./jobRoles";
 import { addEntitlement, loadPricing } from "./pricing";
+import { feeInForce } from "../utils/pricing.js";
 import { profileFromDocs, splitProfile } from "../utils/jobProfile.js";
 import { isSearchable, searchFields } from "../utils/candidateSearch.js";
 
@@ -70,7 +71,7 @@ async function recordProfileEntitlement(uid) {
   try {
     const pricing = await loadPricing();
     const batch = writeBatch(db);
-    addEntitlement(batch, "job_profile", uid, uid, pricing.profileFee);
+    addEntitlement(batch, "job_profile", uid, uid, feeInForce(pricing, "profileFee"));
     await batch.commit();
   } catch (e) {
     console.warn("[job-profile] entitlement not recorded:", e);

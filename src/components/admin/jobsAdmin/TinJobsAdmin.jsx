@@ -8,7 +8,7 @@ import { loadContacts, loadJobsAdmin, resumeLinks } from "../../../lib/jobsAdmin
 import {
   BUSINESS_FILTER, BUSINESS_STATES, EMPTY_FILTERS, JOB_FILTER, JOB_STATES, LANE_OPTIONS, PROFILE_OPTIONS, SEEKER_FILTER,
   applicantExport, applicantRow, buildActivity, buildApprovals, buildBusinesses, buildEmployers, buildJobs, buildSeekers,
-  businessExport, businessStateLabel, distinct, filterRows, jobExport, jobStateLabel, laneText, seekerExport, shortlistText, summarise,
+  businessExport, businessStateLabel, distinct, filterRows, jobExport, jobStateLabel, laneText, seekerExport, shortlistText, summarise, usedOf,
 } from "../../../utils/jobsAdmin.js";
 import { stageLabel } from "../../../utils/applications.js";
 import { exportSheets } from "../../../utils/exportExcel";
@@ -185,7 +185,7 @@ function BusinessesTab({ businesses, f, set }) {
         ["Type", r => dash(r.type)],
         ["Status", r => <><Pill kind={r.state}>{businessStateLabel(r.state)}</Pill>{r.state === "approved" && <div style={{ fontSize: 11, color: "var(--t3)" }}>{r.verified === "Verified" ? "account verified" : r.verified === "Store verified" ? "store verified" : "business linked"}</div>}</>],
         ["Jobs posted", r => <>{r.jobs}{r.openJobs > 0 && <span style={{ fontSize: 11, color: "var(--t3)" }}> ({r.openJobs} open)</span>}</>],
-        ["Shortlists used", r => (r.jobs ? `${r.slots}/${r.slotsTotal}` : "0")],
+        ["Shortlists used", r => (r.jobs ? usedOf(r.slots, r.slotsTotal) : "0")],
         ["Joined", r => fmtDate(r.created)],
       ]} />
     </>

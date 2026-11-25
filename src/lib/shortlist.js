@@ -2,20 +2,21 @@
 // contact unlock, L8), a numbered slot jobListings/{job}/shortlistSlots/{n}
 // and the job's shortlistCount, all in ONE batch (firestore.rules checks
 // them together). One batch per applicant: rules may look up at most 20
-// documents per batch. The limit comes from config/pricing (admin, L9).
+// documents per batch. The limit comes from config/pricing (admin, L9);
+// Infinity in beta mode.
 import { doc, getDoc, serverTimestamp, writeBatch } from "firebase/firestore";
 import { db } from "../firebase/config";
-import { ShortlistFullError, shortlistCountOf, shortlistLimitFrom } from "../utils/shortlist.js";
+import { ShortlistFullError, shortlistCountOf, shortlistLimitNow } from "../utils/shortlist.js";
 
 let limitCache = null;
 export async function loadShortlistLimit({ fresh = false } = {}) {
   if (limitCache != null && !fresh) return limitCache;
   try {
     const snap = await getDoc(doc(db, "config", "pricing"));
-    limitCache = shortlistLimitFrom(snap.exists() ? snap.data() : null);
+    limitCache = shortlistLimitNow(snap.exists() ? snap.data() : null);
   } catch (e) {
     console.warn("[shortlist] config not readable, using default:", e);
-    limitCache = shortlistLimitFrom(null);
+    limitCache = shortlistLimitNow(null);
   }
   return limitCache;
 }

@@ -21,6 +21,7 @@ export const clearPricingCache = () => { cache = null; };
 // Admin only (firestore.rules config/pricing).
 export async function savePricing(p, adminUid) {
   const clean = pricingFrom({
+    betaMode: p.betaMode !== false,
     profileFee: { list: Number(p.profileFee.list), offer: Number(p.profileFee.offer), launchDiscount: !!p.profileFee.launchDiscount },
     jobPostFee: { list: Number(p.jobPostFee.list), offer: Number(p.jobPostFee.offer), launchDiscount: !!p.jobPostFee.launchDiscount },
     shortlistLimit: Number(p.shortlistLimit),

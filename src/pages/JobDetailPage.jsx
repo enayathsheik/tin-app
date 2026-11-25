@@ -10,6 +10,7 @@ import { JobsStyles, LaneMarker } from "../components/jobs/jobsUi";
 import { LANE_COLOR, LANE_LABEL, card, chip, heading, payLine } from "../components/jobs/jobsStyle";
 import { ReportJobButton, SaveJobButton } from "../components/jobs/SaveReportButtons";
 import { BusinessCard } from "../components/jobs/BusinessCard";
+import { isTakenDown, takedownReason } from "../utils/jobModeration.js";
 import { ShareJobButton } from "../components/jobs/ShareJobButton";
 import { OG_IMAGE, OG_IMAGE_ALT, jobShareDescription } from "../utils/jobShare.js";
 
@@ -29,6 +30,8 @@ const STALE_STATIC_META_SELECTOR = [
   'meta[property="og:url"]:not([data-rh])',
   'meta[property="og:type"]:not([data-rh])',
   'meta[name="twitter:card"]:not([data-rh])',
+  // The build's own Google job data: this page adds it only while the job is live.
+  'head > script[type="application/ld+json"]',
 ].join(",");
 
 function Fact({ label, children }) {
@@ -79,6 +82,7 @@ export function JobDetailPage({ user, isGuest, onRequireLogin, toast }) {
     return (
       <div style={{ textAlign: "center", padding: "80px 20px" }}>
         <div style={{ fontSize: 36, marginBottom: 10 }}>🔍</div>
+        <Helmet><title>Job not found | TIN Jobs</title><meta name="robots" content="noindex" /></Helmet>
         <div style={{ fontWeight: 700, fontSize: 15, color: "var(--t2)", marginBottom: 8 }}>Job not found</div>
         <Link to="/jobs" style={{ fontSize: 13, color: "var(--acc)", fontWeight: 700, textDecoration: "none" }}>← Back to Jobs</Link>
       </div>
@@ -141,7 +145,8 @@ export function JobDetailPage({ user, isGuest, onRequireLogin, toast }) {
         <meta name="twitter:title" content={pageTitle} />
         <meta name="twitter:description" content={pageDescription} />
         <meta name="twitter:image" content={ogImage} />
-        <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
+        {/* Google gets only jobs that are live. */}
+        {isOpen ? <script type="application/ld+json">{JSON.stringify(jsonLd)}</script> : <meta name="robots" content="noindex" />}
       </Helmet>
 
       <div style={{ fontSize: 12, color: "var(--t3)", fontWeight: 700, marginBottom: 12 }}>
@@ -168,7 +173,7 @@ export function JobDetailPage({ user, isGuest, onRequireLogin, toast }) {
 
         {!isOpen && (
           <div style={{ fontSize: 12, color: "#b45309", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>
-            This job isn't taking applications right now.
+            {isOwnListing && isTakenDown(job) ? <>TIN took this job down{takedownReason(job.raw) ? `: ${takedownReason(job.raw)}` : ""}. Please contact TIN if you think this is a mistake.</> : "This job isn't taking applications right now."}
           </div>
         )}
 
@@ -230,9 +235,9 @@ export function JobDetailPage({ user, isGuest, onRequireLogin, toast }) {
 
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 20 }}>
           {isOwnListing ? (
-            <button disabled style={{ padding: "10px 18px", borderRadius: 8, background: "var(--s2)", border: "1px solid var(--b2)", color: "var(--t3)", fontSize: 13, fontWeight: 700, cursor: "default" }}>
-              This is your listing
-            </button>
+            <Link to={`/jobs/desk?job=${job.id}`} style={{ padding: "10px 18px", borderRadius: 8, background: "#e85a2a", border: "none", color: "white", fontSize: 13, fontWeight: 700, textDecoration: "none" }}>
+              Applicants · pause or close job
+            </Link>
           ) : null}
           {isOwnListing ? (
             <Link to={`/jobs/${job.id}/edit`} style={{ padding: "10px 18px", borderRadius: 8, background: "transparent", border: "1px solid var(--b3)", color: "var(--t1)", fontSize: 13, fontWeight: 700, textDecoration: "none" }}>

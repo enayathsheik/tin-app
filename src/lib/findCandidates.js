@@ -48,6 +48,7 @@ export class ShortlistError extends Error {
 }
 
 // → { status: "shortlisted" | "already", applicationId, created, used, limit, leftToday }
+// (limit and leftToday only when beta mode is off)
 export async function shortlistFromSearch(jobId, candidateUid) {
   try {
     const res = await httpsCallable(functions, "shortlistCandidate", { timeout: 65000 })({ jobId, candidateUid });

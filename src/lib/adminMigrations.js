@@ -5,7 +5,7 @@ import { db } from "../firebase/config";
 import { contactDocRef } from "./applications";
 import { legacyContactMigration } from "../utils/applications.js";
 import { entitlementForBackfill, loadPricing } from "./pricing";
-import { entitlementId } from "../utils/pricing.js";
+import { entitlementId, feeInForce } from "../utils/pricing.js";
 import { searchFields } from "../utils/candidateSearch.js";
 
 const BATCH_MAX = 200; // 2 writes per application → 400 per batch
@@ -64,8 +64,8 @@ export async function backfillEntitlements() {
   const have = new Set(existing.docs.map(d => d.id));
   const when = (data) => data.createdAt?.toDate?.() || new Date();
   const todo = [
-    ...profiles.docs.map(d => ({ kind: "job_profile", uid: d.id, refId: d.id, fee: pricing.profileFee, start: when(d.data()) })),
-    ...jobs.docs.filter(d => d.data().postedByUid).map(d => ({ kind: "job_post", uid: d.data().postedByUid, refId: d.id, fee: pricing.jobPostFee, start: when(d.data()) })),
+    ...profiles.docs.map(d => ({ kind: "job_profile", uid: d.id, refId: d.id, fee: feeInForce(pricing, "profileFee"), start: when(d.data()) })),
+    ...jobs.docs.filter(d => d.data().postedByUid).map(d => ({ kind: "job_post", uid: d.data().postedByUid, refId: d.id, fee: feeInForce(pricing, "jobPostFee"), start: when(d.data()) })),
   ].filter(x => !have.has(entitlementId(x.kind, x.refId)));
   for (let i = 0; i < todo.length; i += 400) {
     const batch = writeBatch(db);

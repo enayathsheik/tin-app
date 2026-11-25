@@ -144,8 +144,8 @@ export function deskCounts(jobs, appsByJob, now = new Date()) {
   };
 }
 
-// Vacancy tabs. A job without jobStatus is live (legacy); pending /
-// rejected jobs sit under Live with their review badge.
+// Vacancy tabs. A job without jobStatus is live (legacy); waiting and
+// taken-down jobs sit under Live with their badge.
 export const VACANCY_TABS = [
   { key: "live", label: "Live" },
   { key: "paused", label: "Paused" },

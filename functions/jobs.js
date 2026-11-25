@@ -6,7 +6,9 @@
 // An employer's browser can't read a candidate's phone, email or CV, so it
 // can't make the application itself. This does, on the server. The Admin SDK
 // bypasses firestore.rules, so EVERY check the rules would make is made here:
-// own job, approved and live, shortlist limit (L10), consent, daily cap.
+// own job, approved and live, account not blocked, consent, and — when beta
+// mode is OFF (config/pricing) — shortlist limit (L10) and daily cap. In beta
+// both are off, but slots and daily counts are still recorded.
 // The stage, profile and shortlist logic is the app's own (vendor/jobs, copied
 // from src/ by scripts/vendor-ai-foundation.js), so the two can't drift.
 // ============================================================
@@ -54,6 +56,7 @@ async function plan(getAll, { uid, jobId, candidateUid }, core) {
     priv: db.doc(`jobProfilesPrivate/${candidateUid}`),
     config: db.doc("config/pricing"),
     usage: db.doc(`searchShortlistUsage/${uid}`),
+    poster: db.doc(`users/${uid}`),
   };
   const snaps = await getAll(...Object.values(refs));
   const d = {};
@@ -62,6 +65,7 @@ async function plan(getAll, { uid, jobId, candidateUid }, core) {
   // Same answer for "not yours" and "doesn't exist".
   if (!d.job || d.job.postedByUid !== uid) throw refuse("permission-denied", "not_your_job", "You can shortlist only for your own jobs.");
   if (d.job.status !== "approved" || d.job.jobStatus !== "live") throw refuse("failed-precondition", "job_not_live", "This job isn't live. Choose a live job.");
+  if (d.poster?.postingBlocked === true) throw refuse("permission-denied", "posting_blocked", "Your account can't post jobs or shortlist from search. Please contact TIN.");
 
   if (d.app) {
     if (core.isFinal(core.currentStage(d.app))) {
@@ -70,7 +74,7 @@ async function plan(getAll, { uid, jobId, candidateUid }, core) {
     if (core.isContactUnlocked(d.app)) return { kind: "already", appId };
   }
 
-  const limit = core.shortlistLimitFrom(d.config);
+  const limit = core.shortlistLimitNow(d.config); // Infinity in beta
   const count = core.shortlistCountOf(d.job);
   if (count >= limit) throw refuse("resource-exhausted", "shortlist_full", core.SHORTLIST_FULL_MESSAGE(limit));
   const slot = { refs, appId, n: count + 1, limit, job: d.job };
@@ -84,7 +88,7 @@ async function plan(getAll, { uid, jobId, candidateUid }, core) {
 
   const day = dayInIndia();
   const usedToday = d.usage?.day === day ? Number(d.usage.count) || 0 : 0;
-  const dailyLimit = core.searchDailyLimitFrom(d.config);
+  const dailyLimit = core.searchDailyLimitNow(d.config); // Infinity in beta
   if (usedToday >= dailyLimit) {
     throw refuse("resource-exhausted", "daily_limit", dailyLimit === 0
       ? "Shortlisting from search is switched off for now."
@@ -173,8 +177,9 @@ exports.shortlistCandidate = onCall(
         tx.create(p.refs.job.collection("shortlistSlots").doc(String(p.n)), { appId: p.appId, createdAt: now });
         tx.update(p.refs.job, { shortlistCount: p.n });
         return {
-          status: "shortlisted", applicationId: p.appId, created: p.kind === "new", used: p.n, limit: p.limit,
-          ...(p.kind === "new" ? { leftToday: p.dailyLimit - p.usedToday - 1 } : {}),
+          status: "shortlisted", applicationId: p.appId, created: p.kind === "new", used: p.n,
+          ...(core.hasLimit(p.limit) ? { limit: p.limit } : {}), // none in beta
+          ...(p.kind === "new" && core.hasLimit(p.dailyLimit) ? { leftToday: p.dailyLimit - p.usedToday - 1 } : {}),
         };
       });
     } catch (e) {

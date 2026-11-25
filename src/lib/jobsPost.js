@@ -1,10 +1,10 @@
 // Firestore writes for the Post-a-job wizard and reads for the store page's
 // "Open jobs". Field shapes come from src/utils/jobDraft.js (unit-tested);
-// approval logic mirrors firestore.rules (jobListings create/update):
-//  - create: verified account → approved + live, otherwise pending;
-//  - edit:   verified account keeps the current status; an unverified
-//            poster's content edit goes back to pending (owner decision);
-//            Live/Filled/Closed-only changes never need re-approval.
+// firestore.rules (jobListings create/update) enforce the same:
+//  - create: every job goes live at once, verified account or not (owner
+//            decision for beta); "verified_business" only if really verified;
+//  - edit:   never changes the status — live stays live, and a job TIN took
+//            down stays down.
 import {
   collection, doc, getDoc, getDocs, limit, orderBy, query,
   serverTimestamp, setDoc, updateDoc, where, writeBatch,
@@ -12,6 +12,7 @@ import {
 import { db } from "../firebase/config";
 import { markJobRole } from "./jobRoles";
 import { addEntitlement, loadPricing } from "./pricing";
+import { feeInForce } from "../utils/pricing.js";
 import { normaliseJob } from "../utils/jobModel.js";
 import { buildJobFields, changedContentKeys, rememberedBusiness } from "../utils/jobDraft.js";
 
@@ -47,7 +48,7 @@ async function rememberBusiness(uid, draft) {
 // Returns { id, status }.
 export async function createJob(user, draft, store) {
   const verified = isVerifiedAccount(user);
-  const status = verified ? "approved" : "pending";
+  const status = "approved";
   const fields = buildJobFields(draft, { storeId: store?.id || null });
   // L9: the job and its free-post entitlement (365 days) in one batch.
   const ref = doc(collection(db, "jobListings"));
@@ -59,13 +60,11 @@ export async function createJob(user, draft, store) {
     postedByName: user.name || "",
     postedByType: verified ? "verified_business" : "individual",
     status,
-    // jobStatus tracks live/filled/closed independent of moderation status,
-    // and only makes sense once the listing is actually approved/visible.
-    ...(status === "approved" ? { jobStatus: "live" } : {}),
+    jobStatus: "live", // live/paused/filled/closed, separate from TIN's status
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
-  addEntitlement(batch, "job_post", user.uid, ref.id, pricing.jobPostFee);
+  addEntitlement(batch, "job_post", user.uid, ref.id, feeInForce(pricing, "jobPostFee"));
   await batch.commit();
   await rememberBusiness(user.uid, draft);
   markJobRole(user.uid, "employer"); // L3 floating buttons
@@ -74,15 +73,12 @@ export async function createJob(user, draft, store) {
 
 // Returns { status, changed } — changed=false means nothing to save.
 export async function updateJob(user, before, draft, store) {
+  const status = before.status;
   const fields = buildJobFields(draft, { storeId: store?.id || null });
   if (before.storeId && !fields.storeId) delete fields.storeId; // never drop an existing link from the client
   const changed = changedContentKeys(before, fields);
-  if (!changed.length) return { status: before.status, changed: false };
-
-  const verified = isVerifiedAccount(user);
-  const status = verified ? before.status : "pending";
+  if (!changed.length) return { status, changed: false };
   const update = { ...Object.fromEntries(changed.map(k => [k, fields[k]])), updatedAt: serverTimestamp() };
-  if (status !== before.status) update.status = status;
   await updateDoc(doc(db, "jobListings", before.id), update);
   await rememberBusiness(user.uid, draft);
   return { status, changed: true };

@@ -4,7 +4,12 @@
 // Moving them later, rejecting them or closing the job never frees a slot.
 // Pure helpers; unit-tested in test/unit/shortlist.test.js. Enforced by
 // firestore.rules (shortlistSlots + shortlistCount).
+//
+// Beta mode (Admin → Pricing, config/pricing.betaMode, ON unless switched off):
+// no limit per job and no daily limit for search, but slots and counts are
+// still recorded, so the limits can start from the real numbers.
 export const DEFAULT_SHORTLIST_LIMIT = 10;
+export const isBetaMode = (config) => config?.betaMode !== false;
 
 export const shortlistCountOf = (job) => Number(job?.shortlistCount ?? job?.raw?.shortlistCount ?? 0) || 0;
 export const shortlistLimitFrom = (config) => {
@@ -20,6 +25,14 @@ export const searchDailyLimitFrom = (config) => {
   const n = config?.searchShortlistDailyLimit;
   return Number.isInteger(n) && n >= 0 && n <= MAX_SEARCH_DAILY_LIMIT ? n : DEFAULT_SEARCH_DAILY_LIMIT;
 };
+
+// What applies right now: Infinity in beta, else the admin's number.
+export const shortlistLimitNow = (config) => (isBetaMode(config) ? Infinity : shortlistLimitFrom(config));
+export const searchDailyLimitNow = (config) => (isBetaMode(config) ? Infinity : searchDailyLimitFrom(config));
+export const hasLimit = (limit) => Number.isFinite(limit);
+// "Shortlists used: 7 of 10", or "Shortlists used: 7" while there's no limit.
+export const shortlistsUsedText = (count, limit) =>
+  (hasLimit(limit) ? `Shortlists used: ${Math.min(count, limit)} of ${limit}` : `Shortlists used: ${count}`);
 
 export const shortlistsLeft = (job, limit) => Math.max(0, limit - shortlistCountOf(job));
 export const isShortlistFull = (job, limit) => shortlistsLeft(job, limit) === 0;

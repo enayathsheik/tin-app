@@ -14,6 +14,8 @@ import { FindCandidates } from "./FindCandidates";
 import { PeopleCounts } from "./PeopleCounts";
 import { PeopleList } from "./PeopleList";
 import { currentStage, isContactUnlocked, isFinal } from "../../../utils/applications.js";
+import { isTakenDown, isWaiting, takedownReason } from "../../../utils/jobModeration.js";
+import { loadMyPostingBlock } from "../../../lib/jobModeration";
 
 const small = { minHeight: 40, padding: "0 12px", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", textDecoration: "none", display: "inline-flex", alignItems: "center", fontFamily: "inherit" };
 const outline = { ...small, background: "transparent", border: "1px solid var(--b3)", color: "var(--t1)" };
@@ -37,11 +39,22 @@ async function fetchApplicantsFor(list) {
 
 function ReviewBadge({ job }) {
   if (job.status === "approved") return null;
-  const rejected = job.status === "rejected";
+  const rejected = isTakenDown(job);
   return (
     <span style={{ fontSize: 11, fontWeight: 700, borderRadius: 10, padding: "2px 8px", whiteSpace: "nowrap", color: rejected ? "#b91c1c" : "#b45309", background: rejected ? "#fff0f0" : "#fffbeb", border: `1px solid ${rejected ? "#fecaca" : "#fde68a"}` }}>
-      {rejected ? "Not approved" : "Waiting for review"}
+      {rejected ? "Taken down by TIN" : "Not live yet"}
     </span>
+  );
+}
+
+const alertBox = { fontSize: 13, color: "#b91c1c", background: "#fff0f0", border: "1px solid #fecaca", borderRadius: 8, padding: "10px 12px", marginBottom: 12 };
+function TakenDownNote({ job }) {
+  const reason = takedownReason(job);
+  return (
+    <div role="status" style={alertBox}>
+      <b>TIN took this job down{reason ? ":" : "."}</b> {reason}
+      <div style={{ marginTop: 4 }}>It isn’t showing on TIN Jobs, and its applicants’ details are closed to you. If you think this is a mistake, please contact TIN.</div>
+    </div>
   );
 }
 
@@ -60,6 +73,12 @@ export function EmployerDesk({ user }) {
   const [closing, setClosing] = useState(null);
   const [error, setError] = useState("");
   const [failedJobs, setFailedJobs] = useState([]);
+  const [blocked, setBlocked] = useState(null); // { reason } when TIN blocked this account from posting
+  useEffect(() => {
+    let c = false;
+    if (uid) loadMyPostingBlock(uid).then(b => { if (!c) setBlocked(b); });
+    return () => { c = true; };
+  }, [uid]);
 
   const loadApps = useCallback((list) => fetchApplicantsFor(list).then(({ found, failed }) => {
     setAppsByJob(prev => ({ ...prev, ...found }));
@@ -86,7 +105,7 @@ export function EmployerDesk({ user }) {
 
   // A job opened from a link (?job=…) whose applicants weren't loaded up front.
   const selected = jobs?.find(j => j.id === selectedId) || null;
-  const needsApps = selected && !appsByJob[selected.id] ? selected : null;
+  const needsApps = selected && !isTakenDown(selected) && !appsByJob[selected.id] ? selected : null;
   useEffect(() => {
     if (!needsApps) return;
     let cancelled = false;
@@ -140,10 +159,10 @@ export function EmployerDesk({ user }) {
         <Link to={`/jobs/${j.id}`} style={outline}>View</Link>
         {/* L6: share a live job straight from the Desk. */}
         {j.status === "approved" && t === "live" && <ShareJobButton job={normaliseJob(j)} style={outline} />}
-        <Link to={`/jobs/${j.id}/edit`} style={outline}>✎ Edit</Link>
+        {!blocked && <Link to={`/jobs/${j.id}/edit`} style={outline}>✎ Edit</Link>}
         {j.status === "approved" && t === "live" && <button type="button" onClick={() => changeStatus(j, "paused")} style={outline}>Pause</button>}
-        {j.status === "approved" && t !== "live" && <button type="button" onClick={() => changeStatus(j, "live")} style={outline}>Reopen</button>}
-        {j.status === "approved" && (t === "live" || t === "paused") && <button type="button" onClick={() => startClose(j)} style={{ ...outline, color: "#b45309", borderColor: "#fcd34d" }}>Close</button>}
+        {(j.status === "approved" || isWaiting(j)) && t !== "live" && !blocked && <button type="button" onClick={() => changeStatus(j, "live")} style={outline}>Reopen</button>}
+        {(j.status === "approved" || isWaiting(j)) && (t === "live" || t === "paused") && <button type="button" onClick={() => startClose(j)} style={{ ...outline, color: "#b45309", borderColor: "#fcd34d" }}>✕ Close job</button>}
       </div>
     );
   };
@@ -185,12 +204,13 @@ export function EmployerDesk({ user }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, flexWrap: "wrap" }}>
           <div>
             <h1 style={{ ...heading, fontSize: 24, margin: 0 }}>{nj.title}</h1>
-            <div style={{ fontSize: 13, color: "var(--t3)" }}>{[nj.city, STATUS_LABEL[vacancyTab(selected)]].filter(Boolean).join(" · ")}</div>
+            <div style={{ fontSize: 13, color: "var(--t3)" }}>{[nj.city, (selected.status === "approved" || vacancyTab(selected) !== "live") && STATUS_LABEL[vacancyTab(selected)]].filter(Boolean).join(" · ")}</div>
           </div>
           <ReviewBadge job={selected} />
         </div>
         <div style={{ margin: "10px 0 14px" }}>{actions(selected, true)}</div>
         {error && <div role="alert" style={{ fontSize: 13, color: "#b91c1c", marginBottom: 10 }}>⚠ {error}</div>}
+        {isTakenDown(selected) ? <TakenDownNote job={selected} /> : <>
         <PeopleCounts counts={peopleCounts(apps)} loading={!apps} selected={people} onPick={setPeople} />
         {apps && people ? (
           <>
@@ -202,6 +222,7 @@ export function EmployerDesk({ user }) {
             onAppsChange={(list) => setAppsByJob(p => ({ ...p, [selected.id]: list }))}
             onJobPatch={(data) => patchJob(selected.id, data)} />
         ) : <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>Loading applicants…</div>}
+        </>}
         {closeSheet}
       </div>
     );
@@ -232,9 +253,15 @@ export function EmployerDesk({ user }) {
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button type="button" onClick={() => setFinding(true)} style={outline}>🔎 Find candidates</button>
-          <Link to="/jobs/post" style={{ ...btnPrimary, minHeight: 40, display: "inline-flex", alignItems: "center", textDecoration: "none", fontSize: 13 }}>+ Post a job</Link>
+          {!blocked && <Link to="/jobs/post" style={{ ...btnPrimary, minHeight: 40, display: "inline-flex", alignItems: "center", textDecoration: "none", fontSize: 13 }}>+ Post a job</Link>}
         </div>
       </div>
+      {blocked && (
+        <div role="status" style={alertBox}>
+          <b>Your account can’t post, edit or reopen jobs.</b> {blocked.reason}
+          <div style={{ marginTop: 4 }}>You can still pause or close your jobs. If you think this is a mistake, please contact TIN.</div>
+        </div>
+      )}
 
       <div className="desk-kpis" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8, marginBottom: 14 }}>
         {[["Open jobs", counts.openJobs], ["New applicants", counts.newApplicants], ["Interviews this week", counts.interviewsThisWeek], ["To reply", counts.toReply]].map(([l, v]) => (
@@ -293,6 +320,7 @@ export function EmployerDesk({ user }) {
                       </button>
                       <ReviewBadge job={j} />
                     </div>
+                    {isTakenDown(j) && <div style={{ fontSize: 12, color: "#b91c1c", marginTop: 4 }}>{takedownReason(j) || "Please contact TIN."}</div>}
                     {/* L10: shortlists used on this job. */}
                     {j.status === "approved" && <div style={{ marginTop: 4 }}><ShortlistMeter job={j} limit={shortlistLimit} compact /></div>}
                     {line && <div style={{ fontSize: 12, color: "var(--t2)", marginTop: 4 }}>{line}</div>}

@@ -42,6 +42,26 @@ afterAll(async () => {
   await testEnv.cleanup();
 });
 
+describe("job taken down by TIN", () => {
+  const set = (path, data) => testEnv.withSecurityRulesDisabled(async (c) => updateDoc(doc(c.firestore(), ...path), data));
+  it("the employer can't open a CV they had unlocked; the candidate and TIN can; restoring gives it back", async () => {
+    await set(["jobApplications", `${JOB}_${CAND}`], { stage: "shortlisted", contactUnlockedAt: new Date() });
+    await assertSucceeds(getBytes(ref(st(EMP), JOB_CV)));
+    for (const status of ["taken_down", "rejected"]) {
+      await set(["jobListings", JOB], { status });
+      await assertFails(getBytes(ref(st(EMP), JOB_CV)));
+      await assertSucceeds(getBytes(ref(st(CAND), JOB_CV)));
+      await assertSucceeds(getBytes(ref(st("cvAdmin", ADMIN_EMAIL), JOB_CV)));
+    }
+    await set(["jobListings", JOB], { status: "approved" });
+    await assertSucceeds(getBytes(ref(st(EMP), JOB_CV)));
+    await set(["jobListings", JOB], { jobStatus: "closed" });          // closing it themselves changes nothing
+    await assertSucceeds(getBytes(ref(st(EMP), JOB_CV)));
+    await set(["jobListings", JOB], { jobStatus: "live" });
+    await testEnv.withSecurityRulesDisabled(async (c) => setDoc(doc(c.firestore(), "jobApplications", `${JOB}_${CAND}`), { jobId: JOB, applicantUid: CAND, stage: "submitted", resumePath: JOB_CV }));
+  });
+});
+
 describe("per-job CV", () => {
   it("the candidate can upload and open their own CV for a job", async () => {
     const path = `resumes/${CAND}/${JOB}/1700000000001_new.pdf`;

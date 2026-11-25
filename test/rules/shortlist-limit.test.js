@@ -3,7 +3,7 @@
 // once — the first time they reach Shortlisted (contact unlock, L8) — and
 // moving them later, rejecting them or closing the job never frees the slot.
 // Enforced here in the rules (numbered slots + shortlistCount), not just the
-// screen. Run against the Firestore emulator only — never production:
+// screen. The limit applies when beta mode is OFF; beta ON is tested last. Run against the Firestore emulator only — never production:
 //   npm run test:rules
 import { readFileSync } from "fs";
 import { beforeAll, beforeEach, afterAll, describe, it, expect } from "vitest";
@@ -37,6 +37,7 @@ beforeEach(async () => {
   await testEnv.clearFirestore();
   await testEnv.withSecurityRulesDisabled(async (c) => {
     const db = c.firestore();
+    await setDoc(doc(db, "config", "pricing"), { betaMode: false });
     await setDoc(doc(db, "jobListings", JOB), { postedByUid: EMP, jobTitle: "Masons", status: "approved", jobStatus: "live", createdAt: new Date() });
     for (let i = 1; i <= 13; i++) await setDoc(doc(db, "jobApplications", appId(i)), submitted(i));
   });
@@ -57,8 +58,8 @@ describe("the limit (default 10)", () => {
   });
 
   it("an admin-set limit in config/pricing is used (and only the admin can set it)", async () => {
-    await assertFails(setDoc(doc(as(EMP), "config", "pricing"), { ...pricingFrom(null), shortlistLimit: 50 }));
-    await assertSucceeds(setDoc(doc(as("adm", ADMIN_EMAIL), "config", "pricing"), { ...pricingFrom(null), shortlistLimit: 2 }));
+    await assertFails(setDoc(doc(as(EMP), "config", "pricing"), { ...pricingFrom({ betaMode: false }), shortlistLimit: 50 }));
+    await assertSucceeds(setDoc(doc(as("adm", ADMIN_EMAIL), "config", "pricing"), { ...pricingFrom({ betaMode: false }), shortlistLimit: 2 }));
     await assertSucceeds(firstShortlist(as(EMP), appId(1), JOB, await shortlistUpdate(1), 1));
     await assertSucceeds(firstShortlist(as(EMP), appId(2), JOB, await shortlistUpdate(2), 2));
     await assertFails(firstShortlist(as(EMP), appId(3), JOB, await shortlistUpdate(3), 3));
@@ -111,6 +112,51 @@ describe("bulk shortlist over the limit partly applies", () => {
   });
 });
 
+describe("beta mode", () => {
+  const setConfig = (data) => testEnv.withSecurityRulesDisabled(async (c) => (data ? setDoc(doc(c.firestore(), "config", "pricing"), data) : deleteDoc(doc(c.firestore(), "config", "pricing"))));
+  const fill = (n) => testEnv.withSecurityRulesDisabled(async (c) => updateDoc(doc(c.firestore(), "jobListings", JOB), { shortlistCount: n }));
+
+  it("ON when there's no setting yet: no limit, and slots and the count are still recorded", async () => {
+    for (const cfg of [null, { shortlistLimit: 10 }, { shortlistLimit: 2, betaMode: true }]) {
+      await setConfig(cfg);
+      const i = cfg ? (cfg.betaMode ? 3 : 2) : 1;
+      await fill(9 + i);
+      await assertSucceeds(firstShortlist(as(EMP), appId(i), JOB, await shortlistUpdate(i), 10 + i));
+      expect((await read(["jobListings", JOB])).shortlistCount).toBe(10 + i);
+      expect((await read(["jobListings", JOB, "shortlistSlots", String(10 + i)])).appId).toBe(appId(i));
+      expect((await read(["jobApplications", appId(i)])).shortlistSlot).toBe(10 + i);
+    }
+  });
+  it("ON: past 999, and contact still can't be unlocked without a recorded slot", async () => {
+    await setConfig({ betaMode: true });
+    await fill(1500);
+    await assertFails(updateDoc(doc(as(EMP), "jobApplications", appId(1)), await shortlistUpdate(1)));
+    await assertFails(firstShortlist(as(EMP), appId(1), JOB, await shortlistUpdate(1), 1501, { count: 1500 }));
+    await assertSucceeds(firstShortlist(as(EMP), appId(1), JOB, await shortlistUpdate(1), 1501));
+  });
+  it("switched OFF: the limit applies at once, even to a job already past it", async () => {
+    await setConfig({ betaMode: true, shortlistLimit: 3 });
+    for (let i = 1; i <= 4; i++) await assertSucceeds(firstShortlist(as(EMP), appId(i), JOB, await shortlistUpdate(i), i));
+    await setConfig({ betaMode: false, shortlistLimit: 3 });
+    await assertFails(firstShortlist(as(EMP), appId(5), JOB, await shortlistUpdate(5), 5));
+    // People already shortlisted can still be moved on.
+    await assertSucceeds(updateDoc(doc(as(EMP), "jobApplications", appId(4)), await shortlistUpdate(4, "contacted")));
+    await setConfig({ betaMode: false });   // no number saved: 10
+    await assertSucceeds(firstShortlist(as(EMP), appId(5), JOB, await shortlistUpdate(5), 5));
+    await fill(10);
+    await assertFails(firstShortlist(as(EMP), appId(6), JOB, await shortlistUpdate(6), 11));
+  });
+  it("only the admin can switch it, and only to yes or no", async () => {
+    const p = pricingFrom(null);
+    expect(p.betaMode).toBe(true);
+    const admin = as("adm", ADMIN_EMAIL);
+    await assertFails(setDoc(doc(as(EMP), "config", "pricing"), { ...p, betaMode: true }));
+    await assertFails(updateDoc(doc(as(EMP), "config", "pricing"), { betaMode: true }));
+    for (const v of ["off", 0, null]) await assertFails(setDoc(doc(admin, "config", "pricing"), { ...p, betaMode: v }));
+    for (const v of [false, true]) await assertSucceeds(setDoc(doc(admin, "config", "pricing"), { ...p, betaMode: v }));
+  });
+});
+
 describe("slot tampering", () => {
   it("a slot must belong to an application of THIS job that takes it in the same batch", async () => {
     await assertFails(firstShortlist(as(EMP), appId(1), JOB, await shortlistUpdate(1), 1, { slotAppId: appId(2) }));
@@ -122,7 +168,9 @@ describe("slot tampering", () => {
     await assertFails(firstShortlist(as("emp2"), appId(1), JOB, await shortlistUpdate(1), 1));
   });
   it("a new job can't start with shortlists used", async () => {
-    await assertFails(setDoc(doc(as(EMP), "jobListings", "j2"), { postedByUid: EMP, status: "pending", shortlistCount: 3, lane: "skilled", headcount: 1,
-      pay: { period: "month", min: 1000, max: 2000, display: "show_range", negotiable: false, incentives: "" } }));
+    const j = (n) => ({ postedByUid: EMP, status: "approved", jobStatus: "live", shortlistCount: n, lane: "skilled", headcount: 1, createdAt: serverTimestamp(),
+      pay: { period: "month", min: 1000, max: 2000, display: "show_range", negotiable: false, incentives: "" } });
+    await assertFails(setDoc(doc(as(EMP), "jobListings", "j2"), j(3)));
+    await assertSucceeds(setDoc(doc(as(EMP), "jobListings", "j2"), j(0)));
   });
 });

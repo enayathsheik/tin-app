@@ -74,6 +74,8 @@ beforeAll(async () => {
 beforeEach(async () => {
   await fetch(`http://127.0.0.1:8080/emulator/v1/projects/${PROJECT}/databases/(default)/documents`, { method: "DELETE" });
   await bucket.deleteFiles({ prefix: "resumes/", force: true });
+  // Beta OFF (the paid rules) unless a test says otherwise.
+  await db.doc("config/pricing").set({ betaMode: false });
   await db.doc(`jobListings/${JOB}`).set(job());
   await putPerson(cand.uid);
 });
@@ -93,11 +95,75 @@ describe("who may call it", () => {
     await expectUntouched();
   });
   it("only a live, approved job", async () => {
-    for (const extra of [{ status: "pending" }, { status: "rejected" }, { jobStatus: "paused" }, { jobStatus: "filled" }, { jobStatus: "closed" }, { jobStatus: null }, { status: null }]) {
+    for (const extra of [{ status: "pending" }, { status: "rejected" }, { status: "taken_down", takedown: { reason: "Scam" } }, { jobStatus: "paused" }, { jobStatus: "filled" }, { jobStatus: "closed" }, { jobStatus: null }, { status: null }]) {
       await db.doc(`jobListings/${JOB}`).set(job(extra));
       expect((await go()).code).toBe("job_not_live");
     }
     await expectUntouched();
+  });
+});
+
+describe("beta mode ON", () => {
+  it("no limit per job and no daily limit, for a job that was never checked — and everything is still counted", async () => {
+    for (const [n, cfg] of [null, { shortlistLimit: 2, searchShortlistDailyLimit: 0 }, { betaMode: true, shortlistLimit: 2, searchShortlistDailyLimit: 1 }].entries()) {
+      if (cfg) await db.doc("config/pricing").set(cfg); else await db.doc("config/pricing").delete();
+      await db.doc(`jobListings/${JOB}`).set(job({ postedByType: "individual", shortlistCount: 25 }));
+      await db.doc(`searchShortlistUsage/${emp.uid}`).set({ day: today(), count: 40 });
+      await putPerson(`b${n}`);
+      const r = await go({ candidateUid: `b${n}` });
+      expect(r).toEqual({ status: "shortlisted", applicationId: `${JOB}_b${n}`, created: true, used: 26 });
+      expect((await get(`jobListings/${JOB}`)).shortlistCount).toBe(26);
+      expect((await get(`jobListings/${JOB}/shortlistSlots/26`)).appId).toBe(`${JOB}_b${n}`);
+      expect((await get(`jobApplications/${JOB}_b${n}`)).shortlistSlot).toBe(26);
+      expect((await get(`searchShortlistUsage/${emp.uid}`)).count).toBe(41);
+      expect((await get(`jobApplications/${JOB}_b${n}/private/contact`)).applicantPhone).toBe(PRIV.phone);
+      await db.doc(`jobListings/${JOB}/shortlistSlots/26`).delete();
+    }
+  });
+  it("consent, own job, live job and phone are still required", async () => {
+    await db.doc("config/pricing").set({ betaMode: true });
+    expect((await go({}, emp2)).code).toBe("not_your_job");
+    await putPerson(cand.uid, { openToEmployers: false });
+    expect((await go()).code).toBe("not_available");
+    await putPerson(cand.uid, {}, { phone: "" });
+    expect((await go()).code).toBe("no_phone");
+    await putPerson(cand.uid);
+    await db.doc(`jobListings/${JOB}`).set(job({ status: "pending" }));
+    expect((await go()).code).toBe("job_not_live");
+    await expectUntouched();
+  });
+  it("switched OFF again: both limits apply to what beta counted", async () => {
+    await db.doc("config/pricing").set({ betaMode: true });
+    await db.doc(`searchShortlistUsage/${emp.uid}`).set({ day: today(), count: 19 });
+    await putPerson("o1"); await putPerson("o2");
+    expect((await go({ candidateUid: "o1" })).status).toBe("shortlisted");
+    await db.doc("config/pricing").set({ betaMode: false, shortlistLimit: 10, searchShortlistDailyLimit: 20 });
+    expect((await go({ candidateUid: "o2" })).code).toBe("daily_limit");
+    await db.doc(`searchShortlistUsage/${emp.uid}`).delete();
+    await db.doc(`jobListings/${JOB}`).update({ shortlistCount: 10 });
+    expect((await go({ candidateUid: "o2" })).code).toBe("shortlist_full");
+  });
+});
+
+describe("taken down or blocked", () => {
+  it("a blocked account can't shortlist from search; unblocked, it can", async () => {
+    await db.doc(`users/${emp.uid}`).set({ role: "employer", postingBlocked: true, postingBlockedReason: "Scam" });
+    expect((await go()).code).toBe("posting_blocked");
+    await expectUntouched();
+    await db.doc(`users/${emp.uid}`).set({ role: "employer" });
+    expect((await go()).status).toBe("shortlisted");
+  });
+  it("taking the job down closes a contact already unlocked; restoring opens it", async () => {
+    await go();
+    const contact = `jobApplications/${JOB}_${cand.uid}/private/contact`, application = `jobApplications/${JOB}_${cand.uid}`;
+    expect(await canRead(emp, contact)).toBe(true);
+    await db.doc(`jobListings/${JOB}`).update({ status: "taken_down" });
+    expect(await canRead(emp, contact)).toBe(false);
+    expect(await canRead(emp, application)).toBe(false);
+    expect(await canRead(cand, contact)).toBe(true);
+    expect((await go()).code).toBe("job_not_live");
+    await db.doc(`jobListings/${JOB}`).update({ status: "approved" });
+    expect(await canRead(emp, contact)).toBe(true);
   });
 });
 
@@ -254,7 +320,7 @@ describe("10 per job", () => {
     expect((await get(`jobApplications/${JOB}_p12`)).stage).toBe("submitted");
   });
   it("the admin's own limit is used", async () => {
-    await db.doc("config/pricing").set({ shortlistLimit: 2 });
+    await db.doc("config/pricing").set({ betaMode: false, shortlistLimit: 2 });
     for (const p of ["a1", "a2", "a3"]) await putPerson(p);
     expect((await go({ candidateUid: "a1" })).used).toBe(1);
     expect((await go({ candidateUid: "a2" })).limit).toBe(2);
@@ -309,11 +375,11 @@ describe("20 a day", () => {
     expect((await go({ jobId: "jobE2" }, emp2)).leftToday).toBe(19);
   });
   it("the admin's number is used; 0 switches it off", async () => {
-    await db.doc("config/pricing").set({ shortlistLimit: 10, searchShortlistDailyLimit: 1 });
+    await db.doc("config/pricing").set({ betaMode: false, shortlistLimit: 10, searchShortlistDailyLimit: 1 });
     await putPerson("e2");
     expect((await go()).leftToday).toBe(0);
     expect((await go({ candidateUid: "e2" })).code).toBe("daily_limit");
-    await db.doc("config/pricing").set({ shortlistLimit: 10, searchShortlistDailyLimit: 0 });
+    await db.doc("config/pricing").set({ betaMode: false, shortlistLimit: 10, searchShortlistDailyLimit: 0 });
     await db.doc(`searchShortlistUsage/${emp.uid}`).delete();
     expect((await go({ candidateUid: "e2" })).message).toBe("Shortlisting from search is switched off for now.");
   });

@@ -6,7 +6,7 @@
 import { readFileSync } from "fs";
 import { beforeAll, afterAll, describe, it } from "vitest";
 import { initializeTestEnvironment, assertSucceeds, assertFails } from "@firebase/rules-unit-testing";
-import { doc, setDoc, addDoc, updateDoc, collection } from "firebase/firestore";
+import { doc, setDoc, addDoc, updateDoc, collection, serverTimestamp } from "firebase/firestore";
 import { buildJobFields, emptyDraft } from "../../src/utils/jobDraft.js";
 
 const PROJECT_ID = "jobs-post-test";
@@ -23,8 +23,8 @@ const draft = (extra = {}) => ({
   ...extra,
 });
 const newJob = (uid, status, fields) => ({
-  ...fields, postedByUid: uid, postedByName: "X", postedByType: status === "approved" ? "verified_business" : "individual",
-  status, ...(status === "approved" ? { jobStatus: "live" } : {}), createdAt: new Date(), updatedAt: new Date(),
+  ...fields, postedByUid: uid, postedByName: "X", postedByType: uid === "verified" ? "verified_business" : "individual",
+  status, ...(status === "approved" ? { jobStatus: "live" } : {}), createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
 });
 
 beforeAll(async () => {
@@ -59,14 +59,29 @@ afterAll(async () => {
 });
 
 describe("create with the wizard's fields", () => {
-  it("unverified account: a pending job with new + legacy fields is allowed", async () => {
+  it("unverified account: the job goes live at once (and an older open page's pending job still saves)", async () => {
     const db = testEnv.authenticatedContext("plain").firestore();
+    await assertSucceeds(addDoc(collection(db, "jobListings"), newJob("plain", "approved", buildJobFields(draft()))));
     await assertSucceeds(addDoc(collection(db, "jobListings"), newJob("plain", "pending", buildJobFields(draft()))));
   });
 
-  it("unverified account can't self-approve", async () => {
+  it("an account with no users record can post too", async () => {
+    const db = testEnv.authenticatedContext("noRecord").firestore();
+    await assertSucceeds(addDoc(collection(db, "jobListings"), newJob("noRecord", "approved", buildJobFields(draft()))));
+  });
+
+  it("can't fake the verified badge, the posting time, another status, or a take-down note", async () => {
     const db = testEnv.authenticatedContext("plain").firestore();
-    await assertFails(addDoc(collection(db, "jobListings"), newJob("plain", "approved", buildJobFields(draft()))));
+    const add = (extra) => addDoc(collection(db, "jobListings"), { ...newJob("plain", "approved", buildJobFields(draft())), ...extra });
+    await assertFails(add({ postedByType: "verified_business" }));
+    await assertFails(add({ postedByType: "tin_partner" }));
+    await assertFails(add({ createdAt: new Date(Date.now() + 86400000 * 365) }));
+    await assertFails(add({ createdAt: new Date(Date.now() - 86400000) }));
+    await assertFails(add({ status: "taken_down" }));
+    await assertFails(add({ status: "rejected" }));
+    await assertFails(add({ jobStatus: "paused" }));
+    await assertFails(add({ takedown: { reason: "x" } }));
+    await assertSucceeds(add({}));
   });
 
   it("verified account: approved + live with its own storeId", async () => {
@@ -133,16 +148,16 @@ describe("poster edits", () => {
     await assertSucceeds(updateDoc(doc(db, "jobListings", "legacyLive"), { jobStatus: "live", updatedAt: new Date() }));
   });
 
-  it("unverified poster: a content edit of a live job must go back to pending", async () => {
+  it("unverified poster: a content edit of a live job stays live, and never goes to pending", async () => {
     const db = testEnv.authenticatedContext("plain").firestore();
-    await assertFails(updateDoc(doc(db, "jobListings", "plainLive"), { jobTitle: "Senior Sales Executive", updatedAt: new Date() }));
-    await assertSucceeds(updateDoc(doc(db, "jobListings", "plainLive"), { jobTitle: "Senior Sales Executive", status: "pending", updatedAt: new Date() }));
+    await assertSucceeds(updateDoc(doc(db, "jobListings", "plainLive"), { jobTitle: "Senior Sales Executive", updatedAt: new Date() }));
+    await assertFails(updateDoc(doc(db, "jobListings", "plainLive"), { jobTitle: "Sales Head", status: "pending", updatedAt: new Date() }));
   });
 
-  it("unverified poster can edit an old-shape job (it goes to pending)", async () => {
+  it("unverified poster can edit an old-shape job (it stays live)", async () => {
     const db = testEnv.authenticatedContext("plain").firestore();
     const f = buildJobFields(draft({ title: "Interior Designer", pay: { period: "month", min: "35000", max: "", display: "show_range", incentives: "" } }));
-    await assertSucceeds(updateDoc(doc(db, "jobListings", "legacyLive"), { ...f, status: "pending", updatedAt: new Date() }));
+    await assertSucceeds(updateDoc(doc(db, "jobListings", "legacyLive"), { ...f, updatedAt: new Date() }));
   });
 
   it("unverified poster editing a pending job keeps it pending", async () => {

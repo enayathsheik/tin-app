@@ -118,7 +118,8 @@ service firebase.storage {
           || request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.wordprocessingml.document')
         );
     }
-    // Owner decision: the employer loses access when the candidate withdraws.
+    // Owner decision: the employer loses access when the candidate withdraws,
+    // and while TIN has taken the job down (firestore.rules isActivePoster()).
     // L8: …and only once the application reached Shortlisted or later
     // (contactUnlockedAt, or an old application already at such a stage) —
     // mirrors firestore.rules contactUnlocked().
@@ -126,6 +127,7 @@ service firebase.storage {
       return firestore.exists(/databases/(default)/documents/jobApplications/$(jobId + "_" + uid))
         && firestore.get(/databases/(default)/documents/jobApplications/$(jobId + "_" + uid)).data.get("stage", "submitted") != "withdrawn"
         && firestore.get(/databases/(default)/documents/jobListings/$(jobId)).data.get("postedByUid", "") == request.auth.uid
+        && !(firestore.get(/databases/(default)/documents/jobListings/$(jobId)).data.get("status", "") in ["taken_down", "rejected"])
         && cvContactUnlocked(firestore.get(/databases/(default)/documents/jobApplications/$(jobId + "_" + uid)).data);
     }
     function cvContactUnlocked(d) {

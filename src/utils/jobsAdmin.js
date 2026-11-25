@@ -14,7 +14,8 @@ import { normaliseJob } from "./jobModel.js";
 import { isApplyReady, profileFromDocs } from "./jobProfile.js";
 import { isEmployerByAccount } from "./jobRoles.js";
 import { isSyntheticPhoneEmail } from "./phoneAuth.js";
-import { isShortlistFull, shortlistCountOf } from "./shortlist.js";
+import { isTakenDown } from "./jobModeration.js";
+import { hasLimit, isShortlistFull, shortlistCountOf } from "./shortlist.js";
 import { claimChecks } from "./storeClaim.js";
 import { isImportedStore } from "./storeVisibility.js";
 
@@ -68,16 +69,17 @@ export const JOB_STATES = [
   { key: "paused", label: "Paused" },
   { key: "filled", label: "Filled" },
   { key: "closed", label: "Closed" },
-  { key: "pending", label: "In review" },
-  { key: "rejected", label: "Rejected" },
+  { key: "pending", label: "Waiting" },
+  { key: "rejected", label: "Taken down" },
 ];
 export const jobStateLabel = (k) => JOB_STATES.find(x => x.key === k)?.label || k;
-// Same order as the Employer Desk: paused / filled / closed win; a job that
-// isn't approved yet is in review (or rejected), never "open".
+// Taken down wins; then, as on the Employer Desk, paused / filled / closed; a
+// job from before beta that nobody approved is waiting, never "open".
 export function jobState(job) {
+  if (isTakenDown(job)) return "rejected";
   const tab = vacancyTab(job);
   if (tab !== "live") return tab;
-  return job?.status === "approved" ? "open" : job?.status === "rejected" ? "rejected" : "pending";
+  return job?.status === "approved" ? "open" : "pending";
 }
 
 export function buildJobs({ jobs, applications, users, limit }) {
@@ -108,7 +110,9 @@ export function buildJobs({ jobs, applications, users, limit }) {
     };
   }).sort(newestFirst);
 }
-export const shortlistText = (j) => `${j.slots}/${j.limit}`;
+export const shortlistText = (j) => usedOf(j.slots, j.limit);
+// "3/10", or just "3" while there's no limit (beta mode).
+export const usedOf = (used, limit) => (hasLimit(limit) ? `${used}/${limit}` : String(used));
 
 // ── Job seekers ──────────────────────────────────────────────
 export const LANE_OPTIONS = [["professional", "White-collar"], ["skilled", "Skilled / blue-collar"]];
@@ -448,7 +452,7 @@ export const seekerExport = (r, link = "") => ({
 export const businessExport = (r) => ({
   Business: r.business, Status: businessStateLabel(r.state), "Owner / contact": r.contact, Mobile: r.phone, Email: r.email, City: r.city, Type: r.type, "Deals in": r.dealsIn || "",
   Verified: r.verified, "Jobs posted": r.jobs, "Open jobs": r.openJobs,
-  "Shortlists used": r.slots, "Shortlists available": r.slotsTotal, Joined: ymd(r.created),
+  "Shortlists used": r.slots, "Shortlists available": hasLimit(r.slotsTotal) ? r.slotsTotal : "No limit (beta)", Joined: ymd(r.created),
 });
 export const approvalExport = (r) => ({
   Business: r.business, Kind: r.kindText, City: r.city, Owner: r.owner, Mobile: r.phone, Email: r.email, GST: r.gst,

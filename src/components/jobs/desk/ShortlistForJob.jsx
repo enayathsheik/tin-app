@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { loadMyLiveJobs, shortlistFromSearch } from "../../../lib/findCandidates";
 import { loadApplicationContact, openApplicationCv } from "../../../lib/applications";
 import { messageAboutApplication } from "../../../lib/jobMessages";
-import { SHORTLIST_FULL_MESSAGE, isShortlistFull } from "../../../utils/shortlist.js";
+import { SHORTLIST_FULL_MESSAGE, hasLimit, isShortlistFull, shortlistsUsedText } from "../../../utils/shortlist.js";
 import { useShortlistLimit } from "../../../hooks/useShortlistLimit";
 
 const btn = { minHeight: 44, padding: "0 14px", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" };
@@ -97,7 +97,7 @@ export function ShortlistForJob({ person, user, jobs, onShortlisted, onOpenJob }
     return (
       <div style={warn}>
         {error.text || "You need a live job to shortlist someone."}{" "}
-        {waiting ? "Your job is waiting for TIN’s review. Once it’s live, you can shortlist people for it." : paused ? "Reopen a paused job from your Desk, or post a new one." : "Post a job first. It’s reviewed, then you can shortlist people for it."}
+        {waiting ? "Your earlier job isn’t live yet. Post a job, then shortlist people for it." : paused ? "Reopen a paused job from your Desk, or post a new one." : "Post a job first. It goes live straight away, then you can shortlist people for it."}
         <div>{postButton}</div>
       </div>
     );
@@ -113,7 +113,7 @@ export function ShortlistForJob({ person, user, jobs, onShortlisted, onOpenJob }
             <button key={j.id} type="button" role="radio" aria-checked={on} disabled={busy} onClick={() => { setJobId(j.id); setError({ code: "", text: "" }); }}
               style={{ textAlign: "left", padding: "10px 12px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit", border: `2px solid ${on ? "var(--acc)" : "var(--b2)"}`, background: on ? "var(--s2)" : "var(--s1)" }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: "var(--t1)" }}>{on ? "✓ " : ""}{j.title}</div>
-              <div style={{ fontSize: 12, color: isShortlistFull(j, limit) ? "#b45309" : "var(--t3)" }}>{[j.city, `Shortlists used: ${Math.min(j.shortlistCount, limit)} of ${limit}`].filter(Boolean).join(" · ")}</div>
+              <div style={{ fontSize: 12, color: isShortlistFull(j, limit) ? "#b45309" : "var(--t3)" }}>{[j.city, shortlistsUsedText(j.shortlistCount, limit)].filter(Boolean).join(" · ")}</div>
             </button>
           );
         })}
@@ -123,7 +123,7 @@ export function ShortlistForJob({ person, user, jobs, onShortlisted, onOpenJob }
         <div role="status" style={{ ...warn, marginTop: 12 }}>{SHORTLIST_FULL_MESSAGE(limit)}<div>{postButton}</div></div>
       ) : (
         <>
-          <div style={{ fontSize: 12, color: "var(--t3)", margin: "12px 0" }}>Uses 1 of this job’s shortlists and shows you their phone, email and CV straight away. They’ll see it in My applications. Use these details only for hiring for this job.</div>
+          <div style={{ fontSize: 12, color: "var(--t3)", margin: "12px 0" }}>{hasLimit(limit) ? "Uses 1 of this job’s shortlists and shows you" : "Shows you"} their phone, email and CV straight away. They’ll see it in My applications. Use these details only for hiring for this job.</div>
           <button type="button" disabled={busy || !job} onClick={go} style={{ ...primary, width: "100%", opacity: job ? 1 : 0.5 }}>{busy ? "Shortlisting…" : "Shortlist and show contact"}</button>
         </>
       )}

@@ -3,13 +3,13 @@
 // (Admin → Pricing). No payments yet.
 import { useEffect, useState } from "react";
 import { loadPricing } from "../../lib/pricing";
-import { priceDisplay } from "../../utils/pricing.js";
+import { feeInForce, priceDisplay } from "../../utils/pricing.js";
 
 export function PriceTag({ kind, style }) {
   const [pricing, setPricing] = useState(null);
   useEffect(() => { let c = false; loadPricing().then(p => { if (!c) setPricing(p); }); return () => { c = true; }; }, []);
   if (!pricing) return null;
-  const fee = kind === "jobPost" ? pricing.jobPostFee : pricing.profileFee;
+  const fee = feeInForce(pricing, kind === "jobPost" ? "jobPostFee" : "profileFee");
   const d = priceDisplay(fee);
   return (
     <div style={{ display: "inline-flex", alignItems: "baseline", gap: 8, fontSize: 14, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "4px 10px", ...style }}>

@@ -1,4 +1,5 @@
-// L9: Admin → Pricing. Job-seeker profile fee and job-post fee (list price,
+// L9: Admin → Pricing. Beta mode (ON = everything free, no shortlist limits),
+// then, for when it's OFF: Job-seeker profile fee and job-post fee (list price,
 // offer price, Launch discount toggle: ON = ₹0) and the per-job shortlist
 // limit (L10). Saved to config/pricing — only the TIN admin can write it
 // (firestore.rules). No payments yet: this only changes what screens show and
@@ -12,7 +13,7 @@ const box = { background: "#fff", border: "1px solid #e0e0e0", borderRadius: 12,
 const inp = { width: 120, padding: "8px 10px", borderRadius: 8, border: "1px solid #ddd", fontSize: 14 };
 const lbl = { display: "block", fontSize: 12, fontWeight: 700, color: "#555", marginBottom: 4 };
 
-function FeeEditor({ title, value, onChange, errFor }) {
+function FeeEditor({ title, value, onChange, errFor, beta }) {
   const d = priceDisplay({ list: Number(value.list) || 0, offer: Number(value.offer) || 0, launchDiscount: !!value.launchDiscount });
   return (
     <div style={box}>
@@ -27,7 +28,7 @@ function FeeEditor({ title, value, onChange, errFor }) {
       </label>
       {[errFor("list"), errFor("offer")].filter(Boolean).map(m => <div key={m} role="alert" style={{ color: "#b91c1c", fontSize: 12, marginTop: 6 }}>⚠ {m}</div>)}
       <div style={{ fontSize: 12, color: "#555", marginTop: 10 }}>
-        Users see: {d.struck != null && <s>₹{d.struck.toLocaleString("en-IN")}</s>} <b>{d.label}</b>
+        Users see{beta ? " after beta" : ""}: {d.struck != null && <s>₹{d.struck.toLocaleString("en-IN")}</s>} <b>{d.label}</b>
       </div>
     </div>
   );
@@ -69,13 +70,25 @@ export function PricingSection({ user }) {
         <div className="admin-title">Pricing</div>
         <div className="admin-sub">No payments yet. These prices show on the profile and post-job screens, and are recorded with each free profile / job post (valid 365 days). Only the TIN admin can change them.</div>
       </div>
-      <FeeEditor title="Job-seeker profile fee" value={form.profileFee} onChange={v => setForm({ ...form, profileFee: v })} errFor={errFor("profileFee")} />
-      <FeeEditor title="Job-post fee" value={form.jobPostFee} onChange={v => setForm({ ...form, jobPostFee: v })} errFor={errFor("jobPostFee")} />
+      <div style={{ ...box, borderColor: form.betaMode ? "#86efac" : "#e0e0e0", background: form.betaMode ? "#f0fdf4" : "#fff" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 15, cursor: "pointer" }}>
+          <input type="checkbox" checked={form.betaMode} onChange={e => setForm({ ...form, betaMode: e.target.checked })} />
+          <span style={{ fontWeight: 800 }}>Beta mode is {form.betaMode ? "ON" : "OFF"}</span>
+        </label>
+        <div style={{ fontSize: 13, color: "#555", lineHeight: 1.5, marginTop: 8 }}>
+          <b>ON:</b> everything is free, with no shortlist limit per job and no daily limit on shortlisting from search. Shortlists are still counted.<br />
+          <b>OFF:</b> the prices and limits below apply. Jobs already at or past the limit can’t shortlist anyone new.
+        </div>
+        <div style={{ fontSize: 12, color: "#555", marginTop: 8 }}>Takes effect when you press Save pricing.</div>
+      </div>
+      {form.betaMode && <div style={{ fontSize: 13, fontWeight: 700, color: "#555", margin: "0 0 10px" }}>For after beta (not in use now):</div>}
+      <FeeEditor title="Job-seeker profile fee" value={form.profileFee} onChange={v => setForm({ ...form, profileFee: v })} errFor={errFor("profileFee")} beta={form.betaMode} />
+      <FeeEditor title="Job-post fee" value={form.jobPostFee} onChange={v => setForm({ ...form, jobPostFee: v })} errFor={errFor("jobPostFee")} beta={form.betaMode} />
       <div style={box}>
         <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 10 }}>Shortlist limit</div>
         <label><span style={lbl}>Shortlists per job post</span><input style={inp} inputMode="numeric" value={form.shortlistLimit} onChange={e => setForm({ ...form, shortlistLimit: e.target.value })} /></label>
         {errors.find(e => e.field === "shortlistLimit") && <div role="alert" style={{ color: "#b91c1c", fontSize: 12, marginTop: 6 }}>⚠ {errors.find(e => e.field === "shortlistLimit").message}</div>}
-        <div style={{ fontSize: 12, color: "#555", marginTop: 8 }}>Applies to every job, always — whatever the price or discount. An applicant counts once, the first time they're shortlisted. Lowering it never takes back shortlists already used.</div>
+        <div style={{ fontSize: 12, color: "#555", marginTop: 8 }}>When beta mode is OFF, applies to every job, whatever the price or discount. An applicant counts once, the first time they're shortlisted. Lowering it never takes back shortlists already used.</div>
         <label style={{ display: "block", marginTop: 14 }}><span style={lbl}>Shortlists from search, per employer per day</span><input style={inp} inputMode="numeric" value={form.searchShortlistDailyLimit} onChange={e => setForm({ ...form, searchShortlistDailyLimit: e.target.value })} /></label>
         {errors.find(e => e.field === "searchShortlistDailyLimit") && <div role="alert" style={{ color: "#b91c1c", fontSize: 12, marginTop: 6 }}>⚠ {errors.find(e => e.field === "searchShortlistDailyLimit").message}</div>}
         <div style={{ fontSize: 12, color: "#555", marginTop: 8 }}>How many new people one employer can shortlist from Find candidates in a day, across all their jobs. People who applied don’t count. 0 switches it off.</div>

@@ -9,7 +9,9 @@ import {
   WIZARD_STEPS, draftFromJob, emptyDraft, isShortAssignment, validateStep,
 } from "../utils/jobDraft.js";
 import { formatPay } from "../utils/jobModel.js";
-import { createJob, isVerifiedAccount, loadJobForEdit, loadLinkedStore, updateJob } from "../lib/jobsPost";
+import { createJob, loadJobForEdit, loadLinkedStore, updateJob } from "../lib/jobsPost";
+import { loadMyPostingBlock } from "../lib/jobModeration";
+import { isTakenDown, takedownReason } from "../utils/jobModeration.js";
 import { validatePincode } from "../utils/helpers";
 import { JobsStyles } from "../components/jobs/jobsUi";
 import { LANE_COLOR, btnOutline, btnPrimary, card, heading } from "../components/jobs/jobsStyle";
@@ -64,7 +66,11 @@ export function PostJobPage({ user, isGuest, onRequireLogin, onListStore, toast 
     let cancelled = false;
     (async () => {
       const user = userRef.current;
-      const linked = await loadLinkedStore(user);
+      const [linked, blocked] = await Promise.all([loadLinkedStore(user), loadMyPostingBlock(user.uid)]);
+      if (blocked) {
+        if (!cancelled) { setLoadError(`Your account can’t post or edit jobs right now.${blocked.reason ? ` Reason: ${blocked.reason}.` : ""} Please contact TIN if you think this is a mistake.`); setReady(true); }
+        return;
+      }
       let job = null;
       if (isEdit) {
         try { job = await loadJobForEdit(jobId); } catch (e) { console.error("[post-job] load failed:", e); }
@@ -98,7 +104,6 @@ export function PostJobPage({ user, isGuest, onRequireLogin, onListStore, toast 
   });
   const errFor = (field) => errors.find(e => e.field === field)?.message;
   const short = draft ? isShortAssignment(draft) : false;
-  const verified = isVerifiedAccount(user);
 
   const goTo = (n) => { setErrors([]); setStep(n); window.scrollTo?.(0, 0); document.querySelector(".tj-scroll")?.scrollTo?.(0, 0); };
   const next = () => {
@@ -120,7 +125,7 @@ export function PostJobPage({ user, isGuest, onRequireLogin, onListStore, toast 
       const result = isEdit ? await updateJob(user, existing, draft, store) : { ...(await createJob(user, draft, store)), changed: true };
       clearSaved(key);
       setDone({ id: isEdit ? existing.id : result.id, status: result.status, changed: result.changed });
-      if (result.changed) toast?.(isEdit ? "Changes saved" : (result.status === "approved" ? "Job posted! It's now live." : "Submitted for review"), "ok");
+      if (result.changed) toast?.(isEdit ? "Changes saved" : "Job posted! It's now live.", "ok");
     } catch (e) {
       console.error("[post-job] save failed:", e);
       setErrors([{ field: "_save", message: "Could not save: " + (e.message || e) }]);
@@ -166,17 +171,19 @@ export function PostJobPage({ user, isGuest, onRequireLogin, onListStore, toast 
   if (loadError) return shell(<div style={{ ...card, padding: 24, textAlign: "center", color: "var(--t2)" }}>{loadError} <Link to="/jobs" style={{ color: "var(--acc)" }}>Back to Jobs</Link></div>);
 
   if (done) {
-    const live = done.status === "approved";
+    const live = done.status === "approved" && (!isEdit || (existing?.jobStatus || "live") === "live");
+    const down = isTakenDown({ status: done.status });
     return shell(
       <div style={{ ...card, padding: "32px 20px", textAlign: "center" }}>
         <div style={{ fontSize: 36, marginBottom: 8 }}>✅</div>
         <h1 style={{ ...heading, fontSize: 24, margin: "0 0 6px" }}>
-          {!done.changed ? "No changes to save" : isEdit ? (live ? "Changes are live" : "Changes sent for review") : (live ? "Your job is live" : "Submitted for review")}
+          {!done.changed ? "No changes to save" : isEdit ? (live ? "Changes are live" : "Changes saved") : "Your job is live"}
         </h1>
         <p style={{ fontSize: 13, color: "var(--t3)", margin: "0 auto 16px", maxWidth: 460 }}>
           {!done.changed ? "Everything was already up to date."
             : live ? "It's showing on TIN Jobs now. New applications appear in your Employer Desk."
-            : "The TIN team reviews listings from accounts that aren't verified yet. It will show on TIN Jobs once approved."}
+            : down ? "TIN took this job down, so it still doesn't show on TIN Jobs. Please contact TIN to have it checked again."
+            : "This job isn't showing on TIN Jobs right now. You can see it in your Employer Desk."}
         </p>
         <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
           <button onClick={() => navigate(`/jobs/${done.id}`)} style={btnPrimary}>See the listing</button>
@@ -416,12 +423,15 @@ export function PostJobPage({ user, isGuest, onRequireLogin, onListStore, toast 
         <span>I confirm this is a direct hiring listing and I am not a recruitment/staffing agency. <span style={{ color: "#e85a2a" }}>*</span></span>
       </label>
       {errFor("notAgencyDeclaration") && <div role="alert" style={{ fontSize: 11, color: "#dc2626", marginBottom: 8 }}>⚠ {errFor("notAgencyDeclaration")}</div>}
-      <div style={{ fontSize: 12, color: verified ? "#15803d" : "#b45309", background: verified ? "#f0fdf4" : "#fffbeb", border: `1px solid ${verified ? "#bbf7d0" : "#fde68a"}`, borderRadius: 8, padding: "8px 12px", marginTop: 8 }}>
-        {verified
-          ? (isEdit ? "Your account is verified — changes go live straight away." : "Your account is verified — this job goes live straight away.")
-          : (isEdit && existing?.status === "approved" ? "Your account isn't verified yet, so the TIN team re-checks edited jobs. It will be hidden until approved again."
-            : "Listings from accounts that aren't verified yet are reviewed by the TIN team before going live.")}
-      </div>
+      {isTakenDown(existing) ? (
+        <div style={{ fontSize: 12, color: "#b91c1c", background: "#fff0f0", border: "1px solid #fecaca", borderRadius: 8, padding: "8px 12px", marginTop: 8 }}>
+          TIN took this job down{takedownReason(existing) ? `: ${takedownReason(existing)}` : ""}. Saving changes doesn’t put it back; please contact TIN.
+        </div>
+      ) : (
+        <div style={{ fontSize: 12, color: "#15803d", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "8px 12px", marginTop: 8 }}>
+          {isEdit ? "Changes show straight away." : "Your job goes live straight away."} TIN checks jobs and can take down any that break the rules.
+        </div>
+      )}
     </>;
   }
 
@@ -442,7 +452,7 @@ export function PostJobPage({ user, isGuest, onRequireLogin, onListStore, toast 
         <span style={{ display: "flex", gap: 8 }}>
           {step === 3 && <button type="button" onClick={() => { setMaxStep(m => Math.max(m, 4)); goTo(4); }} style={btnOutline}>Skip</button>}
           <button type="submit" disabled={saving} style={{ ...btnPrimary, padding: "9px 18px", fontSize: 13, opacity: saving ? 0.6 : 1 }}>
-            {saving ? "Saving…" : step < 4 ? "Continue →" : isEdit ? "Save changes" : (verified ? "Publish job" : "Submit for review")}
+            {saving ? "Saving…" : step < 4 ? "Continue →" : isEdit ? "Save changes" : "Publish job"}
           </button>
         </span>
       </div>

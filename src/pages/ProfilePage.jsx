@@ -6,6 +6,7 @@ import { getLevel } from "../utils/helpers";
 import { canChangeHandle, checkHandleAvailable, claimHandle, isReservedHandle, isValidHandleFormat } from "../utils/handles";
 import { CreateOrganizationSection } from "../components/profile/CreateOrganizationSection";
 import { Link } from "react-router-dom";
+import { isTakenDown, jobBadge } from "../utils/jobModeration.js";
 
 export function ProfilePage({ user, onUpdateUser, showJobPosts = true }) {
   const lv = getLevel(user.points);
@@ -274,15 +275,16 @@ export function ProfilePage({ user, onUpdateUser, showJobPosts = true }) {
           ) : (
             <>
               {myJobs.slice(0, 3).map(j => {
-                const statusColor = j.status === "approved" ? "#16a34a" : j.status === "rejected" ? "#dc2626" : "#d97706";
-                const statusBg = j.status === "approved" ? "#f0fdf4" : j.status === "rejected" ? "#fff0f0" : "#fffbeb";
+                const shown = jobBadge(j);
+                const statusColor = isTakenDown(j) ? "#dc2626" : shown === "Live" ? "#16a34a" : "#d97706";
+                const statusBg = isTakenDown(j) ? "#fff0f0" : shown === "Live" ? "#f0fdf4" : "#fffbeb";
                 return (
                   <Link key={j.id} to={`/jobs/desk?job=${j.id}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, border: "1px solid var(--b2)", borderRadius: "var(--r)", padding: "10px 14px", marginBottom: 8, textDecoration: "none" }}>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontWeight: 700, fontSize: 14, color: "var(--t1)" }}>{j.jobTitle}</div>
-                      <div style={{ fontSize: 12, color: "var(--t3)" }}>{[j.city, j.jobStatus && j.jobStatus !== "live" ? j.jobStatus : ""].filter(Boolean).join(" · ")}</div>
+                      <div style={{ fontSize: 12, color: "var(--t3)" }}>{j.city}</div>
                     </div>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: statusColor, background: statusBg, border: `1px solid ${statusColor}30`, borderRadius: 10, padding: "2px 8px", textTransform: "capitalize" }}>{j.status}</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: statusColor, background: statusBg, border: `1px solid ${statusColor}30`, borderRadius: 10, padding: "2px 8px", whiteSpace: "nowrap" }}>{shown}</span>
                   </Link>
                 );
               })}

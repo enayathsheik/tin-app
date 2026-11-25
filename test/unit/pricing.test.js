@@ -8,6 +8,8 @@ describe("L9 pricing", () => {
     const p = pricingFrom(null);
     expect(p.profileFee).toEqual(DEFAULT_FEE);
     expect(p.jobPostFee).toEqual({ list: 750, offer: 100, launchDiscount: true });
+    expect(p.betaMode).toBe(true);
+    expect(pricingFrom({ betaMode: false }).betaMode).toBe(false);
     expect(p.shortlistLimit).toBe(10);
     expect(p.searchShortlistDailyLimit).toBe(20);
   });

@@ -29,7 +29,7 @@ const draft = () => ({
 function postJob(db, uid, entExtra = {}, entUid = uid) {
   const ref = doc(collection(db, "jobListings"));
   const batch = writeBatch(db);
-  batch.set(ref, { ...buildJobFields(draft()), postedByUid: uid, postedByName: "X", postedByType: "individual", status: "pending", createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  batch.set(ref, { ...buildJobFields(draft()), postedByUid: uid, postedByName: "X", postedByType: "individual", status: "approved", jobStatus: "live", createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
   batch.set(doc(db, "entitlements", entitlementId("job_post", ref.id)), ent("job_post", entUid, ref.id, entExtra));
   return batch.commit();
 }
