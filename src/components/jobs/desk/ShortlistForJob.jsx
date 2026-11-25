@@ -113,7 +113,7 @@ export function ShortlistForJob({ person, user, jobs, onShortlisted, onOpenJob }
             <button key={j.id} type="button" role="radio" aria-checked={on} disabled={busy} onClick={() => { setJobId(j.id); setError({ code: "", text: "" }); }}
               style={{ textAlign: "left", padding: "10px 12px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit", border: `2px solid ${on ? "var(--acc)" : "var(--b2)"}`, background: on ? "var(--s2)" : "var(--s1)" }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: "var(--t1)" }}>{on ? "✓ " : ""}{j.title}</div>
-              <div style={{ fontSize: 12, color: isShortlistFull(j, limit) ? "#b45309" : "var(--t3)" }}>{[j.city, `Shortlisted ${Math.min(j.shortlistCount, limit)} of ${limit}`].filter(Boolean).join(" · ")}</div>
+              <div style={{ fontSize: 12, color: isShortlistFull(j, limit) ? "#b45309" : "var(--t3)" }}>{[j.city, `Shortlists used: ${Math.min(j.shortlistCount, limit)} of ${limit}`].filter(Boolean).join(" · ")}</div>
             </button>
           );
         })}

@@ -95,7 +95,7 @@ export function JobPipeline({ job, apps, employer, onAppsChange, onJobPatch = ()
   const toggle = (id) => setChecked(c => { const n = new Set(c); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const allOn = listed.length > 0 && listed.every(a => checked.has(a.id));
   const toggleAll = () => setChecked(c => { const n = new Set(c); listed.forEach(a => (allOn ? n.delete(a.id) : n.add(a.id))); return n; });
-  const pickBulk = (s) => { setBulkStage(s); setBulkNote(defaultNote(s, job.lane)); };
+  const pickBulk = (s) => { setBulkStage(s); setBulkNote(defaultNote(s, job.lane, selected)); };
   const selected = apps.filter(a => checked.has(a.id));
   const plan = bulkStage ? bulkPlan(selected, bulkStage) : null;
   // L10: how many of the bulk move would be first shortlists, vs slots left.

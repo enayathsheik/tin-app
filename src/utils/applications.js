@@ -25,7 +25,10 @@ export const isFromSearch = (app) => app?.source === "employer_search";
 export const unlocksContact = (stage) => CONTACT_UNLOCK_STAGES.includes(stage);
 export const isContactUnlocked = (app) => !!app?.contactUnlockedAt || unlocksContact(currentStage(app));
 export const stageLabel = (stage) => ST[stage]?.label || stage;
-export const stageText = (stage) => ST[stage]?.text || "";
+export const stageText = (stage, app = null) => {
+  const t = ST[stage]?.text || "";
+  return isFromSearch(app) ? t.replace(" Thank you for applying.", "").replace("this application", "this") : t;
+};
 export const stageTone = (stage) => ST[stage]?.tone || "n";
 export const nextStep = (stage) => NEXT[stage] || null;
 

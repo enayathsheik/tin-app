@@ -3,14 +3,14 @@
 // rules themselves live in utils/applications.js + firestore.rules; this
 // file only decides what the Desk offers and counts.
 import { BULK_SET, EMP_SET } from "../data/jobsTaxonomy.js";
-import { currentStage, isFinal } from "./applications.js";
+import { currentStage, isContactUnlocked, isFinal, isFromSearch } from "./applications.js";
 
 // ── Pipeline board ───────────────────────────────────────────
 // Six columns (owner-approved plan). Every stage belongs to exactly one.
 export const BOARD_COLUMNS = [
   { key: "new", label: "New", stages: ["submitted"] },
   { key: "viewed", label: "Viewed", stages: ["app_viewed", "profile_viewed", "review"] },
-  { key: "shortlisted", label: "Shortlisted", stages: ["shortlisted", "contacted", "info_req", "assess_req"] },
+  { key: "shortlisted", label: "Shortlisted / Contacted", stages: ["shortlisted", "contacted", "info_req", "assess_req"] },
   { key: "interview", label: "Interview", stages: ["int_invited", "int_scheduled", "int_rescheduled", "int_done"] },
   { key: "offer", label: "Selected / Offer", stages: ["selected", "offer_sent", "offer_accepted"] },
   { key: "closed", label: "Closed", stages: ["not_shortlisted", "not_selected", "offer_declined", "withdrawn", "closed"] },
@@ -25,6 +25,41 @@ export function groupByColumn(apps) {
   for (const a of apps) out[columnOf(currentStage(a))].push(a);
   return out;
 }
+
+// ── People (C) ───────────────────────────────────────────────
+// Where people are NOW, past Shortlisted. (Shortlists used, x of 10, is another
+// number: it never goes down.) Hired = the candidate accepted the offer on TIN.
+export const PEOPLE_BUCKETS = [
+  { key: "shortlisted", label: "Shortlisted", stages: ["shortlisted", "info_req", "assess_req"] },
+  { key: "contacted", label: "Contacted", stages: ["contacted"] },
+  { key: "interview", label: "Interviews", stages: ["int_invited", "int_scheduled", "int_rescheduled", "int_done"] },
+  { key: "offer", label: "Offers", stages: ["selected", "offer_sent"] },
+  { key: "hired", label: "Hired", stages: ["offer_accepted"] },
+];
+export const isPeopleBucket = (k) => PEOPLE_BUCKETS.some(b => b.key === k);
+const bucketOf = (app) => (isContactUnlocked(app) ? PEOPLE_BUCKETS.find(b => b.stages.includes(currentStage(app)))?.key : undefined);
+
+export function peopleCounts(apps) {
+  const out = Object.fromEntries(PEOPLE_BUCKETS.map(b => [b.key, 0]));
+  for (const a of apps || []) { const k = bucketOf(a); if (k) out[k]++; }
+  return out;
+}
+
+const at = (a) => a?.updatedAt?.seconds || a?.createdAt?.seconds || 0;
+// The people in one bucket: interviews by date (soonest first, undated and
+// done after), everyone else latest change first.
+export function peopleIn(apps, key) {
+  const list = (apps || []).filter(a => bucketOf(a) === key).sort((a, b) => at(b) - at(a));
+  if (key !== "interview") return list;
+  const when = (a) => (currentStage(a) !== "int_done" && a.interview?.date ? `${a.interview.date} ${a.interview.time || ""}` : "~");
+  return list.sort((a, b) => (when(a) < when(b) ? -1 : when(a) > when(b) ? 1 : 0));
+}
+
+// "Shortlisted 2 · Interviews 1" — only what isn't zero.
+export const peopleLine = (apps) => {
+  const c = peopleCounts(apps);
+  return PEOPLE_BUCKETS.filter(b => c[b.key]).map(b => `${b.label} ${c[b.key]}`).join(" · ");
+};
 
 // "Not shortlisted" fits only before the interview; "Not selected" only
 // from the interview on (owner-approved plan). Everything else in EMP_SET
@@ -131,10 +166,14 @@ export const POLITE_NOTES = {
 
 // Default note for a stage, or "" when none applies. Skilled-lane jobs get
 // the Hindi text alongside (owner decision). Always editable before sending.
-export function defaultNote(stage, lane) {
+// Someone found in search never applied, so they aren't thanked for it.
+const FOUND = { en: ["Thank you for applying.", "Thank you for your time."], hi: ["आवेदन के लिए धन्यवाद।", "आपके समय के लिए धन्यवाद।"] };
+export function defaultNote(stage, lane, apps = []) {
   const kind = stage === "not_shortlisted" || stage === "not_selected" ? "reject" : stage === "closed" ? "close" : null;
   if (!kind) return "";
-  const n = POLITE_NOTES[kind];
+  const found = [].concat(apps).some(isFromSearch);
+  const say = (l) => (found ? POLITE_NOTES[kind][l].replace(...FOUND[l]) : POLITE_NOTES[kind][l]);
+  const n = { en: say("en"), hi: say("hi") };
   return lane === "skilled" ? `${n.en}\n${n.hi}` : n.en;
 }
 

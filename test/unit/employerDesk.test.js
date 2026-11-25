@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { EMP_SET, ST } from "../../src/data/jobsTaxonomy.js";
+import { CONTACT_UNLOCK_STAGES, EMP_SET, ST } from "../../src/data/jobsTaxonomy.js";
+import { stageText } from "../../src/utils/applications.js";
 import {
   BOARD_COLUMNS, bulkPlan, closePlan, columnOf, defaultNote, deskCounts, groupByColumn, isInterviewThisWeek,
-  isToReply, moveOptions, nextAction, POLITE_NOTES, vacancyTab, weekRange,
+  isPeopleBucket, isToReply, moveOptions, nextAction, peopleCounts, peopleIn, peopleLine, PEOPLE_BUCKETS, POLITE_NOTES, vacancyTab, weekRange,
 } from "../../src/utils/employerDesk.js";
 
 const app = (stage, extra = {}) => ({ id: stage + Math.random(), stage, stageHistory: [], ...extra });
@@ -12,7 +13,7 @@ describe("pipeline board", () => {
     for (const s of Object.keys(ST)) {
       expect(BOARD_COLUMNS.filter(c => c.stages.includes(s))).toHaveLength(1);
     }
-    expect(BOARD_COLUMNS.map(c => c.label)).toEqual(["New", "Viewed", "Shortlisted", "Interview", "Selected / Offer", "Closed"]);
+    expect(BOARD_COLUMNS.map(c => c.label)).toEqual(["New", "Viewed", "Shortlisted / Contacted", "Interview", "Selected / Offer", "Closed"]);
   });
 
   it("legacy applications (no stage) land by their old status", () => {
@@ -140,5 +141,51 @@ describe("closing a vacancy", () => {
     expect(p.close.map(a => a.stage)).toEqual(["submitted", "int_scheduled", "selected", "offer_sent"]);
     expect(p.kept).toEqual([]);
     expect(p.alreadyClosed).toBe(2);
+  });
+});
+
+describe("people counts and lists (C)", () => {
+  it("only stages where contact is unlocked, each in one bucket; every one but Offer Declined has a place", () => {
+    const all = PEOPLE_BUCKETS.flatMap(b => b.stages);
+    expect(new Set(all).size).toBe(all.length);
+    for (const s of all) expect(CONTACT_UNLOCK_STAGES).toContain(s);
+    expect(CONTACT_UNLOCK_STAGES.filter(s => !all.includes(s))).toEqual(["offer_declined"]);
+    expect(PEOPLE_BUCKETS.map(b => b.label)).toEqual(["Shortlisted", "Contacted", "Interviews", "Offers", "Hired"]);
+  });
+  it("counts where people are now: moving on leaves the old bucket; rejected, withdrawn and closed are in none", () => {
+    const apps = ["submitted", "app_viewed", "review", "shortlisted", "info_req", "contacted", "int_invited", "int_scheduled", "int_rescheduled", "int_done", "selected", "offer_sent", "offer_accepted", "offer_declined", "not_shortlisted", "not_selected", "withdrawn", "closed"].map(s => app(s, { contactUnlockedAt: 1 }));
+    expect(peopleCounts(apps)).toEqual({ shortlisted: 2, contacted: 1, interview: 4, offer: 2, hired: 1 });
+    expect(peopleCounts([])).toEqual({ shortlisted: 0, contacted: 0, interview: 0, offer: 0, hired: 0 });
+    expect(peopleCounts(undefined).hired).toBe(0);
+  });
+  it("older applications (no stage) count by their old status", () => {
+    expect(peopleCounts([{ applicantStatus: "shortlisted" }, { applicantStatus: "hired" }, { applicantStatus: "new" }, { applicantStatus: "rejected" }])).toEqual({ shortlisted: 1, contacted: 0, interview: 0, offer: 0, hired: 1 });
+  });
+  it("lists: latest change first; interviews soonest first, done last", () => {
+    const t = (n) => ({ updatedAt: { seconds: n } });
+    expect(peopleIn([app("shortlisted", { id: "a", ...t(1) }), app("shortlisted", { id: "b", ...t(9) }), app("contacted", { id: "c" })], "shortlisted").map(x => x.id)).toEqual(["b", "a"]);
+    const iv = [app("int_done", { id: "done", interview: { date: "2026-11-01" }, ...t(99) }), app("int_scheduled", { id: "late", interview: { date: "2026-12-02", time: "10:00" } }), app("int_invited", { id: "soon", interview: { date: "2026-11-30", time: "09:00" } }), app("int_invited", { id: "nodate" })];
+    expect(peopleIn(iv, "interview").map(x => x.id)).toEqual(["soon", "late", "done", "nodate"]);
+    expect(peopleIn(iv, "made_up")).toEqual([]);
+  });
+  it("the line on a job card shows only what isn't zero", () => {
+    expect(peopleLine([app("shortlisted"), app("shortlisted"), app("int_done"), app("submitted")])).toBe("Shortlisted 2 · Interviews 1");
+    expect(peopleLine([app("submitted")])).toBe("");
+  });
+  it("only real buckets are accepted from the address bar", () => {
+    expect(["shortlisted", "hired", "", null, "x"].map(isPeopleBucket)).toEqual([true, true, false, false, false]);
+  });
+});
+
+describe("someone found in search isn't thanked for applying", () => {
+  const found = { source: "employer_search" };
+  it("notes", () => {
+    expect(defaultNote("not_shortlisted", "skilled", found)).not.toMatch(/applying|आवेदन/);
+    expect(defaultNote("not_selected", "professional", [{}, found])).toContain("Thank you for your time.");
+    expect(defaultNote("not_shortlisted", "skilled", [{}])).toBe(defaultNote("not_shortlisted", "skilled"));
+  });
+  it("the text they see", () => {
+    for (const s of ["closed", "not_shortlisted", "withdrawn"]) expect(stageText(s, found)).not.toMatch(/applying|application/);
+    expect(stageText("closed", {})).toContain("Thank you for applying.");
   });
 });

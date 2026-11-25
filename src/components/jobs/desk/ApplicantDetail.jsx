@@ -23,7 +23,7 @@ const INTERVIEW_NOW = ["int_invited", "int_scheduled", "int_rescheduled"];
 export function ApplicantDetail({ app, job, employer, onChange, startWith = null }) {
   const navigate = useNavigate();
   const [moveTo, setMoveTo] = useState(startWith === "invite" ? "" : startWith || "");
-  const [note, setNote] = useState(startWith && startWith !== "invite" ? defaultNote(startWith, job?.lane) : "");
+  const [note, setNote] = useState(startWith && startWith !== "invite" ? defaultNote(startWith, job?.lane, app) : "");
   const [showInvite, setShowInvite] = useState(startWith === "invite");
   const [iv, setIv] = useState({ date: "", time: "", mode: "In person", where: "", instructions: "" });
   const [busy, setBusy] = useState(false);
@@ -63,7 +63,7 @@ export function ApplicantDetail({ app, job, employer, onChange, startWith = null
     setBusy(false);
   };
 
-  const pick = (s) => { setMoveTo(s); setNote(defaultNote(s, job?.lane)); setShowInvite(false); };
+  const pick = (s) => { setMoveTo(s); setNote(defaultNote(s, job?.lane, app)); setShowInvite(false); };
 
   const doMove = (to, n = note) => run(async () => {
     if (ASKS.includes(to) && !n.trim()) throw new Error("Write what you need from them.");
