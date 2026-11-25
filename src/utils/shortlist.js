@@ -11,6 +11,16 @@ export const shortlistLimitFrom = (config) => {
   const n = Number(config?.shortlistLimit);
   return Number.isInteger(n) && n > 0 ? n : DEFAULT_SHORTLIST_LIMIT;
 };
+// A2: how many NEW people one employer may shortlist from Find candidates per
+// day (Indian time), all jobs together. 0 = switched off. Enforced by the
+// shortlistCandidate function. People who applied don't count.
+export const DEFAULT_SEARCH_DAILY_LIMIT = 20;
+export const MAX_SEARCH_DAILY_LIMIT = 500;
+export const searchDailyLimitFrom = (config) => {
+  const n = config?.searchShortlistDailyLimit;
+  return Number.isInteger(n) && n >= 0 && n <= MAX_SEARCH_DAILY_LIMIT ? n : DEFAULT_SEARCH_DAILY_LIMIT;
+};
+
 export const shortlistsLeft = (job, limit) => Math.max(0, limit - shortlistCountOf(job));
 export const isShortlistFull = (job, limit) => shortlistsLeft(job, limit) === 0;
 

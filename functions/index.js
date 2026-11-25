@@ -28,6 +28,13 @@ try {
   console.error("Failed to load ai.js — AI Foundation functions unavailable:", err);
 }
 
+// TIN Jobs functions (shortlistCandidate) — see jobs.js. Same isolation.
+try {
+  Object.assign(exports, require("./jobs"));
+} catch (err) {
+  console.error("Failed to load jobs.js — TIN Jobs functions unavailable:", err);
+}
+
 // HOM Systems functions (approveHomOrder, rejectHomOrder — Block 4) — see
 // hom.js. Same load-and-isolate pattern as ai.js above: a bug in hom.js
 // must not take down pullPlacesData/ai.js/anything else in this entrypoint.

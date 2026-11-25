@@ -66,6 +66,11 @@ describe("config/pricing", () => {
     await assertFails(setDoc(doc(admin(), "config", "pricing"), { ...p, jobPostFee: { ...p.jobPostFee, list: "750" } }));      // not a number
     await assertFails(setDoc(doc(admin(), "config", "pricing"), { ...p, shortlistLimit: 0 }));
     await assertFails(setDoc(doc(admin(), "config", "pricing"), { ...p, shortlistLimit: 1000 }));
+    for (const v of [-1, 501, 2.5, "20", null]) await assertFails(setDoc(doc(admin(), "config", "pricing"), { ...p, searchShortlistDailyLimit: v }));
+    for (const v of [0, 20, 500]) await assertSucceeds(setDoc(doc(admin(), "config", "pricing"), { ...p, searchShortlistDailyLimit: v }));
+    const before = { ...p }; // an admin tab opened before A2
+    delete before.searchShortlistDailyLimit;
+    await assertSucceeds(setDoc(doc(admin(), "config", "pricing"), before));
     await assertSucceeds(setDoc(doc(admin(), "config", "pricing"), { ...p, profileFee: { list: 750, offer: 100, launchDiscount: false } }));
   });
 });

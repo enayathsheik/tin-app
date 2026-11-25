@@ -4,7 +4,7 @@
 // profile or job post is recorded as an entitlement valid for 365 days, so
 // history exists when payments start. Pure helpers, unit-tested in
 // test/unit/pricing.test.js.
-import { DEFAULT_SHORTLIST_LIMIT, shortlistLimitFrom } from "./shortlist.js";
+import { DEFAULT_SHORTLIST_LIMIT, MAX_SEARCH_DAILY_LIMIT, searchDailyLimitFrom, shortlistLimitFrom } from "./shortlist.js";
 
 export const FEE_KINDS = { profile: "profileFee", jobPost: "jobPostFee" };
 export const DEFAULT_FEE = { list: 750, offer: 100, launchDiscount: true };
@@ -23,6 +23,7 @@ export function pricingFrom(config) {
     profileFee: fee(config?.profileFee),
     jobPostFee: fee(config?.jobPostFee),
     shortlistLimit: config ? shortlistLimitFrom(config) : DEFAULT_SHORTLIST_LIMIT,
+    searchShortlistDailyLimit: searchDailyLimitFrom(config),
   };
 }
 
@@ -56,6 +57,9 @@ export function validatePricing(p) {
   }
   const lim = Number(p.shortlistLimit);
   if (!Number.isInteger(lim) || lim < 1 || lim > 999) errs.push({ field: "shortlistLimit", message: "Shortlist limit must be a whole number from 1 to 999." });
+  const raw = p.searchShortlistDailyLimit;
+  const day = raw === "" || raw == null ? NaN : Number(raw);
+  if (!Number.isInteger(day) || day < 0 || day > MAX_SEARCH_DAILY_LIMIT) errs.push({ field: "searchShortlistDailyLimit", message: `Daily search shortlists must be a whole number from 0 to ${MAX_SEARCH_DAILY_LIMIT}.` });
   return errs;
 }
 

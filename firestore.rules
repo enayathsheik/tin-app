@@ -313,7 +313,7 @@ service cloud.firestore {
         // L8: phone, email and CV go in private/contact (below), never on the
         // application the employer can read; pay only if the candidate chose
         // to show it; contact can't start unlocked.
-        && !request.resource.data.keys().hasAny(["applicantPhone", "applicantEmail", "resumePath", "resumeUrl", "resumeFileName", "contactUnlockedAt", "shortlistSlot"])
+        && !request.resource.data.keys().hasAny(["applicantPhone", "applicantEmail", "resumePath", "resumeUrl", "resumeFileName", "contactUnlockedAt", "shortlistSlot", "source"])
         && (request.resource.data.get("payVisible", false) == true
             || !request.resource.data.keys().hasAny(["currentPay", "expectedPay"]))
         && request.resource.data.get("hasCv", false) is bool;
@@ -474,6 +474,13 @@ service cloud.firestore {
       allow read, write: if false;
     }
     // ══ END NEW ═════════════════════════════════════════════
+
+    // A2: how many people an employer shortlisted from search today. Written
+    // only by the shortlistCandidate Cloud Function (Admin SDK).
+    match /searchShortlistUsage/{uid} {
+      allow read: if isAdmin() || (request.auth != null && request.auth.uid == uid);
+      allow write: if false;
+    }
 
     // ── JOB REPORTS ── (Jobs redesign phase 2, see docs/JOBS_BLUEPRINT.md §5.1)
     // One report per person per job (id = {jobId}_{uid}; a repeat is an
@@ -889,7 +896,9 @@ service cloud.firestore {
     }
     function pricingConfigOk(d) {
       return pricingFeeOk(d.get("profileFee", null)) && pricingFeeOk(d.get("jobPostFee", null))
-        && d.get("shortlistLimit", 0) is int && d.get("shortlistLimit", 0) >= 1 && d.get("shortlistLimit", 0) <= 999;
+        && d.get("shortlistLimit", 0) is int && d.get("shortlistLimit", 0) >= 1 && d.get("shortlistLimit", 0) <= 999
+        // A2: shortlists from search per employer per day (0 = off).
+        && d.get("searchShortlistDailyLimit", 20) is int && d.get("searchShortlistDailyLimit", 20) >= 0 && d.get("searchShortlistDailyLimit", 20) <= 500;
     }
 
     // ── ENTITLEMENTS ── (L9: no payments yet)

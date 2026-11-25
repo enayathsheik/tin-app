@@ -76,6 +76,9 @@ export function PricingSection({ user }) {
         <label><span style={lbl}>Shortlists per job post</span><input style={inp} inputMode="numeric" value={form.shortlistLimit} onChange={e => setForm({ ...form, shortlistLimit: e.target.value })} /></label>
         {errors.find(e => e.field === "shortlistLimit") && <div role="alert" style={{ color: "#b91c1c", fontSize: 12, marginTop: 6 }}>⚠ {errors.find(e => e.field === "shortlistLimit").message}</div>}
         <div style={{ fontSize: 12, color: "#555", marginTop: 8 }}>Applies to every job, always — whatever the price or discount. An applicant counts once, the first time they're shortlisted. Lowering it never takes back shortlists already used.</div>
+        <label style={{ display: "block", marginTop: 14 }}><span style={lbl}>Shortlists from search, per employer per day</span><input style={inp} inputMode="numeric" value={form.searchShortlistDailyLimit} onChange={e => setForm({ ...form, searchShortlistDailyLimit: e.target.value })} /></label>
+        {errors.find(e => e.field === "searchShortlistDailyLimit") && <div role="alert" style={{ color: "#b91c1c", fontSize: 12, marginTop: 6 }}>⚠ {errors.find(e => e.field === "searchShortlistDailyLimit").message}</div>}
+        <div style={{ fontSize: 12, color: "#555", marginTop: 8 }}>How many new people one employer can shortlist from Find candidates in a day, across all their jobs. People who applied don’t count. 0 switches it off.</div>
       </div>
       <button type="button" disabled={state.saving} onClick={save}
         style={{ padding: "10px 20px", borderRadius: 8, border: "none", background: "#e85a2a", color: "#fff", fontWeight: 700, cursor: "pointer" }}>

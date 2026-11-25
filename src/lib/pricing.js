@@ -24,6 +24,7 @@ export async function savePricing(p, adminUid) {
     profileFee: { list: Number(p.profileFee.list), offer: Number(p.profileFee.offer), launchDiscount: !!p.profileFee.launchDiscount },
     jobPostFee: { list: Number(p.jobPostFee.list), offer: Number(p.jobPostFee.offer), launchDiscount: !!p.jobPostFee.launchDiscount },
     shortlistLimit: Number(p.shortlistLimit),
+    searchShortlistDailyLimit: Number(p.searchShortlistDailyLimit),
   });
   await setDoc(doc(db, "config", "pricing"), { ...clean, updatedAt: serverTimestamp(), updatedBy: adminUid || "admin" });
   cache = clean;

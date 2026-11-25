@@ -38,6 +38,18 @@ fs.rmSync(DEST, { recursive: true, force: true });
 copyDir(SRC, DEST);
 console.log(`[vendor-ai-foundation] copied ${SRC} -> ${DEST}`);
 
+// The app's own TIN Jobs logic for functions/jobs.js (plain ES modules with no
+// React/Firebase imports), copied as-is so the server and the app can't drift.
+const APP_SRC = path.join(__dirname, '..', '..', 'src');
+const JOBS_DEST = path.join(__dirname, '..', 'vendor', 'jobs');
+fs.rmSync(JOBS_DEST, { recursive: true, force: true });
+for (const f of ['data/jobsTaxonomy.js', 'utils/jobProfile.js', 'utils/applications.js', 'utils/shortlist.js', 'utils/candidateSearch.js', 'utils/pricing.js', 'utils/phoneAuth.js']) {
+  fs.mkdirSync(path.dirname(path.join(JOBS_DEST, f)), { recursive: true });
+  fs.copyFileSync(path.join(APP_SRC, f), path.join(JOBS_DEST, f));
+}
+fs.writeFileSync(path.join(JOBS_DEST, 'package.json'), '{ "type": "module", "private": true }\n');
+console.log(`[vendor-ai-foundation] copied TIN Jobs logic -> ${JOBS_DEST}`);
+
 // TIN Jobs option lists for the AI profile helper (suggestJobProfile).
 // src/data/jobsTaxonomy.js is an ES module in the web app, outside
 // functions/, so write the lists it needs as plain JSON next to the vendored
