@@ -33,6 +33,7 @@ import { JobProfilePage } from "./pages/JobProfilePage";
 import { MyApplicationsPage } from "./pages/MyApplicationsPage";
 import { EmployerDeskPage } from "./pages/EmployerDeskPage";
 import { SignupPage } from "./pages/SignupPage";
+import { SkilledOtpPage } from "./pages/SkilledOtpPage";
 import { StoreProfilePage } from "./pages/StoreProfilePage";
 import { StoreEditPage } from "./pages/StoreEditPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
@@ -292,7 +293,7 @@ export default function App() {
       <>
         <style>{G}</style>
         <div className="light" style={{ background: "#f4f5f7", minHeight: "100vh" }}>
-          <LoginPage onCreateAccount={(kind) => { setShowLoginPage(false); navigate(`/signup/${kind}`); }} onLogin={(u) => {
+          <LoginPage onOtpLogin={() => { setShowLoginPage(false); navigate("/login/otp"); }} onCreateAccount={(kind) => { setShowLoginPage(false); navigate(`/signup/${kind}`); }} onLogin={(u) => {
             setUser(u);
             setShowLoginPage(false);
             if (u.role === "admin") { navigate("/"); setPage("admin"); setPendingPath(null); return; }
@@ -455,6 +456,8 @@ export default function App() {
             <Route path="/jobs/:jobId" element={<JobDetailPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath(location.pathname); setShowLoginPage(true); }} toast={showToast} />} />
             <Route path="/signup" element={<SignupPage key="choose" {...signupProps} />} />
             <Route path="/signup/work" element={<SignupPage key="work" kind="work" {...signupProps} />} />
+            <Route path="/signup/skilled" element={FEATURES.skilledOtp ? <SkilledOtpPage key="otp-new" {...signupProps} /> : <Navigate to="/signup/work" replace />} />
+            <Route path="/login/otp" element={FEATURES.skilledOtp ? <SkilledOtpPage key="otp-login" login {...signupProps} /> : <Navigate to="/jobs" replace />} />
             <Route path="/signup/hire" element={<SignupPage key="hire" kind="hire" {...signupProps} />} />
             <Route path="/store/:storeId" element={<StoreProfilePage user={user} />} />
             <Route path="/store/:storeId/edit" element={<StoreEditPage user={user} isGuest={!user} onRequireLogin={() => { setPendingPath(location.pathname); setShowLoginPage(true); }} />} />

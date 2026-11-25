@@ -714,3 +714,29 @@ pause / resume / close / delete (25 Nov 2026).
   is removed, so exported sheets must be kept private.
 - Files: `src/utils/jobsAdmin.js` (pure), `src/lib/jobsAdmin.js` (reads),
   `src/components/admin/jobsAdmin/`.
+
+## 11. Skilled-worker login by one-time code (B2)
+
+Skilled workers sign up (`/signup/skilled`) and log in on a new phone (`/login/otp`) with an
+SMS code, no password. Professionals and employers keep email / mobile + password (owner
+decision, 25 Nov 2026). `FEATURES.skilledOtp` switches it off. After sign-in Firebase keeps the
+person signed in on that phone, so a code is needed only on a new one.
+
+- **Identity = the phone number on the Firebase account** (`+91…`), not the provider.
+- **Screens → `src/lib/otp` → one provider.** `sendOtp(phone)` gives a session with
+  `confirm(code)`; errors are the fixed list in `src/utils/otp.js`. Today: `firebaseProvider.js`.
+- **To change provider** (MSG91, WhatsApp OTP via DLT…): no screen, account or rule changes.
+  1. Two callable functions: `sendCode({ phone })` (DLT template, per-number and per-IP limits)
+     and `checkCode({ phone, code })`, which after a correct code finds the account with
+     `getUserByPhoneNumber("+91…")`, or makes it with `createUser({ phoneNumber })`, and returns
+     `createCustomToken(uid)`. The functions' service account needs the *Service Account Token
+     Creator* role for that.
+  2. `src/lib/otp/<name>Provider.js` with `send(phone)`: calls them, then
+     `signInWithCustomToken(auth, token)` in `confirm`, mapping errors to `OtpError`.
+  3. Add it to `PROVIDERS` in `src/lib/otp/index.js` and name it in `src/data/otp.js`.
+- **Older password accounts** (`{number}@phone.tinit.in`, number never checked): a code alone never
+  opens one. After the code, the old password is asked for once and `joinPhoneAccount`
+  (`functions/phoneAccounts.js`) puts the number on the old account and removes the empty phone
+  one. Business and professional accounts are told to use their password. "Not mine / forgot" makes a
+  new account and leaves the old one alone.
+- **Firebase console:** Phone sign-in on, SMS region policy India only, authorised domains.

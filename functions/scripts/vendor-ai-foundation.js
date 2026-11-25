@@ -43,7 +43,7 @@ console.log(`[vendor-ai-foundation] copied ${SRC} -> ${DEST}`);
 const APP_SRC = path.join(__dirname, '..', '..', 'src');
 const JOBS_DEST = path.join(__dirname, '..', 'vendor', 'jobs');
 fs.rmSync(JOBS_DEST, { recursive: true, force: true });
-for (const f of ['data/jobsTaxonomy.js', 'utils/jobProfile.js', 'utils/applications.js', 'utils/shortlist.js', 'utils/candidateSearch.js', 'utils/pricing.js', 'utils/phoneAuth.js']) {
+for (const f of ['data/jobsTaxonomy.js', 'utils/jobProfile.js', 'utils/applications.js', 'utils/shortlist.js', 'utils/candidateSearch.js', 'utils/pricing.js', 'utils/phoneAuth.js', 'utils/jobRoles.js']) {
   fs.mkdirSync(path.dirname(path.join(JOBS_DEST, f)), { recursive: true });
   fs.copyFileSync(path.join(APP_SRC, f), path.join(JOBS_DEST, f));
 }

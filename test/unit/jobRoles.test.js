@@ -40,7 +40,7 @@ describe("where the buttons appear", () => {
       expect(floatingButtonsPlacement(p)).not.toBeNull());
   });
   it("pages with their own bottom controls don't", () => {
-    ["/signup", "/signup/work", "/signup/hire", "/jobs/post", "/jobs/abc/edit", "/jobs/profile", "/jobs/desk", "/conversations", "/conversations/x", "/store/s1/edit", "/homsystems"].forEach(p =>
+    ["/signup", "/signup/work", "/signup/hire", "/signup/skilled", "/login/otp", "/jobs/post", "/jobs/abc/edit", "/jobs/profile", "/jobs/desk", "/conversations", "/conversations/x", "/store/s1/edit", "/homsystems"].forEach(p =>
       expect(floatingButtonsPlacement(p)).toBeNull());
   });
   it('"/" only on the account profile screen', () => {

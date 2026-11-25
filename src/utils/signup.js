@@ -58,10 +58,10 @@ export const signupLanding = (role) => (role === "employer" ? "/jobs/desk" : "/j
 
 // `path` = where they were going when asked to log in (a job to apply to, Post
 // a Job…). Each kind of account goes back only to pages meant for it.
-export function signupNext(role, path) {
+export function signupNext(role, path, landing = signupLanding(role)) {
   const p = typeof path === "string" && /^\/(?!\/)/.test(path) && path !== "/" && !path.startsWith("/signup") ? path : "";
   const wrong = role === "employer" ? /^\/jobs\/(profile|applications|saved)/ : /^\/jobs\/(desk|post)/;
-  return p && !wrong.test(p) ? p : signupLanding(role);
+  return p && !wrong.test(p) ? p : landing;
 }
 
 // Firebase's error → one plain sentence. `exists` = offer "Log in" instead.

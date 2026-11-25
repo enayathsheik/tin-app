@@ -31,6 +31,7 @@ export function PrivacyPage() {
           <li style={li}><b>When you apply</b>, the employer sees your TIN Profile card and your full job profile — <b>without</b> your phone number, email or CV.</li>
           <li style={li}><b>{SHORTLIST_NOTICE}</b> From that moment they stay visible to everyone who manages that job — today the person who posted it; later also the business owner, admins, HR and recruiters on that business’s team — even if the application is later rejected or the job is closed.</li>
           <li style={li}><b>Your expected and current pay</b> are shown to employers you apply to only if you switch on “Show my pay to employers” in your job profile. It’s off unless you turn it on.</li>
+          <li style={li}><b>If you sign up or log in with an SMS code</b>, your mobile number is passed to our SMS provider (today Google Firebase) to send it.</li>
           <li style={li}>Employers can message you on TIN at any time; your number is not shown in messages.</li>
         </ul>
 

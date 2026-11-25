@@ -82,6 +82,7 @@ describe("after sign-up", () => {
     expect([signupNext("employer", "/jobs/post"), signupNext("jobseeker", "/jobs/applications")]).toEqual(["/jobs/post", "/jobs/applications"]);
     for (const p of ["/jobs/profile", "/jobs/saved", "/jobs/applications"]) expect(signupNext("employer", p)).toBe("/jobs/desk");
     for (const p of ["/jobs/desk?find=1", "/jobs/post"]) expect(signupNext("jobseeker", p)).toBe("/jobs/profile");
+    expect([signupNext("jobseeker", null, "/jobs/skilled"), signupNext("jobseeker", "/jobs/x1", "/jobs/skilled")]).toEqual(["/jobs/skilled", "/jobs/x1"]);
     for (const p of [null, "", "/", "//evil.com", "https://evil.com", "/signup/hire", 5]) expect(signupNext("employer", p)).toBe("/jobs/desk");
   });
   it("each type is known without a read", () => {

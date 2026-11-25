@@ -27,7 +27,7 @@ export const isSeekerByAccount = (user) => user?.role === "jobseeker";
 // Left out: pages with their own bottom controls (wizard, profile form, Desk
 // bulk bar, messages, store edit) and the admin/HOM screens.
 const LANE_PATHS = ["/jobs/professional", "/jobs/skilled", "/jobs/needed-now"];
-const HIDDEN_PREFIXES = ["/signup", "/jobs/post", "/jobs/profile", "/jobs/desk", "/conversations", "/homsystems"];
+const HIDDEN_PREFIXES = ["/signup", "/login", "/jobs/post", "/jobs/profile", "/jobs/desk", "/conversations", "/homsystems"];
 
 export function floatingButtonsPlacement(pathname, { page } = {}) {
   const p = (pathname || "/").replace(/\/+$/, "") || "/";

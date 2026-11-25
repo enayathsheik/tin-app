@@ -11,6 +11,8 @@ export const FEATURES = {
   inspi: false,          // Inspi (design inspiration feed)
   marketChampion: false, // Market Champion home + Rewards, My Zone, Leaderboard
   staff: false,          // Staff profiles
+  skilledOtp: true,      // B2: skilled workers sign up / log in with an SMS code. false = off
+                         // straight away (e.g. SMS trouble); password sign-up still works.
   oldSignup: false,      // old register form on the login page (Consumer, Market Champion,
                          // Retailer, Contractor, Architect; referral code; work email).
                          // Sign-up is /signup since B1. Existing accounts keep working.

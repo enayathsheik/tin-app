@@ -10,7 +10,7 @@ import { normalizeIndianMobile, phoneToSyntheticEmail, resolveAuthEmail } from "
 
 // Login for everyone. Sign-up moved to /signup (B1); the register form below is
 // the old one, kept behind FEATURES.oldSignup.
-export function LoginPage({ onLogin, onCreateAccount }) {
+export function LoginPage({ onLogin, onCreateAccount, onOtpLogin }) {
   const [mode, setMode] = useState("login");
   const [role, setRole] = useState("contributor");
   const [email, setEmail] = useState("");
@@ -383,6 +383,11 @@ export function LoginPage({ onLogin, onCreateAccount }) {
           <div style={{textAlign:"center",marginTop:10}}>
             <span onClick={() => setShowForgot(true)} style={{fontSize:12,color:"#e85a2a",cursor:"pointer",fontWeight:600}}>Forgot password?</span>
           </div>
+        )}
+        {mode === "login" && FEATURES.skilledOtp && (
+          <button type="button" onClick={onOtpLogin} style={{ width: "100%", minHeight: 52, marginTop: 14, borderRadius: 10, border: "2px solid var(--warn)", background: "transparent", color: "#080808", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
+            <span lang="hi">🧱 कारीगर: कोड (OTP) से लॉगिन</span><br /><span style={{ fontSize: 13, fontWeight: 600 }}>Skilled worker? Log in with a code</span>
+          </button>
         )}
 
         <div className="login-sw">

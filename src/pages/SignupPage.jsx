@@ -5,6 +5,7 @@ import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { CITIES } from "../data/constants";
 import { INDUSTRIES } from "../data/jobsTaxonomy.js";
+import { FEATURES } from "../data/features";
 import { PRODUCT_CATEGORIES, createAccount } from "../lib/signup";
 import { emptySignup, signupError, signupLanding, signupNext, validateSignup } from "../utils/signup.js";
 import { btnOutline, btnPrimary, card, heading } from "../components/jobs/jobsStyle";
@@ -105,6 +106,17 @@ function SignupForm({ kind, pendingPath, onSignedUp, onLogin }) {
       <Link to="/signup" style={{ fontSize: 13, fontWeight: 700, color: "var(--acc)", textDecoration: "none" }}>← Back</Link>
       <h1 style={{ ...heading, fontSize: 28, margin: "6px 0 2px" }}>{o.icon} {o.title} <span lang="hi" style={{ fontSize: 18, color: "var(--t3)" }}>· {o.hi}</span></h1>
       <p style={{ fontSize: 14, color: "var(--t3)", margin: "0 0 12px" }}>{hire ? "Free during launch. Any email or mobile number works." : "Free. You’ll make your job profile next."}</p>
+      {!hire && FEATURES.skilledOtp && <>
+        <Link to="/signup/skilled" style={{ ...card, padding: 18, textDecoration: "none", display: "flex", gap: 14, alignItems: "center", border: "2px solid var(--warn)", marginBottom: 14 }}>
+          <span aria-hidden="true" style={{ fontSize: 34 }}>🧱</span>
+          <span>
+            <span lang="hi" style={{ ...heading, fontSize: 24, display: "block" }}>कारीगर / मिस्त्री हैं?</span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: "var(--t2)", display: "block" }}>Skilled trade: mason, electrician, carpenter…</span>
+            <span style={{ fontSize: 14, color: "var(--t3)" }}><span lang="hi">सिर्फ़ मोबाइल नंबर से, पासवर्ड नहीं</span> · Just your phone, no password →</span>
+          </span>
+        </Link>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--t3)", margin: "0 0 8px" }}>Professional (office, sales, design, engineering…)</div>
+      </>}
       <form onSubmit={submit} noValidate style={{ ...card, padding: 18 }}>
         {hire && <>
           <Field label="Business name" required error={errors.businessName}><input className="fi" style={big} value={f.businessName} onChange={e => set("businessName", e.target.value)} autoComplete="organization" /></Field>
