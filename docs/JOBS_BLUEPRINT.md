@@ -682,13 +682,27 @@ Admin panel → **TIN Jobs Admin**, shown only to the TIN super admin (the signe
 account's email, `src/lib/superAdmin.js` — not `users.role`, which people can write
 themselves). Owner decision (23 Nov 2026): super admin means that ONE account — not
 hom_admin, business owners/admins, staff, or any delegated role added later
-(`test/rules/jobs-admin-roles.test.js`). Read-only: summary cards; Job Seekers, Employers and Jobs tabs with search,
-filters and Excel export; a page per candidate and per job.
+(`test/rules/jobs-admin-roles.test.js`). Summary cards; Overview (businesses waiting for approval, recent
+activity), Businesses, Job Seekers and Jobs tabs with search, filters and Excel download;
+a page per candidate and per job. Read-only except approve / reject and job
+pause / resume / close / delete (25 Nov 2026).
 
 - **Job seeker** = has a job profile or applied to a job. **Employer** = posted a job, or
   a business account (retailer role or linked store, as in `utils/jobRoles.js`).
   One account can be both. **Shortlist** = contact unlocked (`isContactUnlocked`).
   `x/10` on a job = slots used (`shortlistCount`) / `config/pricing.shortlistLimit`.
+- **Business** = an employer account, someone claiming a business, or a store page no
+  account covers (never a bulk-imported listing nobody verified or claimed). There is no
+  "approved" field: **approved** = account verified, store verified, or store linked by TIN;
+  **pending** = pending claim or self-listed store still `community_added`; **rejected** =
+  store rejected or latest claim rejected; otherwise **not verified** (`buildBusinesses`).
+- **Approve / reject** reuses `storeClaims.approveClaim/rejectClaim` and
+  `storeVerification.verifyStore/rejectStore` (moved out of AdminDashboard, same logic).
+- **Profile complete** = `isApplyReady` (name, mobile, role/trade, city).
+- **Pause / close** = the Employer Desk's `setJobStatus` / `closeVacancy` (the employer can
+  reopen). **Delete** closes the open applications first, then deletes the job document;
+  applications and shortlist slots stay. No rules or index change was needed
+  (`test/rules/jobs-admin-actions.test.js`).
 - **Rules:** admin read added on `users/{uid}` and `jobProfilesPrivate/{uid}`; the other
   reads (jobs, applications, contact, profiles, every resume path) already allowed the
   admin. Employers' and candidates' access is unchanged (`test/rules/jobs-admin.test.js`).

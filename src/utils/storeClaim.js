@@ -74,6 +74,16 @@ export function buildClaimDoc(user, store, { name, phone, gst, email }) {
   };
 }
 
+// Why a claim can't be approved / what to warn about (admin screens).
+// `c` = a claim with its `store` and `claimant` docs attached (loadClaimsForReview).
+export function claimChecks(c) {
+  return {
+    legacy: !c.claimantUid,
+    takenByOther: !!c.store?.claimedByUid && c.store.claimedByUid !== c.claimantUid,
+    otherLink: !!c.claimant?.storeId && c.claimant.storeId !== c.storeId,
+  };
+}
+
 // Merge the result lists of several prefix queries: unique by id, sorted by name.
 export function mergeSearchResults(lists, max = 20) {
   const byId = new Map();

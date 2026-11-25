@@ -7,13 +7,16 @@
 //  - employer:   posted a job, or the account is a business (retailer role, or
 //                linked to a store — the same signals as utils/jobRoles.js).
 // One account can be both.
-import { FUNCS, INDUSTRIES, TRADES, labelOf } from "../data/jobsTaxonomy.js";
+import { FUNCS, INDUSTRIES, LANES, TRADES, isKey, labelOf } from "../data/jobsTaxonomy.js";
 import { currentStage, isContactUnlocked } from "./applications.js";
 import { vacancyTab, weekRange } from "./employerDesk.js";
 import { normaliseJob } from "./jobModel.js";
+import { isApplyReady, profileFromDocs } from "./jobProfile.js";
 import { isEmployerByAccount } from "./jobRoles.js";
 import { isSyntheticPhoneEmail } from "./phoneAuth.js";
 import { isShortlistFull, shortlistCountOf } from "./shortlist.js";
+import { claimChecks } from "./storeClaim.js";
+import { isImportedStore } from "./storeVisibility.js";
 
 const s = (v) => (typeof v === "string" ? v.trim() : v == null || typeof v === "object" ? "" : String(v).trim());
 const list = (v) => (Array.isArray(v) ? v : []);
@@ -108,6 +111,16 @@ export function buildJobs({ jobs, applications, users, limit }) {
 export const shortlistText = (j) => `${j.slots}/${j.limit}`;
 
 // ── Job seekers ──────────────────────────────────────────────
+export const LANE_OPTIONS = [["professional", "White-collar"], ["skilled", "Skilled / blue-collar"]];
+export const laneText = (k) => LANE_OPTIONS.find(([x]) => x === k)?.[1] || "";
+export const PROFILE_OPTIONS = ["Complete", "Incomplete", "No profile"].map(v => [v, v]);
+// "Complete" = the app's own minimum to apply (name, mobile, role/trade, city).
+function profileState(p, q, u) {
+  if (!p) return "No profile";
+  const pr = profileFromDocs({ ...p, skills: list(p.skills) }, q, u || {});
+  return isApplyReady(pr, pr.lane) ? "Complete" : "Incomplete";
+}
+
 // `contacts` = { [applicationId]: private/contact doc } for the ones loaded.
 export function buildSeekers({ profiles, privates, users, applications, contacts = {} }) {
   const pubBy = byId(profiles), privBy = byId(privates), userBy = byId(users);
@@ -127,6 +140,9 @@ export function buildSeekers({ profiles, privates, users, applications, contacts
     return {
       uid,
       hasProfile: !!p,
+      lane: isKey(LANES, src.lane) ? src.lane : "",
+      profile: profileState(p, q, u),
+      joined: toDate(u?.createdAt) || toDate(p?.createdAt) || toDate(apps[apps.length - 1]?.createdAt),
       name: s(p?.name) || s(apps[0]?.applicantName) || s(u?.name) || "(no name)",
       phone: s(q.phone) || firstOf("applicantPhone") || accountPhone(u),
       email: realEmail(q.email) || realEmail(firstOf("applicantEmail")) || accountEmail(u),
@@ -194,14 +210,139 @@ export function buildEmployers({ users, jobRows, stores = {} }) {
   }).sort(newestFirst);
 }
 
+// ── Businesses ───────────────────────────────────────────────
+// TIN has no single "business" collection or "approved" field. A business is
+// an employer account (above), someone claiming a business, or a store page
+// no account covers (never a bulk-imported listing that TIN hasn't verified
+// and nobody claimed). Its status comes from the real fields:
+//  - pending:  a claim with status "pending", or a self-listed store that is
+//              still "community_added" (TIN has to act);
+//  - approved: account verified, store verified, or TIN linked the store to
+//              the account (users.storeId / stores.claimedByUid — admin-only);
+//  - rejected: store "rejected", or the latest claim rejected;
+//  - none:     nothing is waiting for TIN and nothing was approved.
+export const BUSINESS_STATES = [["approved", "Approved"], ["pending", "Pending approval"], ["rejected", "Rejected"], ["none", "Not verified"]];
+export const businessStateLabel = (k) => BUSINESS_STATES.find(([x]) => x === k)?.[1] || k;
+
+// Stores this dashboard needs, out of the whole directory.
+export const isBusinessStore = (x) => !!x && x.type !== "individual"
+  && (!isImportedStore(x) || x.verificationStatus === "verified" || !!x.claimedByUid);
+const storeNeedsReview = (x, linkedIds) => !!x && x.type !== "individual" && !isImportedStore(x) && !x.claimedByUid && !linkedIds.has(x.id)
+  && (x.verificationStatus || "community_added") === "community_added";
+const linkedStoreIds = (users) => new Set(users.map(u => s(u.storeId)).filter(Boolean));
+
+// What TIN has to approve or reject, oldest first.
+export function buildApprovals({ users, claims = [], stores = {} }) {
+  const userBy = byId(users), linked = linkedStoreIds(users);
+  const claimRows = claims.filter(c => c.status === "pending").map(c => {
+    const claimant = userBy[c.claimantUid] || null, store = stores[c.storeId] || null;
+    const full = { ...c, claimant, store };
+    const chk = claimChecks(full);
+    return {
+      key: "claim_" + c.id, kind: "claim", kindText: "Claims a listed business", claim: c, storeId: s(c.storeId), uid: s(c.claimantUid),
+      business: s(store?.storeName) || s(c.storeName) || "(unknown store)", city: s(store?.city) || s(c.storeCity),
+      owner: s(c.name) || s(claimant?.name), phone: s(c.phone), email: realEmail(c.email) || accountEmail(claimant), gst: s(c.gst),
+      created: toDate(c.createdAt),
+      blocked: chk.legacy ? "Old claim with no account — it can only be rejected." : chk.takenByOther ? "Already claimed by another account." : "",
+      warning: chk.otherLink ? "This account is already linked to another store. Approving moves the link to this one." : "",
+    };
+  });
+  const storeRows = Object.values(stores).filter(x => storeNeedsReview(x, linked)).map(x => {
+    const by = userBy[x.contributorId];
+    return {
+      key: "store_" + x.id, kind: "store", kindText: by?.role === "contributor" ? "Added by a Market Champion" : "New listing", storeId: x.id, uid: s(x.contributorId),
+      business: s(x.storeName) || "(no name)", city: s(x.city),
+      owner: s(x.ownerName) || s(by?.name), phone: s(x.phone) || accountPhone(by), email: realEmail(x.email) || accountEmail(by), gst: s(x.gst),
+      created: toDate(x.createdAt), blocked: "", warning: "",
+    };
+  });
+  return [...claimRows, ...storeRows].sort((a, b) => (a.created?.getTime() || 0) - (b.created?.getTime() || 0));
+}
+
+const newestClaim = (claims) => claims.slice().sort((a, b) => (toDate(b.createdAt)?.getTime() || 0) - (toDate(a.createdAt)?.getTime() || 0))[0];
+
+export function buildBusinesses({ users, jobRows, stores = {}, claims = [], employers, approvals }) {
+  const userBy = byId(users);
+  const pendingStores = new Set(approvals.filter(a => a.kind === "store").map(a => a.storeId));
+  const pendingClaimants = new Set(approvals.filter(a => a.kind === "claim").map(a => a.uid));
+  const claimsBy = groupBy(claims, "claimantUid");
+  const all = Object.values(stores).filter(isBusinessStore);
+  const used = linkedStoreIds(users); // stores already shown on an account's row
+
+  const accounts = new Map(employers.map(e => [e.uid, e]));
+  for (const [uid, mine] of Object.entries(claimsBy)) {
+    if (accounts.has(uid)) continue;
+    const u = userBy[uid] || {}, c = newestClaim(mine);
+    accounts.set(uid, {
+      uid, business: "", contact: s(u.name) || s(c.name), phone: accountPhone(u) || s(c.phone), email: accountEmail(u) || realEmail(c.email),
+      city: s(u.city) || s(c.storeCity), type: "", verified: "Not verified", storeId: "", jobs: 0, openJobs: 0, slots: 0, slotsTotal: 0,
+      created: toDate(u.createdAt) || toDate(c.createdAt),
+    });
+  }
+  const rows = [...accounts.values()].map(e => {
+    const u = userBy[e.uid] || {};
+    // The account's store: the linked one, else one they listed themselves
+    // (Market Champions and the admin list other people's stores).
+    let store = e.storeId ? stores[e.storeId] : null;
+    if (!e.storeId && u.role !== "contributor" && u.role !== "admin") {
+      store = all.find(x => !used.has(x.id) && !isImportedStore(x) && x.contributorId === e.uid) || null;
+      if (store) used.add(store.id);
+    }
+    const claim = newestClaim(claimsBy[e.uid] || []);
+    const state = pendingClaimants.has(e.uid) || (store && pendingStores.has(store.id)) ? "pending"
+      : u.verificationStatus === "verified" || store?.verificationStatus === "verified" || e.storeId ? "approved"
+      : store?.verificationStatus === "rejected" || claim?.status === "rejected" ? "rejected" : "none";
+    return {
+      ...e, key: "u_" + e.uid, state, storeId: e.storeId || store?.id || "",
+      verified: e.verified === "Not verified" && store?.verificationStatus === "verified" ? "Store verified" : e.verified,
+      phone: e.phone || s(claim?.phone) || s(store?.phone),
+      business: e.business || s(store?.storeName) || s(claim?.storeName),
+      city: e.city || s(store?.city), contact: e.contact || s(store?.ownerName), type: e.type || s(store?.businessType),
+    };
+  });
+  for (const x of all) {
+    if (used.has(x.id)) continue;
+    const owner = userBy[x.claimedByUid];
+    const jobs = jobRows.filter(j => j.raw?.storeId === x.id);
+    rows.push({
+      key: "s_" + x.id, uid: s(x.claimedByUid), storeId: x.id,
+      state: pendingStores.has(x.id) ? "pending" : x.verificationStatus === "verified" || x.claimedByUid ? "approved" : x.verificationStatus === "rejected" ? "rejected" : "none",
+      business: s(x.storeName), contact: s(owner?.name) || s(x.ownerName), phone: s(x.phone), email: realEmail(x.email), city: s(x.city), type: s(x.businessType),
+      verified: x.verificationStatus === "verified" ? "Store verified" : "Not verified",
+      jobs: jobs.length, openJobs: jobs.filter(j => j.state === "open").length,
+      slots: jobs.reduce((n, j) => n + j.slots, 0), slotsTotal: jobs.reduce((n, j) => n + j.limit, 0),
+      created: toDate(x.createdAt),
+    });
+  }
+  return rows.sort(newestFirst);
+}
+
+// ── Recent activity ──────────────────────────────────────────
+// Latest sign-ups, job posts and applications, newest first.
+export function buildActivity({ users, jobRows, applications }, max = 50) {
+  const jobBy = byId(jobRows);
+  const rows = [
+    ...users.map(u => ({ key: "u_" + u.id, type: "Sign-up", at: toDate(u.createdAt), who: s(u.name) || accountEmail(u) || accountPhone(u) || "(no name)", detail: ROLE_LABEL[u.role] || s(u.role), city: s(u.city) })),
+    ...jobRows.map(j => ({ key: "j_" + j.id, type: "Job post", at: j.created, who: j.employer || "(no name)", detail: j.title, city: j.city, jobId: j.id })),
+    ...applications.map(a => ({
+      key: "a_" + a.id, type: "Application", at: toDate(a.createdAt), who: s(a.applicantName) || "(no name)",
+      detail: [jobBy[a.jobId]?.title || s(a.jobSnapshot?.title) || "(job removed)", jobBy[a.jobId]?.employer || s(a.jobSnapshot?.businessName)].filter(Boolean).join(" · "),
+      city: s(a.profileSnapshot?.city), jobId: jobBy[a.jobId] ? a.jobId : "", uid: s(a.applicantUid),
+    })),
+  ];
+  return rows.filter(r => r.at).sort((a, b) => b.at - a.at).slice(0, max);
+}
+
 // ── Summary cards ────────────────────────────────────────────
-export function summarise({ users, seekers, employers, jobRows, applications }, now = new Date()) {
+export function summarise({ users, seekers, employers, businesses = [], jobRows, applications }, now = new Date()) {
   const today = ymd(now);
   const { start, end } = weekRange(now); // Monday–Sunday, as on the Employer Desk
   const accounts = users.map(u => ymd(toDate(u.createdAt)));
   return {
     seekers: seekers.length,
     seekersWithProfile: seekers.filter(x => x.hasProfile).length,
+    businesses: businesses.length,
+    businessesByState: Object.fromEntries(BUSINESS_STATES.map(([k]) => [k, businesses.filter(b => b.state === k).length])),
     employers: employers.length,
     employersPosting: employers.filter(e => e.jobs > 0).length,
     accounts: users.length,
@@ -215,7 +356,7 @@ export function summarise({ users, seekers, employers, jobRows, applications }, 
 }
 
 // ── Search + filters ─────────────────────────────────────────
-export const EMPTY_FILTERS = { q: "", city: "", role: "", status: "", from: "", to: "" };
+export const EMPTY_FILTERS = { q: "", city: "", role: "", lane: "", status: "", from: "", to: "" };
 const norm = (v) => s(v).toLowerCase();
 
 // Distinct values, ignoring case ("Pune" / "pune "), sorted; first spelling kept.
@@ -235,14 +376,15 @@ export function matchesSearch(text, q) {
 }
 
 // `text(row)` = searchable text, `roles(row)` = values the role filter matches.
-export function filterRows(rows, f, { text, roles, status }) {
+export function filterRows(rows, f, { text, roles, status, lane, date = (r) => r.created }) {
   return rows.filter(r => {
     if (f.q && !matchesSearch(text(r), f.q)) return false;
     if (f.city && norm(r.city) !== norm(f.city)) return false;
     if (f.role && !roles(r).some(x => norm(x) === norm(f.role))) return false;
     if (f.status && status && status(r) !== f.status) return false;
+    if (f.lane && lane && lane(r) !== f.lane) return false;
     if (f.from || f.to) {
-      const d = ymd(r.created);
+      const d = ymd(date(r));
       if (!d || (f.from && d < f.from) || (f.to && d > f.to)) return false;
     }
     return true;
@@ -252,11 +394,14 @@ export function filterRows(rows, f, { text, roles, status }) {
 export const SEEKER_FILTER = {
   text: (r) => [r.name, r.phone, r.email, r.city, r.areas, r.roleText, ...r.roles, ...r.skills].join(" "),
   roles: (r) => [r.role, ...r.roles],
+  lane: (r) => r.lane,
+  status: (r) => r.profile,
+  date: (r) => r.joined,
 };
-export const EMPLOYER_FILTER = {
+export const BUSINESS_FILTER = {
   text: (r) => [r.business, r.contact, r.phone, r.email, r.city, r.type].join(" "),
   roles: (r) => [r.type],
-  status: (r) => r.verified,
+  status: (r) => r.state,
 };
 export const JOB_FILTER = {
   text: (r) => [r.title, r.employer, r.city, ...r.roles, r.employerPhone, r.employerEmail].join(" "),
@@ -290,16 +435,24 @@ export function applicantRow(app, seeker, contact, stageLabel) {
 // `link` = resume link already fetched for that row ("" when none).
 export const seekerExport = (r, link = "") => ({
   Name: r.name, Mobile: r.phone, Email: r.email, City: r.city, "Work areas": r.areas,
+  Lane: laneText(r.lane), "Profile complete": r.profile, Joined: ymd(r.joined),
   "Role / trade": r.roleText, "Functions / trades": r.roles.join(", "), Skills: r.skills.join(", "),
   "Experience (years)": r.experienceYears, "Expected pay": r.expectedPay, "Current pay": r.currentPay,
   "Pay hidden from employers": r.payHidden ? "Yes" : "",
   "Profile created": ymd(r.created), "Has job profile": r.hasProfile ? "Yes" : "No (applied only)",
   "Jobs applied": r.applied, "Times shortlisted": r.shortlisted, "Resume link": link,
 });
-export const employerExport = (r) => ({
-  Business: r.business, "Contact name": r.contact, Mobile: r.phone, Email: r.email, City: r.city, Type: r.type,
+export const businessExport = (r) => ({
+  Business: r.business, Status: businessStateLabel(r.state), "Owner / contact": r.contact, Mobile: r.phone, Email: r.email, City: r.city, Type: r.type,
   Verified: r.verified, "Jobs posted": r.jobs, "Open jobs": r.openJobs,
-  "Shortlists used": r.slots, "Shortlists available": r.slotsTotal, Created: ymd(r.created),
+  "Shortlists used": r.slots, "Shortlists available": r.slotsTotal, Joined: ymd(r.created),
+});
+export const approvalExport = (r) => ({
+  Business: r.business, Kind: r.kindText, City: r.city, Owner: r.owner, Mobile: r.phone, Email: r.email, GST: r.gst,
+  Sent: ymd(r.created), Note: r.blocked || r.warning,
+});
+export const activityExport = (r) => ({
+  When: r.at ? `${ymd(r.at)} ${pad(r.at.getHours())}:${pad(r.at.getMinutes())}` : "", Type: r.type, Who: r.who, Detail: r.detail, City: r.city,
 });
 export const jobExport = (r) => ({
   Title: r.title, Employer: r.employer, "Employer mobile": r.employerPhone, "Employer email": r.employerEmail,

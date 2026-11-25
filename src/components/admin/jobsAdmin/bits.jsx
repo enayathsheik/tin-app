@@ -11,6 +11,9 @@ const STATE_STYLE = {
   open: ["#15803d", "#f0fdf4"], paused: ["#b45309", "#fffbeb"], pending: ["#b45309", "#fffbeb"],
   filled: ["#1d4ed8", "#eff6ff"], closed: ["#6b7280", "#f3f4f6"], rejected: ["#b91c1c", "#fef2f2"],
   Verified: ["#15803d", "#f0fdf4"], "Store verified": ["#15803d", "#f0fdf4"], "Not verified": ["#6b7280", "#f3f4f6"],
+  approved: ["#15803d", "#f0fdf4"], none: ["#6b7280", "#f3f4f6"],
+  Complete: ["#15803d", "#f0fdf4"], Incomplete: ["#b45309", "#fffbeb"], "No profile": ["#6b7280", "#f3f4f6"],
+  "Sign-up": ["#1d4ed8", "#eff6ff"], "Job post": ["#c2410c", "#fff3ef"], Application: ["#15803d", "#f0fdf4"],
 };
 export function Pill({ kind, children }) {
   const [color, background] = STATE_STYLE[kind] || STATE_STYLE.closed;
@@ -48,7 +51,7 @@ export function ResumeButton({ resume, label = "View / Download" }) {
 const field = { width: "auto", minWidth: 0, padding: "8px 10px", fontSize: 13 };
 
 // Search box + city / role / status / date range, with Export on the right.
-export function FilterBar({ f, set, cities, roles, roleLabel, statuses, searchHint, count, total, onExport, dateLabel }) {
+export function FilterBar({ f, set, cities, roles, roleLabel, lanes, statuses, statusLabel = "All statuses", searchHint, count, total, onExport, dateLabel }) {
   const [exp, setExp] = useState({ busy: false, error: "" });
   const up = (k) => (e) => set({ ...f, [k]: e.target.value });
   const active = Object.values(f).some(Boolean);
@@ -71,9 +74,15 @@ export function FilterBar({ f, set, cities, roles, roleLabel, statuses, searchHi
           <option value="">{roleLabel}</option>
           {roles.map(r => <option key={r} value={r}>{r}</option>)}
         </select>
+        {lanes && (
+          <select className="fi" aria-label="Lane" value={f.lane} onChange={up("lane")} style={field}>
+            <option value="">All lanes</option>
+            {lanes.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+          </select>
+        )}
         {statuses && (
           <select className="fi" aria-label="Status" value={f.status} onChange={up("status")} style={field}>
-            <option value="">All statuses</option>
+            <option value="">{statusLabel}</option>
             {statuses.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
           </select>
         )}
@@ -85,7 +94,7 @@ export function FilterBar({ f, set, cities, roles, roleLabel, statuses, searchHi
         </label>
         {active && <button type="button" className="btn-sm btn-out" onClick={() => set(Object.fromEntries(Object.keys(f).map(k => [k, ""])))}>Clear</button>}
         <button type="button" className="btn-sm btn-out" style={{ marginLeft: "auto" }} disabled={exp.busy || !count} onClick={run}>
-          {exp.busy ? "Preparing…" : `📥 Export to Excel (${count})`}
+          {exp.busy ? "Preparing…" : `📥 Download Excel (${count})`}
         </button>
       </div>
       <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 6 }}>{count === total ? `${total} in total` : `Showing ${count} of ${total}`}</div>

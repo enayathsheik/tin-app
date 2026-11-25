@@ -4,6 +4,7 @@
 // in User Management.
 import { useEffect, useState } from "react";
 import { approveClaim, loadClaimsForReview, rejectClaim } from "../../lib/storeClaims";
+import { claimChecks } from "../../utils/storeClaim.js";
 
 const fmt = (ts) => ts?.toDate?.()?.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) || "—";
 const row = { display: "flex", gap: 8, fontSize: 13, marginBottom: 4 };
@@ -59,9 +60,7 @@ export function ClaimsReviewSection({ user }) {
       {claims?.length === 0 && <div className="val-ok-banner"><span>✓</span><div>No {status} claims.</div></div>}
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {claims?.map(c => {
-          const legacy = !c.claimantUid;
-          const takenByOther = c.store?.claimedByUid && c.store.claimedByUid !== c.claimantUid;
-          const otherLink = c.claimant?.storeId && c.claimant.storeId !== c.storeId;
+          const { legacy, takenByOther, otherLink } = claimChecks(c);
           return (
             <div key={c.id} style={{ background: "#fff", border: "1px solid #e0e0e0", borderRadius: 12, padding: 16 }}>
               <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 2 }}>{c.storeName || c.store?.storeName || "(unknown store)"}</div>

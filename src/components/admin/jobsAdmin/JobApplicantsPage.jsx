@@ -8,7 +8,7 @@ import { exportSheets } from "../../../utils/exportExcel";
 import { DataTable, Email, Facts, Phone, Pill, ResumeButton } from "./bits";
 import { dash, fmtDate, linkBtn, panel, panelTitle } from "./format";
 
-export function JobApplicantsPage({ job, applications, seekersById, onOpenCandidate }) {
+export function JobApplicantsPage({ job, applications, seekersById, onOpenCandidate, actions }) {
   const [contacts, setContacts] = useState({ id: null, map: {}, error: "" });
   const [exp, setExp] = useState({ busy: false, error: "" });
   useEffect(() => {
@@ -44,6 +44,7 @@ export function JobApplicantsPage({ job, applications, seekersById, onOpenCandid
         <div className="admin-title" style={{ marginBottom: 0 }}>{job.title}</div>
         <Pill kind={job.state}>{jobStateLabel(job.state)}</Pill>
         <a href={`/jobs/${job.id}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "var(--acc)" }}>Open job page ↗</a>
+        {actions}
       </div>
       <div style={panel}>
         <Facts rows={[
@@ -59,7 +60,7 @@ export function JobApplicantsPage({ job, applications, seekersById, onOpenCandid
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 8 }}>
         <div style={{ ...panelTitle, marginBottom: 0 }}>Applicants ({rows.length})</div>
-        <button type="button" className="btn-sm btn-out" disabled={exp.busy || !loaded || !rows.length} onClick={doExport}>{exp.busy ? "Preparing…" : "📥 Export to Excel"}</button>
+        <button type="button" className="btn-sm btn-out" disabled={exp.busy || !loaded || !rows.length} onClick={doExport}>{exp.busy ? "Preparing…" : "📥 Download Excel"}</button>
       </div>
       {(contacts.error || exp.error) && <div role="alert" style={{ color: "#b91c1c", fontSize: 12, marginBottom: 6 }}>⚠ {exp.error || contacts.error}</div>}
       {!loaded ? <div style={{ color: "var(--t3)", padding: 16 }}>Loading applicants…</div> : (

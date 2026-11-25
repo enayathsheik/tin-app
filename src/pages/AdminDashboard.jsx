@@ -1,6 +1,4 @@
 import { useState } from "react";
-import { updateDoc, doc, serverTimestamp, getDoc, getDocs, query, collection, where, increment, addDoc } from "firebase/firestore";
-import { db, updateUserStats } from "../firebase/config";
 import { BulkUploadPanel } from "../components/admin/BulkUploadPanel";
 import { UserManagementSection } from "../components/admin/UserManagementSection";
 import { InspiReviewSection } from "../components/admin/InspiReviewSection";
@@ -13,46 +11,14 @@ import { PricingSection } from "../components/admin/PricingSection";
 import { TinJobsAdmin } from "../components/admin/jobsAdmin/TinJobsAdmin";
 import { isSuperAdmin } from "../lib/superAdmin";
 import { exportToExcel } from "../utils/exportExcel";
-import { getLevel } from "../utils/helpers";
+import { rejectStore, verifyStore } from "../lib/storeVerification";
 
 export function AdminDashboard({ stores, contributors, user }) {
   const handleVerify = async (storeId) => {
-    try {
-      await updateDoc(doc(db, "stores", storeId), { verificationStatus: "verified", verifiedAt: serverTimestamp(), verifiedBy: "admin" });
-      // Auto-credit 50 referral points if this store's contributor was referred by someone
-      try {
-        const storeSnap = await getDoc(doc(db, "stores", storeId));
-        const contributorId = storeSnap.data()?.contributorId;
-        if (contributorId) {
-          const userSnap = await getDoc(doc(db, "users", contributorId));
-          const referredBy = userSnap.data()?.referredBy;
-          if (referredBy) {
-            const refSnap = await getDocs(query(collection(db, "users"), where("referralCode", "==", referredBy)));
-            if (!refSnap.empty) {
-              const referrerUid = refSnap.docs[0].id;
-              const referrerStatsSnap = await getDoc(doc(db, "users", referrerUid, "stats", "summary"));
-              const currentPoints = referrerStatsSnap.exists() ? (referrerStatsSnap.data().points || 0) : 0;
-              await updateUserStats(referrerUid, { points: increment(50), level: getLevel(currentPoints + 50).name });
-              await addDoc(collection(db, "notifications", referrerUid, "items"), {
-                type: "referral_credited",
-                message: "You earned 50 points! Your referral was validated as a Market Champion.",
-                read: false,
-                createdAt: serverTimestamp()
-              });
-              alert("Approved! 50 referral points credited to referrer.");
-              return;
-            }
-          }
-        }
-      } catch(refErr) { console.log("Referral credit error:", refErr); }
-      alert("Store verified!");
-    } catch(e) { alert("Error: " + e.message); }
+    try { alert(await verifyStore(storeId)); } catch(e) { alert("Error: " + e.message); }
   };
   const handleReject = async (storeId) => {
-    try {
-      await updateDoc(doc(db, "stores", storeId), { verificationStatus: "rejected" });
-      alert("Store rejected.");
-    } catch(e) { alert("Error: " + e.message); }
+    try { alert(await rejectStore(storeId)); } catch(e) { alert("Error: " + e.message); }
   };
   const [section, setSection] = useState("dashboard");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -161,7 +127,7 @@ export function AdminDashboard({ stores, contributors, user }) {
           </div>
         </>}
 
-        {section === "tinjobs" && <TinJobsAdmin />}
+        {section === "tinjobs" && <TinJobsAdmin stores={stores} />}
 
         {section === "validation" && <>
           <div className="admin-hd"><div className="admin-title">Market Champion Validation</div><div className="admin-sub">Review and approve Market Champion applications</div></div>

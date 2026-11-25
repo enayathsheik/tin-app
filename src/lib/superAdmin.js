@@ -5,3 +5,5 @@ import { auth } from "../firebase/config";
 
 export const SUPER_ADMIN_EMAIL = "enayathsheik@gmail.com";
 export const isSuperAdmin = () => (auth.currentUser?.email || "") === SUPER_ADMIN_EMAIL;
+// The signed-in account id, recorded on admin actions.
+export const adminUid = () => auth.currentUser?.uid || "admin";

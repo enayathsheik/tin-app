@@ -1,9 +1,9 @@
 // Admin → TIN Jobs Admin: rows, counts, filters and export shapes.
 import { describe, expect, it } from "vitest";
 import {
-  EMPLOYER_FILTER, EMPTY_FILTERS, JOB_FILTER, SEEKER_FILTER,
-  applicantRow, buildEmployers, buildJobs, buildSeekers, contactsNeeded, distinct, employerExport, filterRows,
-  jobExport, jobState, matchesSearch, realEmail, resumeSource, seekerExport, summarise, toDate,
+  BUSINESS_FILTER, EMPTY_FILTERS, JOB_FILTER, SEEKER_FILTER,
+  activityExport, applicantRow, approvalExport, buildActivity, buildApprovals, buildBusinesses, buildEmployers, buildJobs, buildSeekers,
+  businessExport, contactsNeeded, distinct, filterRows, isBusinessStore, jobExport, jobState, matchesSearch, realEmail, resumeSource, seekerExport, summarise, toDate,
 } from "../../src/utils/jobsAdmin.js";
 
 const ts = (iso) => ({ toDate: () => new Date(iso), seconds: new Date(iso).getTime() / 1000 });
@@ -114,7 +114,7 @@ describe("search and filters", () => {
     expect(run(seekers, { q: "tiling" }, SEEKER_FILTER)).toHaveLength(1);
     expect(run(seekers, { q: "zzz" }, SEEKER_FILTER)).toHaveLength(0);
     expect(matchesSearch("+91 97690 31000", "9769031000")).toBe(true);
-    expect(run(employers, { q: "e2@x.com" }, EMPLOYER_FILTER).map(r => r.uid)).toEqual(["e2"]);
+    expect(run(employers, { q: "e2@x.com" }, BUSINESS_FILTER).map(r => r.uid)).toEqual(["e2"]);
   });
   it("city (any case), role, status, date range", () => {
     expect(run(jobRows, { city: "thane" }, JOB_FILTER).map(r => r.id)).toEqual(["j1"]);
@@ -131,7 +131,7 @@ describe("search and filters", () => {
 describe("export + helpers", () => {
   it("exports carry phone, email and resume link", () => {
     expect(seekerExport(by(seekers, "uid", "c1"), "https://r")).toMatchObject({ Mobile: "9769031000", Email: "p@x.com", "Resume link": "https://r", "Expected pay": "₹950", "Profile created": "2026-11-22" });
-    expect(employerExport(by(employers, "uid", "e1"))).toMatchObject({ Mobile: "9222222222", Email: "e1@x.com" });
+    expect(businessExport({ ...by(employers, "uid", "e1"), state: "approved" })).toMatchObject({ Mobile: "9222222222", Email: "e1@x.com", Status: "Approved" });
     expect(jobExport(by(jobRows, "id", "j1"))).toMatchObject({ "Employer mobile": "9222222222", "Employer email": "e1@x.com", "Shortlists used": "1/10", Status: "Open" });
   });
   it("an applicant row uses that application's contact first, then the profile", () => {
@@ -148,5 +148,116 @@ describe("export + helpers", () => {
     expect(toDate("2026-11-20T00:00:00")).toBeInstanceOf(Date);
     expect(toDate("junk")).toBeNull();
     expect(toDate({})).toBeNull();
+  });
+});
+
+// ── Businesses, approvals, activity ──
+const bUsers = [
+  ...users,
+  { id: "own", name: "Own Lister", role: "retailer", createdAt: "2026-11-05T04:00:00" },
+  { id: "mc", name: "Champion", role: "contributor", createdAt: "2026-11-05T04:00:00" },
+  { id: "cl", name: "Claimant", role: "consumer", createdAt: "2026-11-06T04:00:00" },
+  { id: "rej", name: "Rejected Claimant", role: "consumer", createdAt: "2026-11-06T04:00:00" },
+];
+const store = (id, extra) => ({ id, storeName: "Store " + id, city: "Pune", verificationStatus: "community_added", createdAt: ts("2026-11-07T10:00:00"), ...extra });
+const bStores = Object.fromEntries([
+  store("s1", { storeName: "One Store", city: "Mumbai", contributorId: "e1" }),           // linked to e1
+  store("ownStore", { contributorId: "own", ownerName: "Own Lister" }),                   // self-listed, waiting
+  store("mcStore", { contributorId: "mc", ownerName: "Shop Owner" }),                     // added by a champion, waiting
+  store("imp", { source: "bulk_upload", contributorId: "adminUid" }),                     // imported, being claimed
+  store("impVer", { source: "bulk_upload", verificationStatus: "verified" }),
+  store("impHidden", { source: "bulk_upload" }),
+  store("bad", { verificationStatus: "rejected" }),
+  store("person", { type: "individual" }),
+].map(x => [x.id, x]));
+const claims = [
+  { id: "k1", status: "pending", claimantUid: "cl", storeId: "imp", storeName: "Store imp", name: "Claimant", phone: "9444444444", createdAt: ts("2026-11-08T10:00:00") },
+  { id: "k2", status: "rejected", claimantUid: "rej", storeId: "impHidden", storeName: "Store impHidden", createdAt: ts("2026-11-08T10:00:00") },
+  { id: "k3", status: "pending", storeId: "imp", storeName: "Legacy", createdAt: ts("2026-11-01T10:00:00") },
+];
+const approvals = buildApprovals({ users: bUsers, claims, stores: bStores });
+const bEmployers = buildEmployers({ users: bUsers, jobRows, stores: bStores });
+const businesses = buildBusinesses({ users: bUsers, jobRows, stores: bStores, claims, employers: bEmployers, approvals });
+const biz = (k) => businesses.find(b => b.key === k);
+
+describe("pending approvals", () => {
+  it("pending claims and self-listed stores only, oldest first", () => {
+    expect(approvals.map(a => a.key)).toEqual(["claim_k3", "store_ownStore", "store_mcStore", "claim_k1"]);
+  });
+  it("old claims and stores claimed by someone else can't be approved; a moved link is warned about", () => {
+    expect(approvals.find(a => a.key === "claim_k3").blocked).toMatch(/only be rejected/);
+    expect(approvals.find(a => a.key === "claim_k1")).toMatchObject({ blocked: "", warning: "", owner: "Claimant", phone: "9444444444" });
+    const taken = buildApprovals({ users: bUsers, claims, stores: { imp: { ...bStores.imp, claimedByUid: "e1" } } });
+    expect(taken.find(a => a.key === "claim_k1").blocked).toMatch(/Already claimed/);
+    const moved = buildApprovals({ users: bUsers.map(u => (u.id === "cl" ? { ...u, storeId: "other" } : u)), claims, stores: bStores });
+    expect(moved.find(a => a.key === "claim_k1").warning).toMatch(/already linked/);
+  });
+  it("imported, individual, verified, rejected, claimed and linked stores are not waiting", () => {
+    for (const id of ["imp", "impVer", "impHidden", "bad", "person", "s1"]) expect(approvals.some(a => a.key === "store_" + id)).toBe(false);
+    expect(buildApprovals({ users: [], stores: { x: store("x", { claimedByUid: "z" }) } })).toEqual([]);
+  });
+  it("survives a claim whose store and account are gone", () => {
+    expect(buildApprovals({ users: [], claims: [claims[0]], stores: {} })[0]).toMatchObject({ business: "Store imp", city: "", owner: "Claimant" });
+  });
+});
+
+describe("businesses", () => {
+  it("one row per business, no hidden imports, no individuals", () => {
+    expect(businesses.map(b => b.key).sort()).toEqual(["s_bad", "s_impVer", "s_mcStore", "u_cl", "u_e1", "u_e2", "u_e3", "u_own", "u_rej"]);
+    expect(isBusinessStore(bStores.impHidden)).toBe(false);
+  });
+  it("status from the real fields", () => {
+    const states = Object.fromEntries(businesses.map(b => [b.key, b.state]));
+    expect(states).toEqual({ u_e1: "approved", s_impVer: "approved", u_own: "pending", s_mcStore: "pending", u_cl: "pending", s_bad: "rejected", u_rej: "rejected", u_e2: "none", u_e3: "none" });
+  });
+  it("a store linked by TIN counts as approved even if the account isn't verified", () => {
+    const us = bUsers.map(u => (u.id === "e1" ? { ...u, verificationStatus: undefined } : u));
+    const rows = buildBusinesses({ users: us, jobRows, stores: bStores, claims, approvals, employers: buildEmployers({ users: us, jobRows, stores: bStores }) });
+    expect(rows.find(b => b.key === "u_e1")).toMatchObject({ state: "approved", verified: "Not verified" });
+  });
+  it("name, city, owner, jobs posted; search and status filter", () => {
+    expect(biz("u_own")).toMatchObject({ business: "Store ownStore", city: "Pune", contact: "Own Lister", storeId: "ownStore" });
+    expect(biz("s_mcStore")).toMatchObject({ business: "Store mcStore", contact: "Shop Owner" });
+    expect(biz("u_e1")).toMatchObject({ business: "One Store", jobs: 2 });
+    const run = (f) => filterRows(businesses, { ...EMPTY_FILTERS, ...f }, BUSINESS_FILTER).map(b => b.key);
+    expect(run({ status: "pending" }).sort()).toEqual(["s_mcStore", "u_cl", "u_own"]);
+    expect(run({ q: "shop owner" })).toEqual(["s_mcStore"]);
+  });
+  it("the summary's statuses add up to all businesses", () => {
+    const sum = summarise({ users: bUsers, seekers, employers: bEmployers, businesses, jobRows, applications });
+    expect(sum.businesses).toBe(9);
+    expect(sum.businessesByState).toEqual({ approved: 2, pending: 3, rejected: 2, none: 2 });
+  });
+});
+
+describe("lane, profile and joined date of a job seeker", () => {
+  const full = { id: "c1", name: "P", city: "Thane", lane: "skilled", trades: ["mason"], createdAt: ts("2026-11-22T10:00:00") };
+  const one = (p, q) => buildSeekers({ profiles: p ? [p] : [], privates: q ? [q] : [], users, applications })[0];
+  it("complete = the app's minimum to apply", () => {
+    expect(one(full, { id: "c1", phone: "9769031000" })).toMatchObject({ lane: "skilled", profile: "Complete" });
+    expect(one({ ...full, trades: [] }, { id: "c1", phone: "9769031000" }).profile).toBe("Incomplete");
+    expect(one({ ...full, city: "" }, { id: "c1", phone: "9769031000" }).profile).toBe("Incomplete");
+    expect(by(seekers, "uid", "c2").profile).toBe("No profile");
+  });
+  it("joined = the account's sign-up date; lane and profile filters", () => {
+    const r = one(full, { id: "c1", phone: "9769031000" });
+    expect(r.joined.toISOString()).toBe(new Date("2026-11-23T04:00:00").toISOString());
+    const run = (f) => filterRows([r], { ...EMPTY_FILTERS, ...f }, SEEKER_FILTER).length;
+    expect([run({ lane: "skilled" }), run({ lane: "professional" }), run({ status: "Complete" }), run({ status: "Incomplete" }), run({ from: "2026-11-23" })]).toEqual([1, 0, 1, 0, 1]);
+    expect(seekerExport(r)).toMatchObject({ Lane: "Skilled / blue-collar", "Profile complete": "Complete", Joined: "2026-11-23" });
+  });
+});
+
+describe("recent activity", () => {
+  const feed = buildActivity({ users, jobRows, applications });
+  it("sign-ups, job posts and applications, newest first; undated ones left out", () => {
+    expect(feed.map(r => r.key)).toEqual(["u_e3", "u_c1", "a_j1_c1", "j_j2", "a_j1_c2", "j_j1", "a_j3_c1", "u_c2", "u_e1", "u_x"]);
+    expect(buildActivity({ users, jobRows, applications }, 3)).toHaveLength(3);
+  });
+  it("an application to a deleted job still shows, without a link", () => {
+    const [r] = buildActivity({ users: [], jobRows: [], applications: [{ ...applications[0], jobSnapshot: { title: "Gone", businessName: "Biz" } }] });
+    expect(r).toMatchObject({ detail: "Gone · Biz", jobId: "" });
+    expect(activityExport(r)).toMatchObject({ Type: "Application", Who: "Prakash" });
+    expect(approvalExport(approvals[0])).toMatchObject({ Business: "Store imp", Sent: "2026-11-01" });
   });
 });
