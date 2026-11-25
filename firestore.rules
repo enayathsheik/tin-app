@@ -416,15 +416,48 @@ service cloud.firestore {
     }
 
     // ── CANDIDATE JOB PROFILES ── (Jobs redesign phase 4, §4.1 / §5.4)
-    // Shareable part: owner writes; never carries private fields. Readable
-    // by the owner, admin, or signed-in users unless "not discoverable".
+    // Shareable part: owner writes; never carries private fields. Readable by
+    // the owner, the admin, and — only once the person said yes to "Let
+    // employers find and call me" and is looking (`searchable`) — by employer
+    // accounts, 20 at a time (A1).
     match /jobProfiles/{uid} {
-      allow read: if isAdmin() || (request.auth != null && (
-           request.auth.uid == uid
-        || (resource != null && resource.data.get("visibility", "not_discoverable") != "not_discoverable")));
+      // Account type is self-chosen, so this only keeps ordinary job seekers
+      // from browsing each other. The phone, email and CV have their own gate.
+      function isEmployerAccount() {
+        return exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          && employerData(get(/databases/$(database)/documents/users/$(request.auth.uid)).data);
+      }
+      function employerData(u) {
+        return u.get("role", "") in ["retailer", "contractor", "architect", "manufacturer", "employer"]
+          || u.get("storeId", null) != null
+          || u.get("jobBusiness", null) != null;
+      }
+      function isSearchable() {
+        return resource != null && resource.data.get("searchable", false) == true;
+      }
+      // `searchable` can never say yes without the consent and a "looking"
+      // visibility (LOOKING in src/utils/candidateSearch.js).
+      function searchFieldsOk() {
+        return request.resource.data.get("openToEmployers", false) is bool
+          && request.resource.data.get("searchable", false) == (
+               request.resource.data.get("openToEmployers", false) == true
+            && request.resource.data.get("visibility", "") in ["actively_looking", "open_to_opportunities", "freelance_project", "employed_open_suitable"])
+          && request.resource.data.get("cityKey", "") is string
+          && request.resource.data.get("cityKey", "").size() <= 80
+          && request.resource.data.get("expBand", "") in ["", "0_1", "2_4", "5_9", "10_plus"];
+      }
+      allow get: if isAdmin() || (request.auth != null
+        && (request.auth.uid == uid || (isSearchable() && isEmployerAccount())));
+      allow list: if isAdmin() || (request.auth != null
+        && isSearchable() && request.query.limit <= 20 && isEmployerAccount());
       allow create, update: if request.auth != null && request.auth.uid == uid
         && !request.resource.data.keys().hasAny(["phone", "email", "currentPay", "expectedPay", "cv"])
-        && request.resource.data.get("lane", "professional") in ["professional", "skilled"];
+        && request.resource.data.get("lane", "professional") in ["professional", "skilled"]
+        && searchFieldsOk();
+      // Launch tools backfill: the admin may fill these two, never the consent.
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["cityKey", "expBand"])
+        && searchFieldsOk();
       allow delete: if request.auth != null && (request.auth.uid == uid || isAdmin());
     }
     // Private part (phone, email, pay, CV details): the candidate, plus the

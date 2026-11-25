@@ -6,6 +6,7 @@ import {
   AVAIL, EDU, FUNCS, LANES, TRADES, TYPES, VISIBILITY, isKey, labelOf, workTypesForLane,
 } from "../data/jobsTaxonomy.js";
 import { isSyntheticPhoneEmail } from "./phoneAuth.js";
+import { isSearchable, searchFields } from "./candidateSearch.js";
 
 // Fields that must NEVER be on the shareable doc (rules enforce it too).
 export const PRIVATE_FIELDS = ["phone", "email", "currentPay", "expectedPay", "cv", "showPayToEmployers"];
@@ -28,6 +29,8 @@ export function emptyProfile(user = {}) {
     // L8: expected/current pay go to employers only when this is on (default off).
     showPayToEmployers: false,
     availability: "", visibility: DEFAULT_VISIBILITY,
+    // A1 "Let employers find and call me": null = not asked yet, never assumed.
+    openToEmployers: null,
     cv: null,
   };
 }
@@ -57,6 +60,9 @@ export function profileFromDocs(pub, priv, user = {}) {
     workTypePrefs: keys(p.workTypePrefs, TYPES),
     availability: isKey(AVAIL, p.availability) ? p.availability : "",
     visibility: isKey(VISIBILITY, p.visibility) ? p.visibility : DEFAULT_VISIBILITY,
+    openToEmployers: typeof p.openToEmployers === "boolean" ? p.openToEmployers : null,
+    // What the database has now, so a save records the time only on a change.
+    openToEmployersSaved: typeof p.openToEmployers === "boolean" ? p.openToEmployers : null,
     phone: s(q.phone) || base.phone,
     email: s(q.email) || base.email,
     expectedPay: s(q.expectedPay),
@@ -86,7 +92,9 @@ export function splitProfile(pr) {
     workTypePrefs: keys(pr.workTypePrefs, TYPES),
     availability: isKey(AVAIL, pr.availability) ? pr.availability : "",
     visibility: isKey(VISIBILITY, pr.visibility) ? pr.visibility : DEFAULT_VISIBILITY,
+    ...(typeof pr.openToEmployers === "boolean" ? { openToEmployers: pr.openToEmployers } : {}),
   };
+  Object.assign(pub, searchFields(pub), { searchable: isSearchable(pub) });
   const priv = {
     phone: s(pr.phone),
     email: s(pr.email),

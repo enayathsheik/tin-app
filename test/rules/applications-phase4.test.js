@@ -202,8 +202,8 @@ describe("candidate job profiles", () => {
     await assertSucceeds(getDoc(doc(as("adm", ADMIN_EMAIL), "jobProfilesPrivate", "p1")));
   });
 
-  it("the shareable doc: readable by signed-in users unless 'not discoverable'", async () => {
-    await assertSucceeds(getDoc(doc(as("emp"), "jobProfiles", "p1")));
+  it("the shareable doc: not readable by others until the person says yes (A1, see candidate-search.test.js)", async () => {
+    await assertFails(getDoc(doc(as("emp"), "jobProfiles", "p1")));
     await assertFails(getDoc(doc(testEnv.unauthenticatedContext().firestore(), "jobProfiles", "p1")));
     await assertSucceeds(updateDoc(doc(as("p1"), "jobProfiles", "p1"), { visibility: "not_discoverable" }));
     await assertFails(getDoc(doc(as("emp"), "jobProfiles", "p1")));

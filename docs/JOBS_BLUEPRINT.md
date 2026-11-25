@@ -198,8 +198,9 @@ pending/approved/rejected), `jobStatus` (live/filled/closed), `createdAt`,
 The job profile hangs off the user's existing TIN account (`uid`). There's no
 second login, and the same person can be a candidate and an employer.
 
-**`jobProfiles/{uid}`: shareable part.** Readable by the owner, admin, and
-signed-in users **only when `visibility != "not_discoverable"`**.
+**`jobProfiles/{uid}`: shareable part.** Readable by the owner, the admin, and
+(since A1, 25 Nov 2026) **employer accounts only when `searchable`** — the person
+said yes to "Let employers find and call me" and is looking. Employer lists: 20 at a time.
 
 | Field | Notes |
 |---|---|
@@ -210,6 +211,9 @@ signed-in users **only when `visibility != "not_discoverable"`**.
 | `city`, `areas` ("where you'll work") | |
 | `workTypePrefs[]` | see open decision D3 |
 | `availability` (`AVAIL` key), `visibility` (`VISIBILITY` key) | |
+| `openToEmployers` (+ `openToEmployersAt`) | true / false; absent = not asked yet. Never assumed |
+| `searchable` | `openToEmployers` and `visibility` is one of the 4 looking values; rules refuse any other value |
+| `cityKey`, `expBand` | search form of `city` / `experienceYears` (`src/utils/candidateSearch.js`); admin backfill in Launch tools |
 | `createdAt`, `updatedAt` | |
 
 **`jobProfilesPrivate/{uid}`: owner only** (since §10 the TIN super admin can also read it).
@@ -238,10 +242,10 @@ can read (as today):
   `profileSnapshot { role, lane, experienceYears, education, educationText, skills[], city, availability, history[] }`,
   `stage`, `stageHistory[]`, `updatedAt`, `interview {…}` (Phase 5)
 
-This is how phone, email and CV reach **only** employers the candidate applied
-to. "Request contact" from Find candidates (Phase 5) uses the existing TIN
-Conversations request → accept flow: nothing is shared until the candidate
-accepts.
+This is how phone, email and CV reach employers the candidate applied to. From
+Find candidates (owner decision, 25 Nov 2026, replaces "Request contact"): an
+employer can shortlist a candidate who said yes to "Let employers find and call
+me" for their own live job; that unlocks phone, email and CV with no accept step.
 
 ### 4.3 CVs
 
@@ -351,9 +355,8 @@ Before this, anyone could set their own `verificationStatus` to "verified" (jobs
 
 ```
 match /jobProfiles/{uid} {
-  allow read: if request.auth != null && (
-       request.auth.uid == uid || isAdmin()
-    || (resource != null && resource.data.get("visibility", "not_discoverable") != "not_discoverable"));
+  // Tightened in A1: see isSearchable() / searchFieldsOk() in firestore.rules.
+  allow get: if owner, admin, or searchable + employer account;  allow list: admin, or searchable + employer account + limit <= 20;
   allow create, update: if request.auth != null && request.auth.uid == uid
     && !request.resource.data.keys().hasAny(["phone", "email", "currentPay", "expectedPay", "cv"]);
   allow delete: if request.auth != null && (request.auth.uid == uid || isAdmin());

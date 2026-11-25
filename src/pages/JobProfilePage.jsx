@@ -12,14 +12,18 @@ import { TradeTiles } from "../components/jobs/TradeTiles";
 import { ProfileHelper } from "../components/jobs/ProfileHelper";
 import { TinProfileCard } from "../components/jobs/ApplicationBits";
 import { ShortlistNotice } from "../components/jobs/ShortlistNotice";
+import { EmployerChoice, SavedEmployerChoice } from "../components/jobs/EmployerChoice";
+import { LOOKING } from "../utils/candidateSearch.js";
 import { PriceTag } from "../components/jobs/PriceTag";
 
 const SUGGESTED_TAG = <span style={{ marginLeft: 6, textTransform: "none", letterSpacing: 0, fontSize: 10, fontWeight: 800, color: "#7c3aed", background: "#f3e8ff", borderRadius: 8, padding: "1px 6px" }}>✨ suggested</span>;
 const STEPS = [["About you", "आपके बारे में"], ["Your work", "आपका काम"], ["What you want", "कैसा काम चाहिए"], ["Availability", "कब से"]];
 const big = { fontSize: 16, padding: "12px 14px", minHeight: 48 };
-const VIS_NOTE = {
-  not_discoverable: "Hidden from employer search. You can still apply to jobs.",
-  default: "Employers on TIN can find your profile (name, work, area) — never your number. Your phone, email and CV are shared only when an employer you applied to shortlists you.",
+const visNote = (visibility, open) => {
+  if (!LOOKING.includes(visibility)) return "Hidden from employer search. You can still apply to jobs.";
+  return open
+    ? "Employers on TIN can find your profile (name, work, area). Your phone, email and CV are shared when an employer shortlists you."
+    : "Employers can't find you in search. Your phone, email and CV are shared only when an employer you applied to shortlists you.";
 };
 
 // /jobs/profile — the candidate's job profile ("Find work"). 4 steps; the
@@ -42,6 +46,7 @@ export function JobProfilePage({ user, isGuest, onRequireLogin, toast }) {
   const [suggested, setSuggested] = useState([]);
   const [aiNotes, setAiNotes] = useState([]);
   const [done, setDone] = useState(false);
+  const [choiceAsked, setChoiceAsked] = useState(false); // A1: asked early, keep it on screen
   // L4: a saved profile opens on a view with a big "Edit profile" button.
   const [editing, setEditing] = useState(false);
   const uid = user?.uid;
@@ -102,6 +107,12 @@ export function JobProfilePage({ user, isGuest, onRequireLogin, toast }) {
   const save = async ({ finish = false } = {}) => {
     if (!validate(0)) { setStep(0); return; }
     if (!validate(1)) { setStep(1); return; }
+    // A1: a clear yes or no before the profile is saved (never assumed).
+    if (typeof pr.openToEmployers !== "boolean") {
+      setChoiceAsked(true);
+      setErrors({ consent: bi ? "हाँ या नहीं चुनें, फिर सेव करें। · Choose yes or no, then save." : "Choose yes or no, then save." });
+      return;
+    }
     setSaving(true);
     try {
       let next = pr;
@@ -112,8 +123,9 @@ export function JobProfilePage({ user, isGuest, onRequireLogin, toast }) {
         setCvFile(null);
       }
       await saveJobProfile(uid, next, { isNew: !pr.exists });
-      setPr({ ...next, exists: true });
+      setPr({ ...next, exists: true, openToEmployersSaved: next.openToEmployers });
       setSavedOnce(true);
+      setChoiceAsked(false);
       setSuggested([]);
       setAiNotes([]);
       toast?.(bi ? "सेव हो गया · Saved" : "Profile saved", "ok");
@@ -154,7 +166,7 @@ export function JobProfilePage({ user, isGuest, onRequireLogin, toast }) {
       <Field label={t("mobile", bi)} required error={err("phone")} hint={t("phonePrivate", bi)}><input className="fi" style={big} inputMode="tel" value={pr.phone} onChange={e => upd("phone", e.target.value)} placeholder="98xxxxxx10" /></Field>
       <Field label={sl("city", t("city", bi))} required error={err("city")}><input className="fi" style={big} value={pr.city} onChange={e => upd("city", e.target.value)} placeholder="e.g. Thane" /></Field>
       <Field label={sl("areas", t("workAreas", bi))} optional><input className="fi" style={big} value={pr.areas} onChange={e => upd("areas", e.target.value)} placeholder="e.g. Thane, Navi Mumbai" /></Field>
-      {!bi && <Field label="Email" optional hint="For updates. Shared only with employers you apply to."><input className="fi" type="email" value={pr.email} onChange={e => upd("email", e.target.value)} /></Field>}
+      {!bi && <Field label="Email" optional hint="For updates. Shared only with employers who shortlist you."><input className="fi" type="email" value={pr.email} onChange={e => upd("email", e.target.value)} /></Field>}
     </>;
   } else if (step === 1) {
     pane = pr.lane === "skilled" ? <>
@@ -218,11 +230,13 @@ export function JobProfilePage({ user, isGuest, onRequireLogin, toast }) {
           {VISIBILITY.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
         </select>
         <div style={{ fontSize: 12, color: "var(--t2)", marginTop: 6, background: "var(--s2)", borderRadius: 8, padding: "8px 10px" }}>
-          <b>{labelOf(VISIBILITY, pr.visibility || DEFAULT_VISIBILITY)}:</b> {VIS_NOTE[pr.visibility] || VIS_NOTE.default}
+          <b>{labelOf(VISIBILITY, pr.visibility || DEFAULT_VISIBILITY)}:</b> {visNote(pr.visibility || DEFAULT_VISIBILITY, pr.openToEmployers === true)}
         </div>
       </Field>
     </>;
   }
+  // A1: asked on the last step, or straight away if they save earlier.
+  const askChoice = step === 3 || choiceAsked;
 
   const onDraft = (draft, notes) => {
     const { next, suggested: filled } = applyDraft(pr, draft);
@@ -266,6 +280,8 @@ export function JobProfilePage({ user, isGuest, onRequireLogin, toast }) {
     const bigBtn = { minHeight: 52, fontSize: 16, padding: "12px 18px", borderRadius: 12, textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center", flex: "1 1 200px" };
     return shell(<>
       <h1 style={{ ...heading, fontSize: 26, margin: "0 0 2px" }}>My job profile {bi && <span lang="hi" style={{ fontSize: 18, color: "var(--t3)" }}>· मेरी प्रोफ़ाइल</span>}</h1>
+      <SavedEmployerChoice uid={uid} profile={pr} bi={bi} style={{ margin: "8px 0 12px" }}
+        onSaved={v => setPr(p => ({ ...p, openToEmployers: v, openToEmployersSaved: v }))} />
       <p style={{ fontSize: 13, color: "var(--t3)", margin: "0 0 12px" }}>{bi ? "आवेदन करने पर नौकरी देने वाले को यह TIN प्रोफ़ाइल दिखेगी। · Employers you apply to see this." : "This is the TIN Profile employers see when you apply."}</p>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
         <button type="button" onClick={() => { setEditing(true); setStep(0); }} style={{ ...btnPrimary, ...bigBtn }}>✏️ {bi ? "प्रोफ़ाइल बदलें · Edit profile" : "Edit profile"}</button>
@@ -329,6 +345,8 @@ export function JobProfilePage({ user, isGuest, onRequireLogin, toast }) {
     </nav>
     <div style={{ ...card, padding: 18 }}>
       {pane}
+      {askChoice && <EmployerChoice value={pr.openToEmployers} visibility={pr.visibility} bi={bi} error={errors.consent} style={{ marginTop: 12 }}
+        onChange={v => { upd("openToEmployers", v); setErrors(e => ({ ...e, consent: undefined })); }} />}
       {errors.save && <div role="alert" style={{ fontSize: 13, color: "#b91c1c", background: "#fff0f0", border: "1px solid #fecaca", borderRadius: 8, padding: "8px 12px", marginTop: 10 }}>⚠ {errors.save}</div>}
       <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
         {step > 0 ? <button type="button" onClick={() => setStep(step - 1)} style={{ ...btnOutline, minHeight: 46 }}>← {t("back", bi)}</button> : <span />}

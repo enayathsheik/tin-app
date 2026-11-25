@@ -53,6 +53,7 @@ export function CandidatePage({ seeker, jobsById, onOpenJob }) {
           ["Current pay", pay(seeker.currentPay)],
           ...extra,
           ["Profile visibility", labelOf(VISIBILITY, seeker.visibility) || (seeker.hasProfile ? "" : "No job profile — applied only")],
+          ["Employers can find and call", seeker.openToEmployers === null ? (seeker.hasProfile ? "Not asked yet" : "—") : seeker.openToEmployers ? "Yes" : "No"],
           [seeker.hasProfile ? "Profile created" : "Joined", fmtDate(seeker.created)],
         ]} />
       </div>

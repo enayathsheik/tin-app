@@ -1,11 +1,12 @@
 // Candidate job profile reads/writes (jobProfiles/{uid} shareable +
 // jobProfilesPrivate/{uid} owner-only). Shapes: src/utils/jobProfile.js.
-import { doc, getDoc, serverTimestamp, setDoc, writeBatch } from "firebase/firestore";
+import { doc, getDoc, serverTimestamp, setDoc, updateDoc, writeBatch } from "firebase/firestore";
 import { ref, uploadBytes } from "firebase/storage";
 import { db, storage } from "../firebase/config";
 import { markJobRole } from "./jobRoles";
 import { addEntitlement, loadPricing } from "./pricing";
 import { profileFromDocs, splitProfile } from "../utils/jobProfile.js";
+import { isSearchable, searchFields } from "../utils/candidateSearch.js";
 
 export const CV_MIME_TYPES = [
   "application/pdf",
@@ -36,13 +37,30 @@ export async function loadJobProfile(user) {
 
 export async function saveJobProfile(uid, profile, { isNew = false } = {}) {
   const { pub, priv } = splitProfile(profile);
-  const stamp = { updatedAt: serverTimestamp(), ...(isNew ? { createdAt: serverTimestamp() } : {}) };
+  const answered = typeof pub.openToEmployers === "boolean" && pub.openToEmployers !== (profile.openToEmployersSaved ?? null);
+  const stamp = {
+    updatedAt: serverTimestamp(),
+    ...(isNew ? { createdAt: serverTimestamp() } : {}),
+    ...(answered ? { openToEmployersAt: serverTimestamp() } : {}),
+  };
   await Promise.all([
     setDoc(doc(db, "jobProfiles", uid), { ...pub, ...stamp }, { merge: true }),
     setDoc(doc(db, "jobProfilesPrivate", uid), { ...priv, updatedAt: serverTimestamp() }, { merge: true }),
   ]);
   markJobRole(uid, "seeker"); // L3 floating buttons
   if (isNew) await recordProfileEntitlement(uid);
+}
+
+// A1: save only the "Let employers find and call me" answer on an existing
+// profile. Visibility goes along because the rules check the two together
+// (older profiles may not have it stored); the search fields too, so an older
+// profile can be found by city and experience straight away.
+export async function saveEmployerChoice(uid, openToEmployers, profile) {
+  const { visibility } = profile;
+  await updateDoc(doc(db, "jobProfiles", uid), {
+    ...searchFields(profile), openToEmployers, visibility, searchable: isSearchable({ openToEmployers, visibility }),
+    openToEmployersAt: serverTimestamp(), updatedAt: serverTimestamp(),
+  });
 }
 
 // L9: a new job-seeker profile is free (launch) — record it for 365 days.

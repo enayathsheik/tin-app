@@ -29,7 +29,7 @@ describe("applyDraft", () => {
 
   it("never touches name, phone, email, pay, CV or visibility, even if the draft has them", () => {
     const pr = { ...base(), expectedPay: "₹900 / day", currentPay: "₹800 / day", visibility: "not_discoverable" };
-    const { next, suggested } = applyDraft(pr, { name: "X", phone: "1", email: "a@b.c", expectedPay: "1", currentPay: "1", cv: { path: "x" }, visibility: "actively_looking" });
+    const { next, suggested } = applyDraft(pr, { name: "X", phone: "1", email: "a@b.c", expectedPay: "1", currentPay: "1", cv: { path: "x" }, visibility: "actively_looking", openToEmployers: true, searchable: true });
     expect(next).toEqual(pr);
     expect(suggested).toEqual([]);
   });

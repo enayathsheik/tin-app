@@ -173,11 +173,9 @@ describe("a job seeker can't see other candidates", () => {
     await assertSucceeds(updateDoc(doc(db(C2), "jobProfilesPrivate", C2), { expectedPay: "₹950" }));
   });
 
-  // Unchanged, documented behaviour (blueprint §4.1, Privacy page): the
-  // SHAREABLE part of a discoverable profile — never phone, email, pay or CV.
-  it("the shareable part of a discoverable profile carries no contact, pay or CV", async () => {
-    const snap = await getDoc(doc(db(C2), "jobProfiles", C1));
-    for (const k of ["phone", "email", "expectedPay", "currentPay", "cv"]) expect(snap.data()).not.toHaveProperty(k);
+  // A1: nobody else's shareable profile either (employers: candidate-search.test.js).
+  it("another candidate's shareable profile", async () => {
+    await assertFails(getDoc(doc(db(C2), "jobProfiles", C1)));
   });
 });
 

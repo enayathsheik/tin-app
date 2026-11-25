@@ -6,6 +6,7 @@ import { contactDocRef } from "./applications";
 import { legacyContactMigration } from "../utils/applications.js";
 import { entitlementForBackfill, loadPricing } from "./pricing";
 import { entitlementId } from "../utils/pricing.js";
+import { searchFields } from "../utils/candidateSearch.js";
 
 const BATCH_MAX = 200; // 2 writes per application → 400 per batch
 
@@ -31,6 +32,23 @@ export async function migrateApplicationContacts() {
     await batch.commit();
   }
   return { scanned: snap.size, moved: work.length };
+}
+
+// A1: fill cityKey / expBand on job profiles saved before Find candidates.
+// Never touches the person's "Let employers find and call me" answer (the
+// rules allow the admin only these two fields). Safe to run more than once.
+export async function backfillSearchFields() {
+  const snap = await getDocs(collection(db, "jobProfiles"));
+  const work = snap.docs
+    .map(d => ({ id: d.id, now: d.data(), want: searchFields(d.data()) }))
+    .filter(x => x.now.cityKey !== x.want.cityKey || x.now.expBand !== x.want.expBand);
+  for (let i = 0; i < work.length; i += 400) {
+    const batch = writeBatch(db);
+    for (const { id, want } of work.slice(i, i + 400)) batch.update(doc(db, "jobProfiles", id), want);
+    await batch.commit();
+  }
+  const said = (v) => snap.docs.filter(d => d.data().openToEmployers === v).length;
+  return { scanned: snap.size, filled: work.length, yes: said(true), no: said(false) };
 }
 
 // L9: record an entitlement (365 days from when it was created) for every

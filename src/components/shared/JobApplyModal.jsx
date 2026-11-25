@@ -7,6 +7,7 @@ import { t } from "../../data/jobsHindi.js";
 import { saveJobProfile, validateCvFile } from "../../lib/jobProfiles";
 import { submitApplication } from "../../lib/applications";
 import { ShortlistNotice } from "../jobs/ShortlistNotice";
+import { SavedEmployerChoice } from "../jobs/EmployerChoice";
 import { TradeTiles } from "../jobs/TradeTiles";
 
 const label = { fontSize: 12, fontWeight: 700, color: "#444", marginBottom: 6 };
@@ -25,6 +26,9 @@ export function JobApplyModal({ user, applyingJob, profile, setProfile, closeApp
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  // A1: ask once after applying if they haven't answered yet (keeps showing
+  // the saved answer until the sheet closes). Applying never depends on it.
+  const [askChoice, setAskChoice] = useState(false);
 
   if (!applyingJob) return null;
   const job = normaliseJob(applyingJob);
@@ -70,6 +74,7 @@ export function JobApplyModal({ user, applyingJob, profile, setProfile, closeApp
       }
       await submitApplication(user, applyingJob, pr, { message, cvChoice: choice, file });
       markApplied(applyingJob.id);
+      setAskChoice(typeof pr.openToEmployers !== "boolean");
       setSent(true);
     } catch (e) {
       console.error("[apply] failed:", e);
@@ -106,6 +111,10 @@ export function JobApplyModal({ user, applyingJob, profile, setProfile, closeApp
         <Link to="/jobs/applications" onClick={close} style={{ padding: "12px 18px", borderRadius: 10, background: "#e85a2a", color: "#fff", fontWeight: 700, textDecoration: "none" }}>{t("myApplications", bi)}</Link>
         <button onClick={close} style={{ padding: "12px 18px", borderRadius: 10, background: "#f5f5f5", border: "1px solid #e0e0e0", fontWeight: 700, cursor: "pointer" }}>{bi ? "ठीक है · Done" : "Done"}</button>
       </div>
+      {askChoice && profile?.exists && (
+        <SavedEmployerChoice uid={user.uid} profile={profile} bi={bi} style={{ marginTop: 16, textAlign: "left" }}
+          onSaved={v => setProfile(p => ({ ...p, openToEmployers: v, openToEmployersSaved: v }))} />
+      )}
       {!profile?.experienceYears && (
         <Link to="/jobs/profile" onClick={close} style={{ display: "inline-block", marginTop: 12, fontSize: 13, color: "#e85a2a", fontWeight: 700 }}>
           {bi ? "प्रोफ़ाइल पूरी करें (बाद में भी कर सकते हैं) · Complete your profile" : "Add more to your profile (optional) →"}

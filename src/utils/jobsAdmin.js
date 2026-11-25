@@ -157,6 +157,7 @@ export function buildSeekers({ profiles, privates, users, applications, contacts
       currentPay: s(q.currentPay) || s(apps.find(a => s(a.currentPay))?.currentPay),
       payHidden: !!expectedPay && q.showPayToEmployers !== true,
       visibility: s(p?.visibility),
+      openToEmployers: typeof p?.openToEmployers === "boolean" ? p.openToEmployers : null,
       snapshot: src,
       created: toDate(p?.createdAt) || toDate(u?.createdAt) || toDate(apps[apps.length - 1]?.createdAt),
       resume: resumeSource(uid, { path: q.cv?.path, fileName: q.cv?.fileName })
