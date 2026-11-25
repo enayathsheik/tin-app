@@ -86,7 +86,7 @@ export function JobDetailPage({ user, isGuest, onRequireLogin, toast }) {
   }
 
   const isOwnListing = !isGuest && job.postedByUid === user?.uid;
-  const alreadyApplied = appliedJobIds.has(job.id);
+  const alreadyApplied = appliedJobIds.get(job.id);
   const isOpen = job.status === "approved" && job.jobStatus === "live";
   const lane = job.isNeededNow ? "needed-now" : job.lane;
   const laneLink = { professional: "/jobs/professional", skilled: "/jobs/skilled", "needed-now": "/jobs/needed-now" }[lane];
@@ -240,7 +240,7 @@ export function JobDetailPage({ user, isGuest, onRequireLogin, toast }) {
             </Link>
           ) : alreadyApplied ? (
             <button disabled style={{ padding: "10px 18px", borderRadius: 8, background: "var(--s2)", border: "1px solid var(--b2)", color: "var(--t3)", fontSize: 13, fontWeight: 700, cursor: "default" }}>
-              ✓ Applied
+              {alreadyApplied === "shortlisted" ? "✓ You're shortlisted" : alreadyApplied === "declined" ? "You said not interested" : "✓ Applied"}
             </button>
           ) : isOpen ? (
             <button onClick={() => openApply(job.raw)} style={{ padding: "10px 18px", borderRadius: 8, background: "#e85a2a", border: "none", color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>

@@ -74,7 +74,7 @@ export function JobApplicantsPage({ job, applications, seekersById, onOpenCandid
           ["Expected pay", r => dash(r.expectedPay)],
           ["Stage", r => r.stageLabel],
           ["Shortlisted", r => (r.isShortlisted ? <Pill kind="open">Yes</Pill> : "No")],
-          ["Applied", r => fmtDate(r.appliedOn)],
+          ["Applied", r => (r.fromSearch ? <>{fmtDate(r.appliedOn)}<div style={{ fontSize: 11, color: "var(--t3)" }}>found in search</div></> : fmtDate(r.appliedOn))],
           ["Resume", r => <ResumeButton resume={r.resume} />],
         ]} />
       )}

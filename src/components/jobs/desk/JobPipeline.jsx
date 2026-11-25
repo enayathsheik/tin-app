@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { BULK_SET } from "../../../data/jobsTaxonomy.js";
-import { currentStage, isContactUnlocked, isFinal, shouldMarkViewed, stageLabel, unlocksContact } from "../../../utils/applications.js";
+import { currentStage, isContactUnlocked, isFinal, isFromSearch, shouldMarkViewed, stageLabel, unlocksContact } from "../../../utils/applications.js";
 import { BOARD_COLUMNS, bulkPlan, defaultNote, groupByColumn, isNew, nextAction } from "../../../utils/employerDesk.js";
 import { bulkMoveApplications } from "../../../lib/employerDesk";
 import { moveApplication } from "../../../lib/applications";
@@ -75,7 +75,7 @@ export function JobPipeline({ job, apps, employer, onAppsChange, onJobPatch = ()
         <button type="button" onClick={() => open(a)} style={{ textAlign: "left", background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "inherit", display: "grid", gap: 2 }}>
           <span style={{ fontSize: 14, fontWeight: 700, color: "var(--t1)" }}>{a.applicantName || "Applicant"}</span>
           {sub(a) && <span style={{ fontSize: 12, color: "var(--t3)" }}>{sub(a)}</span>}
-          <span style={{ fontSize: 11, color: "var(--t3)" }}>{stageLabel(currentStage(a))}{a.interviewResponse?.type === "reschedule_request" && ["int_invited", "int_rescheduled"].includes(currentStage(a)) ? " · asked for another time" : ""}</span>
+          <span style={{ fontSize: 11, color: "var(--t3)" }}>{isFromSearch(a) ? "🔎 Found in search · " : ""}{stageLabel(currentStage(a))}{a.interviewResponse?.type === "reschedule_request" && ["int_invited", "int_rescheduled"].includes(currentStage(a)) ? " · asked for another time" : ""}</span>
         </button>
         {!isFinal(currentStage(a)) && (
           <div style={{ display: "flex", gap: 6 }}>

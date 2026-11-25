@@ -2,7 +2,9 @@
 // saved profile carries them.
 import { readFileSync } from "fs";
 import { describe, expect, it } from "vitest";
-import { EXP_BANDS, LOOKING, cityKey, expBand, isSearchable, searchFields } from "../../src/utils/candidateSearch.js";
+import { EMPTY_CANDIDATE_FILTERS, EXP_BANDS, LOOKING, candidateFilters, candidateSnapshot, cityKey, expBand, isSearchable, searchFields } from "../../src/utils/candidateSearch.js";
+import { EMPLOYER_ROLES, isEmployerAccount } from "../../src/utils/jobRoles.js";
+import { milestoneProgress } from "../../src/utils/applications.js";
 import { VISIBILITY } from "../../src/data/jobsTaxonomy.js";
 import { applicationSnapshot, emptyProfile, profileFromDocs, splitProfile } from "../../src/utils/jobProfile.js";
 
@@ -72,5 +74,55 @@ describe("profiles", () => {
   it("backfill input: a doc with no city or experience gives empty fields", () => {
     expect(searchFields({})).toEqual({ cityKey: "", expBand: "" });
     expect(searchFields({ city: "Bangalore", experienceYears: 0 })).toEqual({ cityKey: "bengaluru", expBand: "0_1" });
+  });
+});
+
+describe("Find candidates filters (A3)", () => {
+  it("always searchable first; only what was chosen", () => {
+    expect(candidateFilters()).toEqual([["searchable", "==", true]]);
+    expect(candidateFilters(EMPTY_CANDIDATE_FILTERS)).toEqual([["searchable", "==", true]]);
+    expect(candidateFilters({ lane: "skilled", trade: "mason", city: "Thane (W)", exp: "5_9", avail: "immediate" })).toEqual([
+      ["searchable", "==", true], ["lane", "==", "skilled"], ["trades", "array-contains", "mason"], ["cityKey", "==", "thane"], ["expBand", "==", "5_9"], ["availability", "==", "immediate"],
+    ]);
+  });
+  it("never two array-contains, and a trade / function only in its own lane", () => {
+    for (const lane of ["", "skilled", "professional"]) {
+      expect(candidateFilters({ lane, trade: "mason", fn: "sales_bd" }).filter(x => x[1] === "array-contains")).toHaveLength(lane ? 1 : 0);
+    }
+  });
+  it("every filter has its index", () => {
+    const idx = JSON.parse(readFileSync("firestore.indexes.json", "utf8")).indexes.filter(x => x.collectionGroup === "jobProfiles").map(x => x.fields.map(f => f.fieldPath).join());
+    expect(idx).toContain("searchable,updatedAt");
+    const used = [...candidateFilters({ lane: "skilled", trade: "x", city: "x", exp: "x", avail: "x" }), ...candidateFilters({ lane: "professional", fn: "x" })].map(x => x[0]).filter(x => x !== "searchable");
+    for (const f of used) expect(idx).toContain(`searchable,${f},updatedAt`);
+  });
+  it("the card shows the same fields as an applicant before shortlist, and nothing else", () => {
+    const p = { ...splitProfile({ ...emptyProfile(), name: "A", phone: "9000000000", email: "a@b.c", lane: "skilled", trades: ["mason"], expectedPay: "₹1", openToEmployers: true }).pub, uid: "x", updatedAt: 1, phone: "9000000000", cv: { path: "p" } };
+    expect(Object.keys(candidateSnapshot(p)).sort()).toEqual(Object.keys(applicationSnapshot({ ...emptyProfile(), lane: "skilled" }).profileSnapshot).sort());
+    expect(candidateSnapshot(null)).toEqual({});
+  });
+});
+
+describe("employer accounts", () => {
+  it("match the rules", () => {
+    for (const role of EMPLOYER_ROLES) expect(isEmployerAccount({ role })).toBe(true);
+    for (const u of [{ role: "consumer", storeId: "s" }, { role: "contributor", jobBusiness: { name: "" } }]) expect(isEmployerAccount(u)).toBe(true);
+    for (const u of [null, {}, { role: "consumer" }, { role: "jobseeker", storeId: null }, { role: "contributor" }]) expect(isEmployerAccount(u)).toBe(false);
+    expect(readFileSync("firestore.rules", "utf8")).toContain(`u.get("role", "") in [${EMPLOYER_ROLES.map(r => `"${r}"`).join(", ")}]`);
+  });
+});
+
+describe("an application made from search", () => {
+  const made = (stage, history) => ({ source: "employer_search", stage, stageHistory: (history || [stage]).map(s => ({ stage: s })) });
+  it("the tracker starts at Shortlisted", () => {
+    const { steps, stopped } = milestoneProgress(made("shortlisted"));
+    expect(steps.map(s => s.label)).toEqual(["Shortlisted", "Interview", "Selected", "Offer"]);
+    expect(steps.map(s => s.reached)).toEqual([true, false, false, false]);
+    expect([steps[0].current, stopped]).toEqual([true, false]);
+    const gone = milestoneProgress(made("withdrawn", ["shortlisted", "withdrawn"]));
+    expect([gone.steps[0].reached, gone.stopped]).toEqual([true, true]);
+  });
+  it("someone who applied keeps all six, also when shortlisted from search", () => {
+    expect(milestoneProgress({ stage: "shortlisted", stageHistory: [{ stage: "submitted" }, { stage: "shortlisted" }] }).steps).toHaveLength(6);
   });
 });

@@ -8,7 +8,7 @@
 //                linked to a store — the same signals as utils/jobRoles.js).
 // One account can be both.
 import { FUNCS, INDUSTRIES, LANES, TRADES, isKey, labelOf } from "../data/jobsTaxonomy.js";
-import { currentStage, isContactUnlocked } from "./applications.js";
+import { currentStage, isContactUnlocked, isFromSearch } from "./applications.js";
 import { vacancyTab, weekRange } from "./employerDesk.js";
 import { normaliseJob } from "./jobModel.js";
 import { isApplyReady, profileFromDocs } from "./jobProfile.js";
@@ -163,7 +163,7 @@ export function buildSeekers({ profiles, privates, users, applications, contacts
       resume: resumeSource(uid, { path: q.cv?.path, fileName: q.cv?.fileName })
         || cs.map(c => contactResume(uid, c)).find(Boolean) || null,
       applications: apps,
-      applied: apps.length,
+      applied: apps.filter(a => !isFromSearch(a)).length, // A2: found in search isn't applying
       shortlisted: apps.filter(isContactUnlocked).length,
     };
   }).sort(newestFirst);
@@ -326,7 +326,7 @@ export function buildActivity({ users, jobRows, applications }, max = 50) {
     ...users.map(u => ({ key: "u_" + u.id, type: "Sign-up", at: toDate(u.createdAt), who: s(u.name) || accountEmail(u) || accountPhone(u) || "(no name)", detail: ROLE_LABEL[u.role] || s(u.role), city: s(u.city) })),
     ...jobRows.map(j => ({ key: "j_" + j.id, type: "Job post", at: j.created, who: j.employer || "(no name)", detail: j.title, city: j.city, jobId: j.id })),
     ...applications.map(a => ({
-      key: "a_" + a.id, type: "Application", at: toDate(a.createdAt), who: s(a.applicantName) || "(no name)",
+      key: "a_" + a.id, type: isFromSearch(a) ? "Search shortlist" : "Application", at: toDate(a.createdAt), who: s(a.applicantName) || "(no name)",
       detail: [jobBy[a.jobId]?.title || s(a.jobSnapshot?.title) || "(job removed)", jobBy[a.jobId]?.employer || s(a.jobSnapshot?.businessName)].filter(Boolean).join(" · "),
       city: s(a.profileSnapshot?.city), jobId: jobBy[a.jobId] ? a.jobId : "", uid: s(a.applicantUid),
     })),
@@ -349,7 +349,7 @@ export function summarise({ users, seekers, employers, businesses = [], jobRows,
     accounts: users.length,
     jobs: jobRows.length,
     jobsByState: Object.fromEntries(JOB_STATES.map(({ key }) => [key, jobRows.filter(j => j.state === key).length])),
-    applications: applications.length,
+    applications: applications.filter(a => !isFromSearch(a)).length,
     shortlists: applications.filter(isContactUnlocked).length,
     signupsToday: accounts.filter(d => d === today).length,
     signupsWeek: accounts.filter(d => d && d >= start && d <= end).length,
@@ -429,6 +429,7 @@ export function applicantRow(app, seeker, contact, stageLabel) {
     stageLabel: stageLabel(currentStage(app)),
     isShortlisted: isContactUnlocked(app),
     appliedOn: toDate(app.createdAt),
+    fromSearch: isFromSearch(app),
   };
 }
 
@@ -464,5 +465,5 @@ export const applicantExport = (job, a, link = "") => ({
   Job: job.title, Employer: job.employer, "Job city": job.city,
   Name: a.name, Mobile: a.phone, Email: a.email, City: a.city, "Role / trade": a.roleText,
   "Experience (years)": a.experienceYears, "Expected pay": a.expectedPay,
-  Stage: a.stageLabel, Shortlisted: a.isShortlisted ? "Yes" : "No", Applied: ymd(a.appliedOn), "Resume link": link,
+  Stage: a.stageLabel, Shortlisted: a.isShortlisted ? "Yes" : "No", Applied: a.fromSearch ? "" : ymd(a.appliedOn), "Found in search": a.fromSearch ? ymd(a.appliedOn) : "", "Resume link": link,
 });

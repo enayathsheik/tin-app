@@ -9,7 +9,7 @@ import { db, storage } from "../firebase/config";
 import { markJobRole } from "./jobRoles";
 import { writeFirstShortlist } from "./shortlist";
 import { applicationContact, applicationSnapshot } from "../utils/jobProfile.js";
-import { isContactUnlocked, stageUpdate } from "../utils/applications.js";
+import { currentStage, isContactUnlocked, isFromSearch, stageUpdate } from "../utils/applications.js";
 import { validateCvFile } from "./jobProfiles";
 
 const safeName = (n) => n.replace(/[^\w.\- ]+/g, "_").slice(-80);
@@ -87,9 +87,11 @@ export async function loadApplicationContact(app) {
   }
 }
 
+// Map of jobId → "applied", or for someone an employer found (A2)
+// "shortlisted", or "declined" once they said they're not interested.
 export async function loadAppliedJobIds(uid) {
   const snap = await getDocs(query(collection(db, "jobApplications"), where("applicantUid", "==", uid)));
-  return new Set(snap.docs.map(d => d.data().jobId));
+  return new Map(snap.docs.map(d => [d.data().jobId, !isFromSearch(d.data()) ? "applied" : currentStage(d.data()) === "withdrawn" ? "declined" : "shortlisted"]));
 }
 
 // The candidate's applications with their jobs (job may be null if it's no

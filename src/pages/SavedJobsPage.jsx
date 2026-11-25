@@ -62,7 +62,7 @@ export function SavedJobsPage({ user, isGuest, onRequireLogin }) {
                   <JobRow job={j}
                     isOwnListing={j.postedByUid === user.uid}
                     closed={!open}
-                    alreadyApplied={appliedJobIds.has(j.id)}
+                    alreadyApplied={appliedJobIds.get(j.id)}
                     onApply={openApply} />
                 </div>
               );

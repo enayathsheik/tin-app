@@ -14,6 +14,10 @@ export function currentStage(app) {
 
 export const isFinal = (stage) => FINAL.includes(stage);
 
+// A2: the employer found them in Find candidates and shortlisted them — they
+// didn't apply. Set only by the shortlistCandidate function.
+export const isFromSearch = (app) => app?.source === "employer_search";
+
 // L8: phone, email and CV are visible to the employer once the application
 // has reached Shortlisted or later (contactUnlockedAt, set once and never
 // cleared — a later rejection or closing doesn't re-lock it). Applications
@@ -40,6 +44,12 @@ export function milestoneProgress(app) {
     current: i === currentIdx,
   }));
   if (!steps[0].reached) steps[0].reached = true; // every application was submitted
+  // Found in search: nothing was submitted or viewed, it starts at Shortlisted.
+  if (isFromSearch(app)) {
+    const from = steps.slice(order.findIndex(ks => ks.includes("shortlisted")));
+    from[0].reached = true;
+    return { steps: from, stopped: isFinal(stage) && stage !== "offer_accepted", stage };
+  }
   return { steps, stopped: isFinal(stage) && stage !== "offer_accepted", stage };
 }
 

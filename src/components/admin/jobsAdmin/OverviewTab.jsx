@@ -23,7 +23,7 @@ export function OverviewTab({ approvals, activity, onChanged, onOpenJob, onOpenC
       <DataTable rows={activity} rowKey={r => r.key} empty="Nothing yet." minWidth={720} columns={[
         ["When", r => <span style={{ whiteSpace: "nowrap" }}>{fmtTime(r.at)}</span>],
         ["What", r => <Pill kind={r.type}>{r.type}</Pill>],
-        ["Who", r => (r.type === "Application" && seekersById[r.uid] ? <button type="button" style={linkBtn} onClick={() => onOpenCandidate(r.uid)}>{r.who}</button> : r.who)],
+        ["Who", r => (r.uid && seekersById[r.uid] ? <button type="button" style={linkBtn} onClick={() => onOpenCandidate(r.uid)}>{r.who}</button> : r.who)],
         ["Detail", r => (r.jobId ? <button type="button" style={{ ...linkBtn, fontWeight: 400 }} onClick={() => onOpenJob(r.jobId)}>{r.detail}</button> : dash(r.detail))],
         ["City", r => dash(r.city)],
       ]} />

@@ -7,7 +7,7 @@ import { loadJobProfile } from "../lib/jobProfiles";
 // one tap when the profile has the basics, otherwise a short form that also
 // fills the profile (Phase 4, docs/JOBS_BLUEPRINT.md §4).
 export function useJobApply(user, isGuest, onRequireLogin) {
-  const [appliedJobIds, setAppliedJobIds] = useState(new Set());
+  const [appliedJobIds, setAppliedJobIds] = useState(new Map()); // jobId → "applied" | "shortlisted" | "declined"
   const [applyingJob, setApplyingJob] = useState(null);
   const [profile, setProfile] = useState(null); // null = not loaded yet
 
@@ -35,7 +35,7 @@ export function useJobApply(user, isGuest, onRequireLogin) {
   };
 
   const closeApply = () => setApplyingJob(null);
-  const markApplied = (jobId) => setAppliedJobIds(ids => new Set(ids).add(jobId));
+  const markApplied = (jobId) => setAppliedJobIds(ids => new Map(ids).set(jobId, "applied"));
 
   return { user, appliedJobIds, applyingJob, profile, setProfile, openApply, closeApply, markApplied };
 }

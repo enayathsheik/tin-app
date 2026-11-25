@@ -110,7 +110,7 @@ export function JobsLanePage({ slug, user, isGuest, onRequireLogin }) {
               {filtered.map(j => (
                 <JobRow key={j.id} job={j}
                   isOwnListing={!isGuest && j.postedByUid === user?.uid}
-                  alreadyApplied={appliedJobIds.has(j.id)}
+                  alreadyApplied={appliedJobIds.get(j.id)}
                   onApply={openApply} />
               ))}
             </div>

@@ -14,6 +14,11 @@ export function floatingButtonsFor(user, roles) {
   return { search: true, post: true };
 }
 
+// Who may use Find candidates — mirrors isEmployerAccount() on jobProfiles in
+// firestore.rules.
+export const EMPLOYER_ROLES = ["retailer", "contractor", "architect", "manufacturer", "employer"];
+export const isEmployerAccount = (user) => EMPLOYER_ROLES.includes(user?.role) || user?.storeId != null || user?.jobBusiness != null;
+
 // Signals available without a read.
 export const isEmployerByAccount = (user) => !!user?.storeId || user?.role === "retailer";
 

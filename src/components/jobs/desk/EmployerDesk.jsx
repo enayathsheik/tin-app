@@ -10,6 +10,8 @@ import { loadApplicants } from "../../../lib/applications";
 import { btnPrimary, card, heading } from "../jobsStyle";
 import { JobPipeline } from "./JobPipeline";
 import { CloseVacancySheet } from "./CloseVacancySheet";
+import { FindCandidates } from "./FindCandidates";
+import { currentStage, isContactUnlocked, isFinal } from "../../../utils/applications.js";
 
 const small = { minHeight: 40, padding: "0 12px", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", textDecoration: "none", display: "inline-flex", alignItems: "center", fontFamily: "inherit" };
 const outline = { ...small, background: "transparent", border: "1px solid var(--b3)", color: "var(--t1)" };
@@ -74,7 +76,9 @@ export function EmployerDesk({ user }) {
     return () => { cancelled = true; };
   }, [needsApps]);
 
-  const select = (id) => { const p = new URLSearchParams(params); if (id) p.set("job", id); else p.delete("job"); setParams(p); };
+  const select = (id) => { const p = new URLSearchParams(params); p.delete("find"); if (id) p.set("job", id); else p.delete("job"); setParams(p); };
+  const finding = params.get("find") === "1"; // A3
+  const setFinding = (on) => { const p = new URLSearchParams(params); p.delete("job"); if (on) p.set("find", "1"); else p.delete("find"); setParams(p); };
   const shortlistLimit = useShortlistLimit(); // L10
   const patchJob = (id, data) => setJobs(js => js.map(j => (j.id === id ? { ...j, ...data } : j)));
   const changeStatus = async (job, jobStatus) => {
@@ -117,6 +121,23 @@ export function EmployerDesk({ user }) {
       }} />
   );
 
+  // ── Find candidates (A3) ──
+  if (finding) {
+    const unlockedFor = {};
+    for (const j of jobs) {
+      for (const a of appsByJob[j.id] || []) {
+        if (isContactUnlocked(a) && !isFinal(currentStage(a))) (unlockedFor[a.applicantUid] ||= []).push(normaliseJob(j).title);
+      }
+    }
+    return (
+      <FindCandidates user={user} jobs={jobs} unlockedFor={unlockedFor} onBack={() => setFinding(false)} onOpenJob={select}
+        onShortlisted={(jobId, r) => {
+          if (r.used) patchJob(jobId, { shortlistCount: r.used });
+          loadApps([{ id: jobId }]);
+        }} />
+    );
+  }
+
   // ── One job: its applicants ──
   if (selected) {
     const nj = normaliseJob(selected);
@@ -152,7 +173,10 @@ export function EmployerDesk({ user }) {
           <h1 style={{ ...heading, fontSize: 26, margin: 0 }}>Employer Desk</h1>
           <div style={{ fontSize: 13, color: "var(--t3)" }}>Your jobs and applicants in one place</div>
         </div>
-        <Link to="/jobs/post" style={{ ...btnPrimary, minHeight: 40, display: "inline-flex", alignItems: "center", textDecoration: "none", fontSize: 13 }}>+ Post a job</Link>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button type="button" onClick={() => setFinding(true)} style={outline}>🔎 Find candidates</button>
+          <Link to="/jobs/post" style={{ ...btnPrimary, minHeight: 40, display: "inline-flex", alignItems: "center", textDecoration: "none", fontSize: 13 }}>+ Post a job</Link>
+        </div>
       </div>
 
       <div className="desk-kpis" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8, marginBottom: 14 }}>

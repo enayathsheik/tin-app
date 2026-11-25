@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { loadMyApplications, moveApplication, requestReschedule } from "../lib/applications";
 import { messageAboutApplication } from "../lib/jobMessages";
-import { candidateActions, currentStage, nextStep, stageLabel, stageText } from "../utils/applications.js";
+import { candidateActions, currentStage, isFromSearch, nextStep, stageLabel, stageText } from "../utils/applications.js";
 import { normaliseJob } from "../utils/jobModel.js";
 import { HI } from "../data/jobsHindi.js";
 import { JobsStyles } from "../components/jobs/jobsUi";
@@ -31,6 +31,8 @@ function ApplicationItem({ app: initial, uid }) {
   const title = job?.title || app.jobSnapshot?.title || "Job";
   const biz = job?.businessName || app.jobSnapshot?.businessName || "";
   const next = nextStep(stage);
+  const found = isFromSearch(app); // A2: the employer found them, they didn't apply
+  const withdrawText = found ? (bi ? "रुचि नहीं है · Not interested" : "Not interested") : bil("withdraw", bi);
   const contactLater = stage === "info_req" || stage === "assess_req";
 
   const run = async (fn) => {
@@ -62,7 +64,13 @@ function ApplicationItem({ app: initial, uid }) {
         <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
           <div>
             <div style={{ fontWeight: 700, fontSize: 15, color: "var(--t1)" }}>{title}</div>
-            <div style={{ fontSize: 12, color: "var(--t3)" }}>{biz}{app.createdAt ? ` · applied ${fmt(app.createdAt)}` : ""}</div>
+            <div style={{ fontSize: 12, color: "var(--t3)" }}>{biz}{app.createdAt ? ` · ${found ? "shortlisted" : "applied"} ${fmt(app.createdAt)}` : ""}</div>
+            {found && (
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#15803d", marginTop: 4 }}>
+                {bi && <span lang="hi" style={{ display: "block" }}>📞 {biz || "एक नौकरी देने वाले"} ने आपको “{title}” के लिए शॉर्टलिस्ट किया है।</span>}
+                {bi ? "" : "📞 "}An employer shortlisted you for “{title}”.
+              </div>
+            )}
           </div>
           <StagePill stage={stage} />
         </div>
@@ -73,6 +81,12 @@ function ApplicationItem({ app: initial, uid }) {
       {open && (
         <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ fontSize: 13, color: "var(--t2)" }}>{stageText(stage)}</div>
+          {found && acts.withdraw && (
+            <div style={{ fontSize: 12, color: "var(--t2)", background: "var(--s2)", borderRadius: 8, padding: 8 }}>
+              {bi && <span lang="hi" style={{ display: "block" }}>इस नौकरी देने वाले ने आपकी प्रोफ़ाइल ढूँढी। वह आपका फ़ोन नंबर, ईमेल और CV देख सकता है।</span>}
+              This employer found your profile and can see your phone number, email and CV. <Link to="/jobs/profile" style={{ color: "var(--acc)", fontWeight: 700 }}>{bi ? "बदलें · Change who can find you" : "Change who can find you"}</Link>
+            </div>
+          )}
           {contactLater && <div style={{ fontSize: 13, color: "var(--t2)", background: "var(--s2)", borderRadius: 8, padding: 8 }}>The employer's request is in Messages. Reply there.</div>}
           {canMessage && (
             <button type="button" disabled={busy} onClick={messageEmployer} style={{ ...big, background: contactLater ? "#e85a2a" : "transparent", color: contactLater ? "#fff" : "var(--t1)", border: contactLater ? "none" : "1px solid var(--b3)", alignSelf: "flex-start" }}>
@@ -126,14 +140,16 @@ function ApplicationItem({ app: initial, uid }) {
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
             {job && <Link to={`/jobs/${app.jobId}`} style={{ fontSize: 13, fontWeight: 700, color: "var(--acc)", textDecoration: "none" }}>View job →</Link>}
             {acts.withdraw && !confirmWithdraw && (
-              <button onClick={() => setConfirmWithdraw(true)} style={{ background: "none", border: "none", color: "var(--t3)", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>{bil("withdraw", bi)}</button>
+              <button onClick={() => setConfirmWithdraw(true)} style={{ background: "none", border: "none", color: "var(--t3)", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>{withdrawText}</button>
             )}
           </div>
           {confirmWithdraw && acts.withdraw && (
             <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 10, padding: 10, fontSize: 13 }}>
-              {bi ? "पक्का? इसके बाद यह आवेदन बंद हो जाएगा। · " : ""}Withdraw this application? The employer will no longer be able to open your CV.
+              {found
+                ? <>{bi ? "पक्का? नौकरी देने वाला अब आपका CV नहीं खोल पाएगा, पर आपका नंबर वह देख चुका हो सकता है। · " : ""}Tell the employer you’re not interested? They will no longer be able to open your CV, but may already have seen your phone number.</>
+                : <>{bi ? "पक्का? इसके बाद यह आवेदन बंद हो जाएगा। · " : ""}Withdraw this application? The employer will no longer be able to open your CV.</>}
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                <button disabled={busy} onClick={() => move("withdrawn").then(() => setConfirmWithdraw(false))} style={{ ...big, background: "#b45309", color: "#fff", border: "none" }}>{bi ? "हाँ, वापस लें · Yes, withdraw" : "Yes, withdraw"}</button>
+                <button disabled={busy} onClick={() => move("withdrawn").then(() => setConfirmWithdraw(false))} style={{ ...big, background: "#b45309", color: "#fff", border: "none" }}>{found ? (bi ? "हाँ, रुचि नहीं है · Yes, not interested" : "Yes, not interested") : bi ? "हाँ, वापस लें · Yes, withdraw" : "Yes, withdraw"}</button>
                 <button onClick={() => setConfirmWithdraw(false)} style={{ ...big, background: "transparent", border: "1px solid var(--b3)", color: "var(--t1)" }}>{bi ? "नहीं · No" : "Keep it"}</button>
               </div>
             </div>

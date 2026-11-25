@@ -65,7 +65,7 @@ export function CandidatePage({ seeker, jobsById, onOpenJob }) {
           : <>{dash(r.app.jobSnapshot?.title)} <span style={{ color: "var(--t3)" }}>(job removed)</span></>)],
         ["Employer", r => dash(r.job?.employer || r.app.jobSnapshot?.businessName)],
         ["City", r => dash(r.job?.city || r.app.jobSnapshot?.city)],
-        ["Applied", r => fmtDate(r.appliedOn)],
+        ["Applied", r => (r.fromSearch ? <>{fmtDate(r.appliedOn)}<div style={{ fontSize: 11, color: "var(--t3)" }}>found in search</div></> : fmtDate(r.appliedOn))],
         ["Stage", r => r.stageLabel],
         ["Shortlisted", r => (r.isShortlisted ? <Pill kind="open">Yes</Pill> : "No")],
         ["Resume sent", r => (r.app.hasCv && !loaded ? "…" : <ResumeButton resume={r.resume} />)],

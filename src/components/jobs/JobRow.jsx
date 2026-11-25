@@ -48,7 +48,7 @@ export function JobRow({ job, isOwnListing, alreadyApplied, onApply, closed = fa
         ) : isOwnListing ? (
           <button disabled style={btnMuted}>Your listing</button>
         ) : alreadyApplied ? (
-          <button disabled style={btnMuted}>✓ Applied</button>
+          <button disabled style={btnMuted}>{alreadyApplied === "shortlisted" ? "✓ Shortlisted" : alreadyApplied === "declined" ? "Not interested" : "✓ Applied"}</button>
         ) : (
           <button onClick={() => onApply(job.raw)} style={btnPrimary}>Apply</button>
         )}

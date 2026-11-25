@@ -83,3 +83,26 @@ export function cityKey(raw) {
 
 // The fields to store, from the shareable profile doc.
 export const searchFields = (pub) => ({ cityKey: cityKey(pub?.city), expBand: expBand(pub?.experienceYears) });
+
+// ── Find candidates (A3) ─────────────────────────────────────
+export const EMPTY_CANDIDATE_FILTERS = { lane: "", trade: "", fn: "", city: "", exp: "", avail: "" };
+
+// Filters → Firestore conditions [field, op, value]. `searchable` is always
+// there: the rules refuse any wider list. A query can hold one array-contains:
+// a trade (skilled) or a function (professional), never both.
+export function candidateFilters(f = {}) {
+  const out = [["searchable", "==", true]];
+  if (f.lane) out.push(["lane", "==", f.lane]);
+  if (f.trade && f.lane === "skilled") out.push(["trades", "array-contains", f.trade]);
+  if (f.fn && f.lane === "professional") out.push(["functions", "array-contains", f.fn]);
+  const city = cityKey(f.city);
+  if (city) out.push(["cityKey", "==", city]);
+  if (f.exp) out.push(["expBand", "==", f.exp]);
+  if (f.avail) out.push(["availability", "==", f.avail]);
+  return out;
+}
+
+// What an employer sees of a person on search: the same card as an applicant
+// before shortlist (applicationSnapshot), from the shareable profile only.
+const SNAPSHOT_KEYS = ["lane", "role", "trades", "functions", "experienceYears", "education", "educationText", "skills", "history", "projects", "city", "areas", "languages", "availability"];
+export const candidateSnapshot = (p) => Object.fromEntries(SNAPSHOT_KEYS.filter(k => p?.[k] !== undefined).map(k => [k, p[k]]));

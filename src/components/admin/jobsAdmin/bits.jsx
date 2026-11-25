@@ -13,7 +13,7 @@ const STATE_STYLE = {
   Verified: ["#15803d", "#f0fdf4"], "Store verified": ["#15803d", "#f0fdf4"], "Not verified": ["#6b7280", "#f3f4f6"],
   approved: ["#15803d", "#f0fdf4"], none: ["#6b7280", "#f3f4f6"],
   Complete: ["#15803d", "#f0fdf4"], Incomplete: ["#b45309", "#fffbeb"], "No profile": ["#6b7280", "#f3f4f6"],
-  "Sign-up": ["#1d4ed8", "#eff6ff"], "Job post": ["#c2410c", "#fff3ef"], Application: ["#15803d", "#f0fdf4"],
+  "Sign-up": ["#1d4ed8", "#eff6ff"], "Job post": ["#c2410c", "#fff3ef"], Application: ["#15803d", "#f0fdf4"], "Search shortlist": ["#7c3aed", "#f5f3ff"],
 };
 export function Pill({ kind, children }) {
   const [color, background] = STATE_STYLE[kind] || STATE_STYLE.closed;

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  INTERVIEW_MODES, cleanInterview, currentStage, interviewComplete, isContactUnlocked, isFinal, stageLabel,
+  INTERVIEW_MODES, cleanInterview, currentStage, interviewComplete, isContactUnlocked, isFinal, isFromSearch, stageLabel,
 } from "../../../utils/applications.js";
 import { defaultNote, moveOptions, nextAction } from "../../../utils/employerDesk.js";
 import { loadApplicationContact, moveApplication, openApplicationCv } from "../../../lib/applications";
@@ -97,7 +97,7 @@ export function ApplicantDetail({ app, job, employer, onChange, startWith = null
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 18, fontWeight: 800, color: "var(--t1)" }}>{app.applicantName || "Applicant"}</div>
           <div style={{ fontSize: 12, color: "var(--t3)" }}>
-            {[app.profileSnapshot?.role, app.profileSnapshot?.city, app.createdAt ? `applied ${fmtDate(app.createdAt)}` : ""].filter(Boolean).join(" · ")}
+            {[app.profileSnapshot?.role, app.profileSnapshot?.city, app.createdAt ? `${isFromSearch(app) ? "found in search" : "applied"} ${fmtDate(app.createdAt)}` : ""].filter(Boolean).join(" · ")}
           </div>
         </div>
         <StagePill stage={stage} />
@@ -115,7 +115,7 @@ export function ApplicantDetail({ app, job, employer, onChange, startWith = null
             {contact?.applicantPhone && <span>{contact.applicantPhone}</span>}
             {contact?.applicantEmail && <a href={`mailto:${contact.applicantEmail}`} style={{ color: "var(--t1)" }}>{contact.applicantEmail}</a>}
           </div>
-          <div style={{ fontSize: 11, color: "var(--t3)", marginTop: 2 }}>Phone, email and CV are shown because you shortlisted this applicant.</div>
+          <div style={{ fontSize: 11, color: "var(--t3)", marginTop: 2 }}>Phone, email and CV are shown because you shortlisted this {isFromSearch(app) ? "person" : "applicant"}.</div>
         </>
       ) : (
         <div style={{ fontSize: 13, color: "var(--t2)", background: "var(--s2)", borderRadius: 8, padding: "8px 10px", marginTop: 8 }}>
